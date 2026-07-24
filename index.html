@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Raguife — Acesso</title>
+<meta name="theme-color" content="#024f2b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde:#024f2b; --verde-escuro:#013a20; --folha:#739630; --folha-suave:#e9f0dc;
+    --cinza:#666666; --bg:#f4f6f1; --branco:#ffffff; --linha:#e2e6dc;
+    --amber:#d99a2b; --erro:#c0392b; --ok:#3d7a26; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:#22301f;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;}
+  h1,h2,h3{font-family:'Poppins',sans-serif;margin:0;}
+  button{font-family:inherit;}
+  a{color:var(--verde);}
+
+  /* LOGIN */
+  #login-screen{position:fixed;inset:0;display:flex;z-index:50;background:var(--bg);}
+  .login-brand{flex:1;background:linear-gradient(160deg,var(--verde) 0%,var(--verde-escuro) 100%);color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:40px;text-align:center;}
+  .login-brand .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:52px;letter-spacing:-0.02em;margin-top:18px;}
+  .login-brand .tagline{letter-spacing:.35em;font-size:12px;color:#bcd9a6;margin-top:10px;text-transform:uppercase;}
+  .login-form-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:30px;overflow-y:auto;}
+  .login-card{width:100%;max-width:390px;}
+  .login-card h2{font-size:24px;color:var(--verde);margin-bottom:4px;}
+  .login-card .sub{color:var(--cinza);margin-bottom:26px;font-size:13.5px;}
+  .login-err{color:var(--erro);font-size:13px;font-weight:600;min-height:18px;margin-top:10px;}
+  .forgot{font-size:12.5px;margin-top:14px;display:inline-block;cursor:pointer;text-decoration:underline;background:none;border:none;color:var(--verde);padding:0;}
+  #bootstrap-card{display:none;margin-top:26px;border-top:1px dashed var(--linha);padding-top:22px;}
+  @media(max-width:760px){
+    #login-screen{flex-direction:column;}
+    .login-brand{flex:none;padding:36px 20px;}
+    .login-brand .wordmark{font-size:36px;}
+  }
+
+  /* APP SHELL */
+  #app{display:none;}
+  .topbar{background:var(--verde);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 20px;position:sticky;top:0;z-index:30;}
+  .topbar .brandline{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+  .topbar .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:20px;letter-spacing:-0.02em;}
+  .topbar .app-sub{font-size:11px;color:#a9c98f;display:block;margin-top:-3px;}
+  .userchip{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+  .userchip .uname{font-weight:600;}
+  .userchip .urole{color:#a9c98f;font-size:11px;display:block;}
+  .btn-top{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn-top:hover{background:rgba(255,255,255,.22);}
+
+  .layout{display:flex;min-height:calc(100vh - 58px);}
+  nav.side{width:225px;background:var(--branco);border-right:1px solid var(--linha);padding:18px 12px;flex:none;}
+  nav.side .navlbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--cinza);font-weight:700;margin:14px 10px 6px;}
+  .navbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:500;color:#3c4a38;cursor:pointer;margin-bottom:2px;}
+  .navbtn:hover{background:var(--folha-suave);}
+  .navbtn.active{background:var(--verde);color:#fff;font-weight:600;}
+  .navbtn .ic{width:20px;text-align:center;flex:none;}
+  main{flex:1;padding:26px 26px 80px;min-width:0;}
+  .page{display:none;max-width:1100px;margin:0 auto;}
+  .page.active{display:block;animation:fade .22s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .page-title{font-size:22px;color:var(--verde);margin-bottom:2px;}
+  .page-desc{color:var(--cinza);font-size:13px;margin-bottom:20px;}
+
+  @media(max-width:880px){
+    .layout{flex-direction:column;}
+    nav.side{width:100%;display:flex;overflow-x:auto;padding:8px 10px;gap:4px;border-right:none;border-bottom:1px solid var(--linha);}
+    nav.side .navlbl{display:none;}
+    .navbtn{width:auto;white-space:nowrap;padding:9px 13px;}
+    main{padding:18px 14px 70px;}
+    .topbar .app-sub{display:none;}
+  }
+
+  /* COMPONENTS */
+  .panel{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
+  .panel h2{font-size:16px;color:var(--verde);margin-bottom:3px;}
+  .panel .desc{color:var(--cinza);font-size:12.5px;margin-bottom:16px;}
+  .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px;margin-bottom:20px;}
+  .kpi{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:16px;position:relative;}
+  .kpi .eyebrow{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--cinza);font-weight:700;margin-bottom:7px;}
+  .kpi .val{font-family:'Poppins',sans-serif;font-size:26px;font-weight:700;color:#1d2b1a;letter-spacing:-0.02em;}
+  .kpi .meta{font-size:11.5px;color:var(--cinza);margin-top:3px;}
+  .kpi .bar{margin-top:11px;height:6px;border-radius:4px;background:#edf0e6;overflow:hidden;}
+  .kpi .bar span{display:block;height:100%;border-radius:4px;}
+  .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.02em;display:inline-block;}
+  .pill.abs{position:absolute;top:14px;right:14px;}
+  .p-ok{background:#e5f1db;color:var(--ok);}
+  .p-bad{background:#f7e3df;color:var(--erro);}
+  .p-warn{background:#f9efd9;color:#996c14;}
+  .p-neutral{background:#eef0ea;color:var(--cinza);}
+
+  label{display:block;font-size:12px;font-weight:600;color:#40503b;margin-bottom:5px;}
+  input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--linha);border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;background:#fbfcf9;color:#22301f;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--folha);outline-offset:1px;border-color:var(--folha);}
+  input:disabled{background:#eef0ea;color:#5a684f;}
+  textarea{resize:vertical;min-height:60px;}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;}
+  .btn{font-family:'Poppins',sans-serif;font-weight:600;font-size:13.5px;border:none;border-radius:10px;padding:11px 20px;cursor:pointer;transition:transform .1s;}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.6;cursor:wait;}
+  .btn-primary{background:var(--verde);color:#fff;}
+  .btn-primary:hover{background:var(--verde-escuro);}
+  .btn-leaf{background:var(--folha);color:#fff;}
+  .btn-leaf:hover{background:#647f2b;}
+  .btn-ghost{background:transparent;color:var(--verde);border:1px solid var(--linha);}
+  .btn-ghost:hover{background:var(--folha-suave);}
+  .btn-mini{padding:5px 10px;font-size:11px;border-radius:7px;}
+  .btn-danger{background:transparent;color:var(--erro);border:1px solid #ecd3cf;}
+  .btn-row{margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--cinza);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--linha);}
+  td{padding:9px 10px;border-bottom:1px solid #eef0e8;}
+  tr:last-child td{border-bottom:none;}
+  td.num{font-variant-numeric:tabular-nums;font-weight:500;}
+  .table-wrap{overflow-x:auto;margin-top:6px;}
+  .empty{color:var(--cinza);font-size:13px;padding:22px 0;text-align:center;}
+
+  .quesito{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eef0e8;gap:14px;flex-wrap:wrap;}
+  .quesito:last-child{border-bottom:none;}
+  .quesito .q-label{font-size:13.5px;flex:1;min-width:180px;}
+  .scale{display:flex;gap:6px;}
+  .scale button{width:36px;height:36px;border-radius:10px;border:1px solid var(--linha);background:#fbfcf9;font-weight:600;font-size:13.5px;color:var(--cinza);cursor:pointer;}
+  .scale button.sel{background:var(--folha);color:#fff;border-color:var(--folha);}
+  .scale button.sel.low{background:var(--erro);border-color:var(--erro);}
+  .scale button.sel.mid{background:var(--amber);border-color:var(--amber);}
+
+  .prog{background:var(--folha-suave);border:1px solid #d5e1bd;border-radius:11px;padding:12px 15px;margin-bottom:16px;font-size:13.5px;}
+  .prog b{color:var(--verde);}
+  .prog .prog-bar{height:8px;border-radius:5px;background:#fff;overflow:hidden;margin-top:8px;}
+  .prog .prog-bar span{display:block;height:100%;background:var(--folha);border-radius:5px;transition:width .3s;}
+
+  @media(max-width:560px){
+    .quesito{flex-direction:column;align-items:stretch;gap:8px;padding:14px 0;}
+    .quesito .q-label{min-width:0;font-weight:600;}
+    .scale{width:100%;}
+    .scale button{flex:1;width:auto;height:48px;font-size:16px;border-radius:12px;}
+    #page-check-adm .btn-primary, #page-check-hig .btn-primary{width:100%;padding:15px;font-size:15px;}
+    .panel{padding:16px;}
+  }
+
+  .budget-bar{height:14px;border-radius:8px;background:#edf0e6;overflow:hidden;margin:10px 0 6px;}
+  .budget-bar span{display:block;height:100%;border-radius:8px;transition:width .4s ease;}
+  .budget-line{display:flex;justify-content:space-between;font-size:12px;color:var(--cinza);flex-wrap:wrap;gap:6px;}
+
+  .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:13px 15px;}
+  .filter-bar .fld{min-width:140px;}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;}
+  .presets .btn{padding:8px 12px;font-size:11.5px;}
+
+  .link-box{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .link-box input{flex:1;min-width:200px;font-size:12px;}
+  .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
+  .note code{background:#fff;border-radius:4px;padding:1px 5px;}
+
+  /* KIOSK */
+  #kiosk-screen{display:none;position:fixed;inset:0;background:linear-gradient(165deg,var(--verde) 0%,var(--verde-escuro) 100%);color:#fff;overflow-y:auto;z-index:60;}
+  .kiosk-inner{max-width:620px;margin:0 auto;padding:44px 20px 60px;}
+  .kiosk-head{text-align:center;margin-bottom:26px;}
+  .kiosk-head .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:26px;}
+  .kiosk-head h1{font-size:26px;margin-top:18px;}
+  .kiosk-head .sub{color:#bcd9a6;font-size:13.5px;margin-top:6px;}
+  .qblock{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:18px;margin-bottom:13px;}
+  .qblock .qtitle{font-family:'Poppins',sans-serif;font-weight:600;font-size:15.5px;margin-bottom:13px;}
+  .emoji-scale{display:flex;gap:8px;}
+  .emoji-scale button{flex:1;border-radius:13px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.05);color:#fff;cursor:pointer;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .1s;}
+  .emoji-scale button:active{transform:scale(.94);}
+  .emoji-scale .em{font-size:26px;line-height:1;}
+  .emoji-scale .n{font-size:11px;color:#bcd9a6;font-weight:600;}
+  .emoji-scale button.sel{background:var(--folha);border-color:var(--folha);}
+  .emoji-scale button.sel .n{color:#fff;}
+  .kiosk-send{width:100%;background:var(--folha);color:#fff;font-family:'Poppins',sans-serif;font-weight:700;font-size:17px;border:none;border-radius:15px;padding:17px;margin-top:12px;cursor:pointer;}
+  .kiosk-send:hover{background:#85ad3a;}
+  .kiosk-thanks{text-align:center;padding:80px 0;font-size:22px;font-family:'Poppins',sans-serif;font-weight:600;}
+  .kiosk-off{text-align:center;padding:50px 0;color:#bcd9a6;font-size:15px;line-height:2;}
+
+  /* MODAL / TOAST */
+  #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
+  #modal-bg.open{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;}
+  .modal h3{font-size:17px;color:var(--verde);margin-bottom:14px;}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--verde);color:#fff;padding:12px 22px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:90;opacity:0;transition:all .3s ease;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:90vw;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.err{background:var(--erro);}
+
+  /* RELATÓRIO PDF */
+  #print-area{display:none;}
+  @media print{
+    body > *{display:none !important;}
+    body #print-area{display:block !important;}
+    body{background:#fff;}
+  }
+  #print-area{font-family:'Inter',sans-serif;color:#22301f;padding:24px;}
+  #print-area .rp-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--verde);padding-bottom:14px;margin-bottom:6px;}
+  #print-area .rp-head h1{font-size:20px;color:var(--verde);}
+  #print-area .rp-head .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:22px;color:var(--verde);}
+  #print-area .rp-sub{color:var(--cinza);font-size:12px;margin-bottom:18px;}
+  #print-area .rp-cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+  #print-area .rp-card{border:1px solid var(--linha);border-radius:10px;padding:10px 14px;min-width:130px;}
+  #print-area .rp-card .t{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--cinza);font-weight:700;}
+  #print-area .rp-card .v{font-family:'Poppins',sans-serif;font-size:17px;font-weight:700;margin-top:2px;}
+  #print-area table{width:100%;border-collapse:collapse;font-size:10.5px;}
+  #print-area th{background:var(--verde);color:#fff;padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.04em;}
+  #print-area td{padding:6px 8px;border-bottom:1px solid #e5e8e0;}
+  #print-area tr:nth-child(even) td{background:#f6f8f3;}
+  #print-area .rp-foot{margin-top:22px;font-size:10px;color:var(--cinza);border-top:1px solid var(--linha);padding-top:10px;display:flex;justify-content:space-between;}
+  /* ===== PORTAL ===== */
+  .hub-wrap{max-width:940px;margin:0 auto;padding:44px 22px 80px;}
+  .hub-hi{font-family:'Poppins',sans-serif;font-size:26px;color:var(--verde);margin-bottom:4px;}
+  .hub-sub{color:var(--cinza);font-size:14px;margin-bottom:28px;}
+  .hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:34px;}
+  .hub-card{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:24px;text-decoration:none;color:inherit;display:block;transition:.15s;}
+  .hub-card:hover{border-color:var(--folha);transform:translateY(-2px);box-shadow:0 8px 22px rgba(2,79,43,.08);}
+  .hub-card .hic{font-size:28px;display:block;margin-bottom:12px;}
+  .hub-card h3{font-size:17px;color:var(--verde);margin-bottom:5px;}
+  .hub-card p{margin:0;font-size:13px;color:var(--cinza);line-height:1.45;}
+  .hub-empty{background:var(--branco);border:1px dashed var(--linha);border-radius:var(--radius);padding:38px;text-align:center;color:var(--cinza);}
+  .permgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:6px;}
+  .permchk{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--linha);border-radius:11px;padding:11px 13px;background:#fbfcfa;cursor:pointer;}
+  .permchk:hover{border-color:var(--folha);}
+  .permchk input{margin:2px 0 0;width:16px;height:16px;accent-color:var(--verde);flex:none;}
+  .permchk b{display:block;font-size:13px;}
+  .permchk span span{font-size:11.5px;color:var(--cinza);line-height:1.35;}
+  .permchk.on{background:var(--folha-suave);border-color:var(--folha);}
+  .modtag{background:var(--folha-suave);color:var(--verde);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;margin-right:4px;display:inline-block;}
+  .modtag.adm{background:var(--verde);color:#fff;}
+
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen">
+  <div class="login-brand">
+    <div id="logo-big"></div>
+    <div class="wordmark">raguife</div>
+    <div class="tagline">confiança que inspira</div>
+  </div>
+  <div class="login-form-wrap">
+    <div class="login-card">
+      <h2>Entrar</h2>
+      <div class="sub">Um login só, para os painéis liberados para você.</div>
+      <label>E-mail</label>
+      <input type="email" id="lg-user" autocomplete="username" style="margin-bottom:13px" onkeydown="if(event.key==='Enter')doLogin()">
+      <label>Senha</label>
+      <input type="password" id="lg-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <div class="login-err" id="lg-err"></div>
+      <button class="btn btn-primary" id="lg-btn" style="width:100%;padding:13px" onclick="doLogin()">Entrar</button>
+      <button class="forgot" onclick="esqueciSenha()">Esqueci minha senha</button>
+
+      <div id="bootstrap-card">
+        <h2 style="font-size:17px">Primeiro acesso</h2>
+        <div class="sub" style="margin-bottom:16px">Nenhum administrador cadastrado ainda. Crie o primeiro — ele cadastra o restante da equipe.</div>
+        <label>Nome completo</label><input type="text" id="bs-nome" style="margin-bottom:11px">
+        <label>E-mail</label><input type="email" id="bs-email" style="margin-bottom:11px">
+        <label>Senha (mín. 6 caracteres)</label><input type="password" id="bs-pass">
+        <div class="login-err" id="bs-err"></div>
+        <button class="btn btn-leaf" id="bs-btn" style="width:100%;padding:12px" onclick="criarAdminInicial()">Criar administrador</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PORTAL ===================== -->
+<div id="app">
+  <div class="topbar">
+    <div class="brandline">
+      <div id="logo-small"></div>
+      <div>
+        <span class="wordmark">raguife</span>
+        <span class="app-sub">Acesso aos painéis</span>
+      </div>
+    </div>
+    <div class="userchip">
+      <div style="text-align:right">
+        <span class="uname" id="chip-nome"></span>
+        <span class="urole" id="chip-role"></span>
+      </div>
+      <button class="btn-top" onclick="openModalSenha()">Alterar senha</button>
+      <button class="btn-top" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="hub-wrap">
+    <div class="hub-hi" id="hub-hi"></div>
+    <div class="hub-sub" id="hub-sub"></div>
+    <div class="hub-grid" id="hub-grid"></div>
+    <div id="hub-none" style="display:none" class="hub-empty">
+      <b>Nenhum painel liberado para você ainda.</b><br>Fale com o administrador.
+    </div>
+
+    <!-- PESSOAS (só administrador) -->
+    <div id="bloco-pessoas" style="display:none">
+      <div class="panel" id="panel-import">
+        <h2>Importar cadastro antigo</h2>
+        <div class="desc">Traz quem já tinha login para o formato novo, mantendo o mesmo e-mail e a mesma senha — ninguém precisa se recadastrar</div>
+        <div class="btn-row">
+          <button class="btn btn-leaf" id="imp-btn" onclick="verificarImport()">Verificar cadastro antigo</button>
+          <span id="imp-status" style="font-size:12.5px;color:var(--cinza)"></span>
+        </div>
+        <div id="imp-preview"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Cadastrar pessoa</h2>
+        <div class="desc">Ela entra com o mesmo login e vê só os painéis marcados</div>
+        <div class="form-grid">
+          <div><label>Nome completo</label><input type="text" id="u-nome"></div>
+          <div><label>Setor</label><input type="text" id="u-setor"></div>
+          <div><label>E-mail (login)</label><input type="email" id="u-email"></div>
+          <div><label>Senha inicial (mín. 6)</label><input type="text" id="u-pass"></div>
+        </div>
+
+        <label style="margin-top:16px;display:block">Painéis liberados</label>
+        <div class="permgrid" id="u-perms"></div>
+
+        <label class="permchk" id="u-admin-wrap" style="margin-top:12px;max-width:440px">
+          <input type="checkbox" id="u-admin" onchange="onToggleAdmin()">
+          <span><b>Administrador</b><span>Vê os dois painéis, cadastra pessoas e edita metas</span></span>
+        </label>
+
+        <div id="u-check-wrap" style="display:none;margin-top:16px;border-top:1px dashed var(--linha);padding-top:16px">
+          <div class="form-grid">
+            <div><label>Checklists que responde (Facilities)</label>
+              <select id="u-check">
+                <option value="">Nenhum — só visualiza</option>
+                <option value="adm">Administrativa</option>
+                <option value="hig">Higiênica</option>
+                <option value="ambos">Ambas</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:11px"><label>Setores ADM que avalia (vírgula)</label><input type="text" id="u-areas-adm" placeholder="ex: RH, Financeiro"></div>
+          <div style="margin-top:11px"><label>Áreas higiênicas que avalia (vírgula)</label><input type="text" id="u-areas-hig" placeholder="ex: Vestiário, Copa"></div>
+          <div class="note">Em branco = todas as áreas liberadas.</div>
+        </div>
+
+        <div class="btn-row"><button class="btn btn-primary" id="u-btn" onclick="criarUsuario()">Cadastrar</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Pessoas cadastradas</h2>
+        <div class="table-wrap" id="tbl-usuarios"></div>
+        <div class="note"><b>Editar</b> muda os painéis na hora · <b>Desativar</b> bloqueia sem apagar o histórico · <b>Excluir</b> remove o acesso.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal-box"></div></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged,
+  signOut, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
+  authDomain: "controlepix-cc524.firebaseapp.com",
+  projectId: "controlepix-cc524",
+  storageBucket: "controlepix-cc524.firebasestorage.app",
+  messagingSenderId: "949223824940",
+  appId: "1:949223824940:web:d56a9e04901aff35273b89"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+/* ================= PAINÉIS ================= */
+const PAINEIS = [
+  {id:'facilities',  ic:'🍽', file:'facilities.html',  label:'Facilities',
+   desc:'Desperdício, compras, custos, checklists de limpeza, pesquisa e histórico'},
+  {id:'ambulatorio', ic:'⚕',  file:'ambulatorio.html', label:'Ambulatório',
+   desc:'Absenteísmo, exames periódicos, agenda médica, DSP e pesquisas'},
+];
+
+let currentUser = null;
+let users = [];
+
+/* ================= HELPERS ================= */
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function toast(msg, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = isErr? 'show err':'show';
+  setTimeout(()=>{ t.className=''; }, 3200);
+}
+function tableHTML(headers, rows){
+  if(!rows.length) return '<div class="empty">Sem registros</div>';
+  return '<table><thead><tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'
+    + rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+}
+function authErrPT(e){
+  const c = (e && e.code) || '';
+  if(c.includes('invalid-credential') || c.includes('wrong-password')) return 'E-mail ou senha incorretos.';
+  if(c.includes('user-not-found')) return 'Usuário não encontrado.';
+  if(c.includes('invalid-email')) return 'E-mail inválido.';
+  if(c.includes('email-already-in-use')) return 'Este e-mail já está cadastrado.';
+  if(c.includes('weak-password')) return 'Senha muito curta (mínimo 6 caracteres).';
+  if(c.includes('too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.';
+  if(c.includes('network')) return 'Sem conexão com a internet.';
+  return 'Falha: ' + (e && e.message ? e.message : 'erro desconhecido');
+}
+function logoSVG(size){
+  return `<svg width="${size}" height="${size*0.78}" viewBox="0 0 100 78" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#8CB43E" stroke-width="7"/>
+    <circle cx="30" cy="27" r="6.5" fill="#8CB43E"/><circle cx="50" cy="23" r="6.5" fill="#8CB43E"/>
+    <circle cx="70" cy="27" r="6.5" fill="#8CB43E"/>
+    <path d="M27 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+    <path d="M50 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+  </svg>`;
+}
+function openModal(html){ document.getElementById('modal-box').innerHTML = html; document.getElementById('modal-bg').classList.add('open'); }
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+let _confirmFn = null;
+function confirmModal(msg, fn){
+  _confirmFn = fn;
+  openModal(`<h3 style="font-size:17px;color:var(--verde);margin-bottom:12px">Confirmar</h3>
+    <p style="margin:0 0 18px;font-size:13.5px">${esc(msg)}</p>
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger" onclick="_runConfirm()">Confirmar</button></div>`);
+}
+function _runConfirm(){ const f=_confirmFn; closeModal(); f && f(); }
+function openModalSenha(){
+  openModal(`<h3 style="font-size:17px;color:var(--verde);margin-bottom:12px">Alterar senha</h3>
+    <label>Senha atual</label><input type="password" id="pw-old" style="margin-bottom:11px">
+    <label>Nova senha (mín. 6)</label><input type="password" id="pw-new">
+    <div class="login-err" id="pw-err"></div>
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovaSenha()">Salvar</button></div>`);
+}
+async function salvarNovaSenha(){
+  const old = document.getElementById('pw-old').value, nova = document.getElementById('pw-new').value;
+  const err = document.getElementById('pw-err'); err.textContent='';
+  if(!old || !nova){ err.textContent='Preencha os dois campos.'; return; }
+  if(nova.length < 6){ err.textContent='A nova senha precisa de ao menos 6 caracteres.'; return; }
+  try{
+    await reauthenticateWithCredential(auth.currentUser, EmailAuthProvider.credential(auth.currentUser.email, old));
+    await updatePassword(auth.currentUser, nova);
+    closeModal(); toast('Senha alterada ✓');
+  }catch(e){ err.textContent = authErrPT(e); }
+}
+
+/* ================= LOGIN ================= */
+async function doLogin(){
+  const email = document.getElementById('lg-user').value.trim();
+  const pass  = document.getElementById('lg-pass').value;
+  const err   = document.getElementById('lg-err'); err.textContent='';
+  if(!email || !pass){ err.textContent='Informe e-mail e senha.'; return; }
+  const btn = document.getElementById('lg-btn'); btn.disabled=true;
+  try{ await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e){ err.textContent = authErrPT(e); }
+  btn.disabled=false;
+}
+async function esqueciSenha(){
+  const email = document.getElementById('lg-user').value.trim();
+  if(!email){ document.getElementById('lg-err').textContent='Digite seu e-mail acima e clique de novo.'; return; }
+  try{ await sendPasswordResetEmail(auth, email); toast('E-mail de redefinição enviado ✓'); }
+  catch(e){ toast(authErrPT(e), true); }
+}
+async function criarAdminInicial(){
+  const nome = document.getElementById('bs-nome').value.trim();
+  const email = document.getElementById('bs-email').value.trim();
+  const pass = document.getElementById('bs-pass').value;
+  const err = document.getElementById('bs-err'); err.textContent='';
+  if(!nome || !email || !pass){ err.textContent='Preencha todos os campos.'; return; }
+  const btn = document.getElementById('bs-btn'); btn.disabled=true;
+  try{
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await setDoc(doc(db,'nrh_usuarios',cred.user.uid), {
+      nome, email, setor:'Gestão', admin:true, ativo:true,
+      modulos:{facilities:true, ambulatorio:true}, check:'', areasAdm:[], areasHig:[], criadoEm:todayISO()
+    });
+    await setDoc(doc(db,'config','setup_novo'), {done:true, em:todayISO()});
+    toast('Administrador criado ✓');
+  }catch(e){ err.textContent = authErrPT(e); btn.disabled=false; }
+}
+async function logout(){ await signOut(auth); location.reload(); }
+async function checkBootstrap(){
+  try{
+    const s = await getDoc(doc(db,'config','setup_novo'));
+    document.getElementById('bootstrap-card').style.display = s.exists()? 'none':'block';
+  }catch(e){ console.error(e); }
+}
+
+/* ================= PORTAL ================= */
+function saudacao(){ const h=new Date().getHours(); return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'; }
+function liberados(u){ return PAINEIS.filter(p => u.admin || (u.modulos && u.modulos[p.id])); }
+
+function entrarPortal(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('chip-nome').textContent = currentUser.nome;
+  document.getElementById('chip-role').textContent =
+    (currentUser.admin?'Administrador':'Usuário') + (currentUser.setor? ' · '+currentUser.setor : '');
+  document.getElementById('hub-hi').textContent = saudacao()+', '+(currentUser.nome||'').split(' ')[0]+'.';
+  const libs = liberados(currentUser);
+  document.getElementById('hub-sub').textContent = libs.length? 'Escolha o painel:' : '';
+  document.getElementById('hub-grid').innerHTML = libs.map(p=>`
+    <a class="hub-card" href="${p.file}">
+      <span class="hic">${p.ic}</span><h3>${p.label}</h3><p>${p.desc}</p></a>`).join('');
+  document.getElementById('hub-none').style.display = libs.length? 'none':'block';
+
+  if(currentUser.admin){
+    document.getElementById('bloco-pessoas').style.display='block';
+    renderPerms();
+    onSnapshot(collection(db,'nrh_usuarios'), snap=>{
+      users = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderUsuarios();
+    }, e=>console.error(e));
+  }
+}
+
+/* ================= PESSOAS ================= */
+function renderPerms(){
+  document.getElementById('u-perms').innerHTML = PAINEIS.map(p=>`
+    <label class="permchk"><input type="checkbox" value="${p.id}" onchange="onPerm()">
+      <span><b>${p.ic} ${p.label}</b><span>${p.desc}</span></span></label>`).join('');
+}
+function onPerm(){
+  document.querySelectorAll('#u-perms .permchk').forEach(l=>l.classList.toggle('on', l.querySelector('input').checked));
+  const fac = document.querySelector('#u-perms input[value=facilities]');
+  document.getElementById('u-check-wrap').style.display = (fac && fac.checked)? 'block':'none';
+}
+function onToggleAdmin(){
+  const a = document.getElementById('u-admin').checked;
+  document.getElementById('u-admin-wrap').classList.toggle('on', a);
+  document.querySelectorAll('#u-perms input').forEach(c=>{ if(a) c.checked=true; c.disabled=a; });
+  onPerm();
+}
+function parseAreas(t){ return (t||'').split(',').map(s=>s.trim()).filter(Boolean); }
+
+async function criarUsuario(){
+  const nome = document.getElementById('u-nome').value.trim();
+  const email = document.getElementById('u-email').value.trim();
+  const pass = document.getElementById('u-pass').value;
+  if(!nome || !email || !pass){ toast('Informe nome, e-mail e senha inicial.', true); return; }
+  const isAdm = document.getElementById('u-admin').checked;
+  const modulos = {};
+  document.querySelectorAll('#u-perms input').forEach(c=>{ modulos[c.value] = isAdm? true : c.checked; });
+  if(!isAdm && !Object.values(modulos).some(Boolean)){ toast('Marque ao menos um painel.', true); return; }
+  const btn = document.getElementById('u-btn'); btn.disabled=true;
+  try{
+    // app secundário: cria a conta sem derrubar a sessão do administrador
+    const secApp = initializeApp(firebaseConfig, 'sec-'+Date.now());
+    const secAuth = getAuth(secApp);
+    const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+    await setDoc(doc(db,'nrh_usuarios',cred.user.uid), {
+      nome, email, setor: document.getElementById('u-setor').value.trim(),
+      admin:isAdm, ativo:true, modulos,
+      check:    modulos.facilities? document.getElementById('u-check').value : '',
+      areasAdm: modulos.facilities? parseAreas(document.getElementById('u-areas-adm').value) : [],
+      areasHig: modulos.facilities? parseAreas(document.getElementById('u-areas-hig').value) : [],
+      criadoEm: todayISO(),
+    });
+    await signOut(secAuth);
+    ['u-nome','u-setor','u-email','u-pass','u-areas-adm','u-areas-hig'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('u-admin').checked=false;
+    document.querySelectorAll('#u-perms input').forEach(c=>{ c.checked=false; c.disabled=false; });
+    onPerm();
+    toast('Pessoa cadastrada ✓ — entregue a senha inicial a ela');
+  }catch(e){ toast(authErrPT(e), true); }
+  btn.disabled=false;
+}
+
+function modalEditar(uid){
+  const u = users.find(x=>x.id===uid); if(!u) return;
+  const m = u.modulos||{};
+  openModal(`
+    <h3 style="font-size:17px;color:var(--verde);margin-bottom:4px">Acessos de ${esc(u.nome)}</h3>
+    <div style="color:var(--cinza);font-size:12.5px;margin-bottom:16px">${esc(u.email||'')}</div>
+    <div class="permgrid" id="ed-perms">
+      ${PAINEIS.map(p=>`<label class="permchk ${m[p.id]?'on':''}">
+        <input type="checkbox" value="${p.id}" ${m[p.id]?'checked':''} ${u.admin?'checked disabled':''}>
+        <span><b>${p.ic} ${p.label}</b></span></label>`).join('')}
+    </div>
+    <label class="permchk ${u.admin?'on':''}" style="margin-top:12px">
+      <input type="checkbox" id="ed-admin" ${u.admin?'checked':''}>
+      <span><b>Administrador</b></span></label>
+    <div style="margin-top:14px"><label>Setor</label><input type="text" id="ed-setor" value="${esc(u.setor||'')}"></div>
+    <div style="margin-top:11px"><label>Checklists (Facilities)</label>
+      <select id="ed-check">
+        <option value="" ${!u.check?'selected':''}>Nenhum</option>
+        <option value="adm" ${u.check==='adm'?'selected':''}>Administrativa</option>
+        <option value="hig" ${u.check==='hig'?'selected':''}>Higiênica</option>
+        <option value="ambos" ${u.check==='ambos'?'selected':''}>Ambas</option>
+      </select></div>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:18px">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicao('${uid}')">Salvar</button></div>`);
+  document.getElementById('ed-admin').addEventListener('change', e=>{
+    document.querySelectorAll('#ed-perms input').forEach(c=>{
+      if(e.target.checked) c.checked=true;
+      c.disabled=e.target.checked;
+      c.closest('.permchk').classList.toggle('on', c.checked);
+    });
+  });
+  document.querySelectorAll('#ed-perms input').forEach(c=>
+    c.addEventListener('change', ()=>c.closest('.permchk').classList.toggle('on', c.checked)));
+}
+async function salvarEdicao(uid){
+  const isAdm = document.getElementById('ed-admin').checked;
+  const modulos = {};
+  document.querySelectorAll('#ed-perms input').forEach(c=>{ modulos[c.value] = isAdm? true : c.checked; });
+  try{
+    await updateDoc(doc(db,'nrh_usuarios',uid), {
+      modulos, admin:isAdm,
+      setor: document.getElementById('ed-setor').value.trim(),
+      check: document.getElementById('ed-check').value,
+    });
+    closeModal(); toast('Acessos atualizados ✓');
+  }catch(e){ toast(authErrPT(e), true); }
+}
+async function toggleAtivo(uid){
+  const u = users.find(x=>x.id===uid); if(!u) return;
+  const novo = u.ativo === false;
+  try{ await updateDoc(doc(db,'nrh_usuarios',uid), {ativo:novo}); toast(novo?'Acesso reativado ✓':'Acesso desativado'); }
+  catch(e){ toast(authErrPT(e), true); }
+}
+function removerUsuario(uid){
+  if(uid === currentUser.uid){ toast('Você não pode excluir o próprio acesso.', true); return; }
+  confirmModal('Excluir o acesso desta pessoa?', async ()=>{
+    try{ await deleteDoc(doc(db,'nrh_usuarios',uid)); toast('Acesso excluído ✓'); }
+    catch(e){ toast(authErrPT(e), true); }
+  });
+}
+async function resetSenhaUsuario(email){
+  try{ await sendPasswordResetEmail(auth, email); toast('E-mail de redefinição enviado ✓'); }
+  catch(e){ toast(authErrPT(e), true); }
+}
+function tags(u){
+  if(u.admin) return '<span class="modtag adm">Os dois painéis</span>';
+  const on = PAINEIS.filter(p=>u.modulos && u.modulos[p.id]);
+  return on.length? on.map(p=>`<span class="modtag">${p.ic} ${p.label}</span>`).join('')
+                  : '<span style="color:var(--cinza)">nenhum</span>';
+}
+function renderUsuarios(){
+  const rows = users.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(u=>[
+    '<b>'+esc(u.nome||'—')+'</b>' + (u.ativo===false? ' <span class="pill p-bad">inativo</span>':''),
+    esc(u.email||'—') + (u.setor? '<br><span style="color:var(--cinza);font-size:11.5px">'+esc(u.setor)+'</span>':''),
+    tags(u),
+    `<button class="btn btn-ghost btn-mini" onclick="modalEditar('${u.id}')">Editar</button>
+     <button class="btn btn-ghost btn-mini" onclick="resetSenhaUsuario('${esc(u.email||'')}')">Redefinir senha</button>
+     <button class="btn btn-ghost btn-mini" onclick="toggleAtivo('${u.id}')">${u.ativo===false?'Reativar':'Desativar'}</button>
+     <button class="btn btn-danger btn-mini" onclick="removerUsuario('${u.id}')">Excluir</button>`
+  ]);
+  document.getElementById('tbl-usuarios').innerHTML = tableHTML(['Pessoa','E-mail / setor','Painéis',''], rows);
+}
+
+
+/* ================= IMPORTAR CADASTRO ANTIGO ================= */
+let importLista = [];
+
+/* Converte o antigo campo "role" nos checkboxes novos.
+   Conservador de propósito: na dúvida, marca menos — dá para ajustar na prévia. */
+function converterRole(d){
+  const r = (d.role||'').toLowerCase();
+  if(r === 'admin')        return {admin:true,  fac:true,  amb:true };
+  if(r === 'operador')     return {admin:false, fac:false, amb:true };
+  if(r === 'nutricionista')return {admin:false, fac:true,  amb:false};
+  if(r === 'colaborador')  return {admin:false, fac:true,  amb:false};
+  return {admin:false, fac:true, amb:false};
+}
+
+async function verificarImport(){
+  const btn = document.getElementById('imp-btn'); btn.disabled = true;
+  const status = document.getElementById('imp-status');
+  status.textContent = 'Lendo o cadastro antigo...';
+  try{
+    const [antigos, novos] = await Promise.all([
+      getDocs(collection(db,'usuarios')),
+      getDocs(collection(db,'nrh_usuarios')),
+    ]);
+    const jaTem = new Set(novos.docs.map(d=>d.id));
+    importLista = antigos.docs.map(d=>{
+      const dados = d.data();
+      return {uid:d.id, dados, migrado:jaTem.has(d.id), sug:converterRole(dados)};
+    });
+    renderImportPreview();
+    const pendentes = importLista.filter(x=>!x.migrado).length;
+    status.textContent = importLista.length
+      ? `${importLista.length} pessoa(s) no cadastro antigo · ${pendentes} ainda não importada(s)`
+      : 'Nada encontrado na coleção antiga "usuarios".';
+  }catch(e){
+    status.textContent = 'Falha ao ler o cadastro antigo: ' + authErrPT(e);
+  }
+  btn.disabled = false;
+}
+
+function renderImportPreview(){
+  const box = document.getElementById('imp-preview');
+  if(!importLista.length){ box.innerHTML = ''; return; }
+  const rows = importLista.map((x,i)=>{
+    const d = x.dados;
+    if(x.migrado){
+      return [esc(d.nome||'—'), esc(d.email||'—'),
+        '<span style="color:var(--cinza)">'+esc(d.role||'—')+'</span>',
+        '<span class="pill p-ok">já importado</span>'];
+    }
+    const chk = (campo, on) =>
+      `<label style="display:inline-flex;align-items:center;gap:5px;margin-right:10px;font-size:12px;cursor:pointer">
+         <input type="checkbox" data-i="${i}" data-c="${campo}" ${on?'checked':''}
+                style="width:15px;height:15px;accent-color:var(--verde)"> ${campo}</label>`;
+    return [
+      esc(d.nome||'—'),
+      esc(d.email||'—') + (d.setor? '<br><span style="color:var(--cinza);font-size:11.5px">'+esc(d.setor)+'</span>':''),
+      '<span style="color:var(--cinza)">'+esc(d.role||'—')+(d.check? ' · '+esc(d.check):'')+'</span>',
+      chk('Facilities', x.sug.fac) + chk('Ambulatório', x.sug.amb) + chk('Admin', x.sug.admin)
+    ];
+  });
+  box.innerHTML = '<div class="table-wrap" style="margin-top:12px">' +
+    tableHTML(['Pessoa','E-mail / setor','Perfil antigo','Painéis no formato novo'], rows) + '</div>' +
+    (importLista.some(x=>!x.migrado)
+      ? `<div class="btn-row">
+           <button class="btn btn-primary" id="imp-run" onclick="executarImport()">Importar selecionados</button>
+           <span style="font-size:12px;color:var(--cinza)">Ajuste os checkboxes antes de importar, se precisar.</span>
+         </div>`
+      : '<div class="note">Todo mundo do cadastro antigo já foi importado.</div>');
+
+  box.querySelectorAll('input[data-i]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const x = importLista[Number(cb.dataset.i)];
+      const c = cb.dataset.c;
+      if(c === 'Facilities')  x.sug.fac   = cb.checked;
+      if(c === 'Ambulatório') x.sug.amb   = cb.checked;
+      if(c === 'Admin'){
+        x.sug.admin = cb.checked;
+        if(cb.checked){ x.sug.fac = true; x.sug.amb = true; }
+      }
+    });
+  });
+}
+
+async function executarImport(){
+  const alvo = importLista.filter(x => !x.migrado && (x.sug.admin || x.sug.fac || x.sug.amb));
+  if(!alvo.length){ toast('Marque ao menos um painel para alguém.', true); return; }
+  const btn = document.getElementById('imp-run'); if(btn) btn.disabled = true;
+  const status = document.getElementById('imp-status');
+  let ok = 0, falhas = 0;
+  for(const x of alvo){
+    const d = x.dados;
+    try{
+      // mesmo UID do cadastro antigo = mesma conta de login, mesma senha
+      await setDoc(doc(db,'nrh_usuarios', x.uid), {
+        nome:  d.nome  || '—',
+        email: d.email || '',
+        setor: d.setor || '',
+        admin: !!x.sug.admin,
+        ativo: true,
+        modulos: { facilities: !!(x.sug.admin || x.sug.fac),
+                   ambulatorio: !!(x.sug.admin || x.sug.amb) },
+        check:    d.check    || '',
+        areasAdm: d.areasAdm || [],
+        areasHig: d.areasHig || [],
+        importadoEm: todayISO(),
+      });
+      x.migrado = true; ok++;
+    }catch(e){ falhas++; console.error(x.uid, e); }
+  }
+  renderImportPreview();
+  status.textContent = `${ok} importada(s)` + (falhas? ` · ${falhas} falhou(aram)` : '');
+  toast(falhas? `${ok} importada(s), ${falhas} com falha` : `${ok} pessoa(s) importada(s) ✓`, !!falhas);
+}
+
+/* ================= SESSÃO ================= */
+onAuthStateChanged(auth, async (user)=>{
+  if(!user || user.isAnonymous){ checkBootstrap(); return; }
+  try{
+    const prof = await getDoc(doc(db,'nrh_usuarios',user.uid));
+    if(!prof.exists()){
+      document.getElementById('lg-err').textContent = 'Sua conta não tem acesso. Fale com o administrador.';
+      await signOut(auth); return;
+    }
+    const d = prof.data();
+    if(d.ativo === false){
+      document.getElementById('lg-err').textContent = 'Seu acesso está desativado.';
+      await signOut(auth); return;
+    }
+    currentUser = {uid:user.uid, ...d};
+    entrarPortal();
+  }catch(e){ document.getElementById('lg-err').textContent = 'Erro ao carregar perfil: '+authErrPT(e); }
+});
+
+/* ================= INIT ================= */
+document.getElementById('logo-big').innerHTML = logoSVG(96);
+document.getElementById('logo-small').innerHTML = logoSVG(34);
+const erro = new URLSearchParams(location.search).get('erro');
+if(erro==='semacesso') setTimeout(()=>toast('Você não tem acesso a esse painel.', true), 700);
+if(erro==='inativo')   setTimeout(()=>toast('Seu acesso está desativado.', true), 700);
+checkBootstrap();
+
+Object.assign(window, {
+  doLogin, esqueciSenha, criarAdminInicial, logout,
+  criarUsuario, onPerm, onToggleAdmin, modalEditar, salvarEdicao,
+  verificarImport, executarImport,
+  toggleAtivo, removerUsuario, resetSenhaUsuario,
+  openModal, closeModal, confirmModal, _runConfirm, openModalSenha, salvarNovaSenha,
+});
+</script>
+</body>
+</html>

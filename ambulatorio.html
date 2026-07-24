@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Raguife — Ambulatório</title>
+<meta name="theme-color" content="#024f2b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde:#024f2b; --verde-escuro:#013a20; --folha:#739630; --folha-suave:#e9f0dc;
+    --cinza:#666666; --bg:#f4f6f1; --branco:#ffffff; --linha:#e2e6dc;
+    --amber:#d99a2b; --erro:#c0392b; --ok:#3d7a26; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:#22301f;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;}
+  h1,h2,h3{font-family:'Poppins',sans-serif;margin:0;}
+  button{font-family:inherit;}
+  a{color:var(--verde);}
+
+  /* LOGIN */
+  #login-screen{position:fixed;inset:0;display:flex;z-index:50;background:var(--bg);}
+  .login-brand{flex:1;background:linear-gradient(160deg,var(--verde) 0%,var(--verde-escuro) 100%);color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:40px;text-align:center;}
+  .login-brand .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:52px;letter-spacing:-0.02em;margin-top:18px;}
+  .login-brand .tagline{letter-spacing:.35em;font-size:12px;color:#bcd9a6;margin-top:10px;text-transform:uppercase;}
+  .login-form-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:30px;overflow-y:auto;}
+  .login-card{width:100%;max-width:390px;}
+  .login-card h2{font-size:24px;color:var(--verde);margin-bottom:4px;}
+  .login-card .sub{color:var(--cinza);margin-bottom:26px;font-size:13.5px;}
+  .login-err{color:var(--erro);font-size:13px;font-weight:600;min-height:18px;margin-top:10px;}
+  .forgot{font-size:12.5px;margin-top:14px;display:inline-block;cursor:pointer;text-decoration:underline;background:none;border:none;color:var(--verde);padding:0;}
+  #bootstrap-card{display:none;margin-top:26px;border-top:1px dashed var(--linha);padding-top:22px;}
+  @media(max-width:760px){
+    #login-screen{flex-direction:column;}
+    .login-brand{flex:none;padding:36px 20px;}
+    .login-brand .wordmark{font-size:36px;}
+  }
+
+  /* APP SHELL */
+  #app{display:none;}
+  .topbar{background:var(--verde);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 20px;position:sticky;top:0;z-index:30;}
+  .topbar .brandline{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+  .topbar .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:20px;letter-spacing:-0.02em;}
+  .topbar .app-sub{font-size:11px;color:#a9c98f;display:block;margin-top:-3px;}
+  .userchip{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+  .userchip .uname{font-weight:600;}
+  .userchip .urole{color:#a9c98f;font-size:11px;display:block;}
+  .btn-top{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn-top:hover{background:rgba(255,255,255,.22);}
+
+  .layout{display:flex;min-height:calc(100vh - 58px);}
+  nav.side{width:225px;background:var(--branco);border-right:1px solid var(--linha);padding:18px 12px;flex:none;}
+  nav.side .navlbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--cinza);font-weight:700;margin:14px 10px 6px;}
+  .navbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:500;color:#3c4a38;cursor:pointer;margin-bottom:2px;}
+  .navbtn:hover{background:var(--folha-suave);}
+  .navbtn.active{background:var(--verde);color:#fff;font-weight:600;}
+  .navbtn .ic{width:20px;text-align:center;flex:none;}
+  main{flex:1;padding:26px 26px 80px;min-width:0;}
+  .page{display:none;max-width:1100px;margin:0 auto;}
+  .page.active{display:block;animation:fade .22s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .page-title{font-size:22px;color:var(--verde);margin-bottom:2px;}
+  .page-desc{color:var(--cinza);font-size:13px;margin-bottom:20px;}
+
+  @media(max-width:880px){
+    .layout{flex-direction:column;}
+    nav.side{width:100%;display:flex;overflow-x:auto;padding:8px 10px;gap:4px;border-right:none;border-bottom:1px solid var(--linha);}
+    nav.side .navlbl{display:none;}
+    .navbtn{width:auto;white-space:nowrap;padding:9px 13px;}
+    main{padding:18px 14px 70px;}
+    .topbar .app-sub{display:none;}
+  }
+
+  /* COMPONENTS */
+  .panel{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
+  .panel h2{font-size:16px;color:var(--verde);margin-bottom:3px;}
+  .panel .desc{color:var(--cinza);font-size:12.5px;margin-bottom:16px;}
+  .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px;margin-bottom:20px;}
+  .kpi{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:16px;position:relative;}
+  .kpi .eyebrow{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--cinza);font-weight:700;margin-bottom:7px;}
+  .kpi .val{font-family:'Poppins',sans-serif;font-size:26px;font-weight:700;color:#1d2b1a;letter-spacing:-0.02em;}
+  .kpi .meta{font-size:11.5px;color:var(--cinza);margin-top:3px;}
+  .kpi .bar{margin-top:11px;height:6px;border-radius:4px;background:#edf0e6;overflow:hidden;}
+  .kpi .bar span{display:block;height:100%;border-radius:4px;}
+  .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.02em;display:inline-block;}
+  .pill.abs{position:absolute;top:14px;right:14px;}
+  .p-ok{background:#e5f1db;color:var(--ok);}
+  .p-bad{background:#f7e3df;color:var(--erro);}
+  .p-warn{background:#f9efd9;color:#996c14;}
+  .p-neutral{background:#eef0ea;color:var(--cinza);}
+
+  label{display:block;font-size:12px;font-weight:600;color:#40503b;margin-bottom:5px;}
+  input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--linha);border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;background:#fbfcf9;color:#22301f;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--folha);outline-offset:1px;border-color:var(--folha);}
+  input:disabled{background:#eef0ea;color:#5a684f;}
+  textarea{resize:vertical;min-height:60px;}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;}
+  .btn{font-family:'Poppins',sans-serif;font-weight:600;font-size:13.5px;border:none;border-radius:10px;padding:11px 20px;cursor:pointer;transition:transform .1s;}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.6;cursor:wait;}
+  .btn-primary{background:var(--verde);color:#fff;}
+  .btn-primary:hover{background:var(--verde-escuro);}
+  .btn-leaf{background:var(--folha);color:#fff;}
+  .btn-leaf:hover{background:#647f2b;}
+  .btn-ghost{background:transparent;color:var(--verde);border:1px solid var(--linha);}
+  .btn-ghost:hover{background:var(--folha-suave);}
+  .btn-mini{padding:5px 10px;font-size:11px;border-radius:7px;}
+  .btn-danger{background:transparent;color:var(--erro);border:1px solid #ecd3cf;}
+  .btn-row{margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--cinza);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--linha);}
+  td{padding:9px 10px;border-bottom:1px solid #eef0e8;}
+  tr:last-child td{border-bottom:none;}
+  td.num{font-variant-numeric:tabular-nums;font-weight:500;}
+  .table-wrap{overflow-x:auto;margin-top:6px;}
+  .empty{color:var(--cinza);font-size:13px;padding:22px 0;text-align:center;}
+
+  .quesito{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eef0e8;gap:14px;flex-wrap:wrap;}
+  .quesito:last-child{border-bottom:none;}
+
+  .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:13px 15px;}
+  .filter-bar .fld{min-width:140px;}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;}
+  .presets .btn{padding:8px 12px;font-size:11.5px;}
+
+  .link-box{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .link-box input{flex:1;min-width:200px;font-size:12px;}
+  .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
+  .note code{background:#fff;border-radius:4px;padding:1px 5px;}
+  .qr-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:10px;}
+  .qr-wrap img{width:180px;height:180px;border:1px solid var(--linha);border-radius:12px;background:#fff;padding:8px;}
+
+  /* SURVEY (público) */
+  #survey-screen{display:none;position:fixed;inset:0;background:linear-gradient(165deg,var(--verde) 0%,var(--verde-escuro) 100%);color:#fff;overflow-y:auto;z-index:60;}
+  .survey-inner{max-width:620px;margin:0 auto;padding:44px 20px 60px;}
+  .survey-head{text-align:center;margin-bottom:26px;}
+  .survey-head .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:26px;}
+  .survey-head h1{font-size:25px;margin-top:18px;line-height:1.2;}
+  .survey-head .sub{color:#bcd9a6;font-size:13.5px;margin-top:6px;}
+  .qblock{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:18px;margin-bottom:13px;}
+  .qblock .qtitle{font-family:'Poppins',sans-serif;font-weight:600;font-size:15.5px;margin-bottom:13px;}
+  .emoji-scale{display:flex;gap:8px;}
+  .emoji-scale button{flex:1;border-radius:13px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.05);color:#fff;cursor:pointer;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .1s;}
+  .emoji-scale button:active{transform:scale(.94);}
+  .emoji-scale .em{font-size:26px;line-height:1;}
+  .emoji-scale .n{font-size:11px;color:#bcd9a6;font-weight:600;}
+  .emoji-scale button.sel{background:var(--folha);border-color:var(--folha);}
+  .emoji-scale button.sel .n{color:#fff;}
+  .survey-comment{margin-top:2px;}
+  .survey-comment textarea{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:13px;}
+  .survey-comment textarea::placeholder{color:#bcd9a6;}
+  .survey-send{width:100%;background:var(--folha);color:#fff;font-family:'Poppins',sans-serif;font-weight:700;font-size:17px;border:none;border-radius:15px;padding:17px;margin-top:12px;cursor:pointer;}
+  .survey-send:hover{background:#85ad3a;}
+  .survey-thanks{text-align:center;padding:80px 0;font-size:22px;font-family:'Poppins',sans-serif;font-weight:600;}
+
+  @media(max-width:560px){
+    .emoji-scale .em{font-size:22px;}
+    .panel{padding:16px;}
+  }
+
+  /* MODAL / TOAST */
+  #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
+  #modal-bg.open{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;}
+  .modal h3{font-size:17px;color:var(--verde);margin-bottom:14px;}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--verde);color:#fff;padding:12px 22px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:90;opacity:0;transition:all .3s ease;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:90vw;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.err{background:var(--erro);}
+</style>
+</head>
+<body>
+
+<!-- ===================== PESQUISA PÚBLICA ===================== -->
+<div id="survey-screen">
+  <div class="survey-inner">
+    <div class="survey-head">
+      <div id="logo-survey"></div>
+      <div class="wordmark">raguife</div>
+      <div id="survey-body-wrap"></div>
+    </div>
+    <div id="survey-questions"></div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <div class="topbar">
+    <div class="brandline">
+      <div id="logo-small"></div>
+      <div>
+        <span class="wordmark">raguife</span>
+        <span class="app-sub">Painel de Indicadores — Ambulatório</span>
+      </div>
+    </div>
+    <div class="userchip">
+      <div style="text-align:right">
+        <span class="uname" id="chip-nome"></span>
+        <span class="urole" id="chip-role"></span>
+      </div>
+      <button class="btn-top" onclick="openModalSenha()">Alterar senha</button>
+      <button class="btn-top" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav class="side" id="sidenav"></nav>
+    <main>
+
+      <!-- DASHBOARD -->
+      <div class="page" id="page-dashboard">
+        <h1 class="page-title">Dashboard</h1>
+        <div class="page-desc">Visão geral dos indicadores do ambulatório no período selecionado</div>
+        <div class="filter-bar">
+          <div class="fld"><label>De</label><input type="date" id="f-de"></div>
+          <div class="fld"><label>Até</label><input type="date" id="f-ate"></div>
+          <div class="presets">
+            <button class="btn btn-ghost" onclick="setPreset('hoje')">Hoje</button>
+            <button class="btn btn-ghost" onclick="setPreset('7d')">7 dias</button>
+            <button class="btn btn-ghost" onclick="setPreset('mes')">Este mês</button>
+            <button class="btn btn-ghost" onclick="setPreset('ano')">Este ano</button>
+          </div>
+          <button class="btn btn-leaf" onclick="applyFilter()">Aplicar</button>
+        </div>
+        <div class="grid-kpi" id="kpi-grid"></div>
+        <div class="panel">
+          <h2>Absenteísmo por CID</h2>
+          <div class="desc">Principais causas de afastamento no período (código CID)</div>
+          <div class="table-wrap" id="tbl-cid"></div>
+        </div>
+        <div class="panel">
+          <h2>Absenteísmo por setor</h2>
+          <div class="table-wrap" id="tbl-setor"></div>
+        </div>
+        <div class="panel">
+          <h2>Últimos atestados lançados</h2>
+          <div class="table-wrap" id="tbl-abs-dash"></div>
+        </div>
+      </div>
+
+      <!-- ABSENTEISMO -->
+      <div class="page" id="page-absenteismo">
+        <h1 class="page-title">Absenteísmo médico</h1>
+        <div class="page-desc">Lançamento de atestados e afastamentos, com controle de CID</div>
+        <div class="panel">
+          <h2>Novo atestado / afastamento</h2>
+          <div class="form-grid">
+            <div><label>Colaborador</label><input type="text" id="ab-nome" placeholder="nome do colaborador"></div>
+            <div><label>Setor</label><input type="text" id="ab-setor"></div>
+            <div><label>Data de início</label><input type="date" id="ab-inicio"></div>
+            <div><label>Dias afastado</label><input type="number" id="ab-dias" min="1" value="1"></div>
+            <div><label>CID (código)</label><input type="text" id="ab-cid" placeholder="ex: M54.5"></div>
+            <div><label>Descrição do CID (opcional)</label><input type="text" id="ab-ciddesc" placeholder="ex: dor lombar"></div>
+            <div><label>Tipo</label>
+              <select id="ab-tipo"><option>Atestado</option><option>Afastamento (INSS)</option><option>Acidente de trabalho</option><option>Consulta / retorno</option></select>
+            </div>
+            <div><label>Médico emissor</label><input type="text" id="ab-medico" placeholder="opcional"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarAbsenteismo()">Salvar atestado</button></div>
+        </div>
+        <div class="panel">
+          <h2>Histórico recente</h2>
+          <div class="table-wrap" id="tbl-abs-full"></div>
+        </div>
+      </div>
+
+      <!-- ABSENTEISMO TXT (IMPORT) -->
+      <div class="page" id="page-absimport">
+        <h1 class="page-title">Absenteísmo — importar TXT</h1>
+        <div class="page-desc">Leia os arquivos exportados da folha/SST. Os dados são só visualizados aqui — nada é salvo no banco — e você pode gerar um HTML para os gestores.</div>
+        <div class="panel">
+          <h2>1 · Carregar arquivos</h2>
+          <div class="form-grid">
+            <div>
+              <label>Arquivo de atestados / afastamentos (.txt)</label>
+              <input type="file" id="imp-txt" accept=".txt" onchange="lerTxtAtestados(event)">
+              <div class="note" id="imp-txt-status" style="display:none"></div>
+            </div>
+            <div>
+              <label>Arquivo de funcionários — mapa de setor (.txt, opcional)</label>
+              <input type="file" id="imp-func" accept=".txt" onchange="lerTxtFuncionarios(event)">
+              <div class="note" id="imp-func-status" style="display:none"></div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="processarImport()">Visualizar resultados</button>
+            <button class="btn btn-leaf" id="imp-export-btn" onclick="exportarHTML()" style="display:none">Exportar HTML para gestores</button>
+            <button class="btn btn-ghost" onclick="limparImport()">Limpar</button>
+          </div>
+        </div>
+
+        <div id="imp-resultado" style="display:none">
+          <div class="filter-bar">
+            <div class="fld"><label>Filtrar por setor</label><select id="imp-setor" onchange="renderImport()"></select></div>
+          </div>
+          <div class="grid-kpi" id="imp-kpi"></div>
+          <div class="panel">
+            <h2>Principais CID</h2>
+            <div class="table-wrap" id="imp-tbl-cid"></div>
+          </div>
+          <div class="panel">
+            <h2>Por setor</h2>
+            <div class="table-wrap" id="imp-tbl-setor"></div>
+          </div>
+          <div class="panel">
+            <h2>Por médico</h2>
+            <div class="table-wrap" id="imp-tbl-med"></div>
+          </div>
+          <div class="panel">
+            <h2>Afastamentos (previdência + acidente)</h2>
+            <div class="table-wrap" id="imp-tbl-afast"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXAMES -->
+      <div class="page" id="page-exames">
+        <h1 class="page-title">Exames periódicos</h1>
+        <div class="page-desc">Controle de exames ocupacionais (ASO) e cumprimento de prazo</div>
+        <div class="panel">
+          <h2>Novo exame / agendamento</h2>
+          <div class="form-grid">
+            <div><label>Colaborador</label><input type="text" id="ex-nome"></div>
+            <div><label>Setor</label><input type="text" id="ex-setor"></div>
+            <div><label>Tipo de exame</label>
+              <select id="ex-tipo"><option>Periódico</option><option>Admissional</option><option>Demissional</option><option>Mudança de função</option><option>Retorno ao trabalho</option></select>
+            </div>
+            <div><label>Data prevista</label><input type="date" id="ex-prev"></div>
+            <div><label>Data realizada (se já foi)</label><input type="date" id="ex-real"></div>
+            <div><label>Resultado</label>
+              <select id="ex-result"><option value="">—</option><option>Apto</option><option>Apto com restrição</option><option>Inapto</option></select>
+            </div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarExame()">Salvar exame</button></div>
+        </div>
+        <div class="panel">
+          <h2>Exames — status por prazo</h2>
+          <div class="desc">No prazo = realizado até a data prevista · Vencido = passou da data e ainda não foi feito</div>
+          <div class="table-wrap" id="tbl-exames"></div>
+        </div>
+      </div>
+
+      <!-- AGENDA -->
+      <div class="page" id="page-agenda">
+        <h1 class="page-title">Agenda dos médicos</h1>
+        <div class="page-desc">Consultas, exames e retornos agendados</div>
+        <div class="panel">
+          <h2>Novo agendamento</h2>
+          <div class="form-grid">
+            <div><label>Data</label><input type="date" id="ag-data"></div>
+            <div><label>Hora</label><input type="time" id="ag-hora"></div>
+            <div><label>Médico</label><input type="text" id="ag-medico"></div>
+            <div><label>Colaborador</label><input type="text" id="ag-nome"></div>
+            <div><label>Tipo</label>
+              <select id="ag-tipo"><option>Consulta</option><option>Exame ocupacional</option><option>Retorno</option><option>Procedimento</option></select>
+            </div>
+            <div style="grid-column:span 2"><label>Observações</label><input type="text" id="ag-obs" placeholder="opcional"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarAgenda()">Salvar agendamento</button></div>
+        </div>
+        <div class="panel">
+          <h2>Agenda do dia</h2>
+          <div class="filter-bar" style="margin-bottom:14px">
+            <div class="fld"><label>Ver dia</label><input type="date" id="ag-filtro-data"></div>
+            <div class="fld"><label>Médico</label><input type="text" id="ag-filtro-medico" placeholder="todos"></div>
+            <button class="btn btn-leaf" onclick="renderAgenda()">Aplicar</button>
+          </div>
+          <div class="table-wrap" id="tbl-agenda"></div>
+        </div>
+      </div>
+
+      <!-- DSP -->
+      <div class="page" id="page-dsp">
+        <h1 class="page-title">DSP — Diálogo de Segurança e Prevenção</h1>
+        <div class="page-desc">Registro dos diálogos realizados</div>
+        <div class="panel">
+          <h2>Novo DSP</h2>
+          <div class="form-grid">
+            <div><label>Data realizada</label><input type="date" id="ds-data"></div>
+            <div style="grid-column:span 2"><label>Tema</label><input type="text" id="ds-tema" placeholder="ex: uso correto de EPI"></div>
+            <div><label>Departamento</label><input type="text" id="ds-depto"></div>
+            <div><label>Nº de participantes</label><input type="number" id="ds-part" min="0"></div>
+            <div><label>Responsável</label><input type="text" id="ds-resp" placeholder="opcional"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarDsp()">Salvar DSP</button></div>
+        </div>
+        <div class="panel">
+          <h2>DSPs realizados</h2>
+          <div class="table-wrap" id="tbl-dsp"></div>
+        </div>
+      </div>
+
+      <!-- PESQUISAS -->
+      <div class="page" id="page-pesquisas">
+        <h1 class="page-title">Pesquisas de satisfação</h1>
+        <div class="page-desc">Dois formulários anônimos, sem login, para os colaboradores avaliarem o atendimento</div>
+        <div class="panel">
+          <h2>Consulta médica — link para WhatsApp</h2>
+          <div class="desc">Envie este link à pessoa após a consulta. Ela avalia sem se identificar.</div>
+          <div class="link-box">
+            <input type="text" id="link-medico" readonly>
+            <button class="btn btn-ghost" onclick="copyLink('medico')">Copiar link</button>
+            <button class="btn btn-leaf" onclick="abrirWhats('medico')">Abrir no WhatsApp</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Atendimento no ambulatório — QR Code</h2>
+          <div class="desc">Imprima o QR e deixe no balcão do ambulatório. Cada pessoa aponta a câmera e dá a nota.</div>
+          <div class="link-box">
+            <input type="text" id="link-amb" readonly>
+            <button class="btn btn-ghost" onclick="copyLink('amb')">Copiar link</button>
+          </div>
+          <div class="qr-wrap">
+            <img id="qr-amb" alt="QR Code da pesquisa do ambulatório">
+            <div>
+              <button class="btn btn-primary" onclick="imprimirQR()">Imprimir cartaz do QR</button>
+              <div class="note" style="max-width:280px">O cartaz sai pronto para colar no balcão, com o QR e a chamada "Avalie seu atendimento".</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Resultados por pergunta</h2>
+          <div class="desc">Médias no período do dashboard</div>
+          <div class="table-wrap" id="tbl-sat-medico"></div>
+          <div class="table-wrap" id="tbl-sat-amb" style="margin-top:18px"></div>
+        </div>
+      </div>
+
+      <div class="page" id="page-config">
+        <h1 class="page-title">Metas &amp; Configurações</h1>
+        <div class="page-desc">Metas dos indicadores e base de cálculo do absenteísmo</div>
+        <div class="panel">
+          <h2>Metas dos indicadores</h2>
+          <div class="form-grid">
+            <div><label>Meta absenteísmo (máx. %)</label><input type="number" step="0.1" id="cfg-abs"></div>
+            <div><label>Meta exames no prazo (mín. %)</label><input type="number" step="1" id="cfg-exames"></div>
+            <div><label>Meta satisfação consulta (/5)</label><input type="number" step="0.1" id="cfg-satmed"></div>
+            <div><label>Meta satisfação ambulatório (/5)</label><input type="number" step="0.1" id="cfg-satamb"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar metas</button></div>
+        </div>
+        <div class="panel">
+          <h2>Base de cálculo do absenteísmo</h2>
+          <div class="desc">A taxa é: dias perdidos ÷ (efetivo × dias úteis no período) × 100</div>
+          <div class="form-grid">
+            <div><label>Efetivo (nº de colaboradores)</label><input type="number" id="cfg-efetivo" min="0"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar base</button></div>
+          <div class="note">Sem o efetivo preenchido, o dashboard mostra apenas os dias perdidos absolutos, sem a taxa percentual.</div>
+        </div>
+        <div class="panel">
+          <h2>Perguntas das pesquisas</h2>
+          <div class="desc">Edite os itens de cada pesquisa. A escala continua de 1 a 5 com carinhas. As mudanças valem para os próximos formulários abertos.</div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div>
+              <label>Consulta médica (link WhatsApp)</label>
+              <div id="pq-medico"></div>
+              <button class="btn btn-ghost btn-mini" onclick="pesqAdd('medico')">+ Adicionar pergunta</button>
+            </div>
+            <div>
+              <label>Atendimento no ambulatório (QR)</label>
+              <div id="pq-amb"></div>
+              <button class="btn btn-ghost btn-mini" onclick="pesqAdd('amb')">+ Adicionar pergunta</button>
+            </div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarPesquisas()">Salvar perguntas</button></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- CARTAZ QR PARA IMPRESSÃO -->
+<div id="print-area" style="display:none"></div>
+
+<!-- MODAL / TOAST -->
+<div id="modal-bg"><div class="modal" id="modal-box"></div></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
+  onAuthStateChanged, sendPasswordResetEmail, updatePassword,
+  EmailAuthProvider, reauthenticateWithCredential, signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs,
+  deleteDoc, onSnapshot, query, where
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+/* Mesmo projeto Firebase do Facilities — mesmos usuários fazem login */
+const firebaseConfig = {
+  apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
+  authDomain: "controlepix-cc524.firebaseapp.com",
+  projectId: "controlepix-cc524",
+  storageBucket: "controlepix-cc524.firebasestorage.app",
+  messagingSenderId: "949223824940",
+  appId: "1:949223824940:web:d56a9e04901aff35273b89"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+/* ================= CONSTANTES ================= */
+const SAT_MEDICO = [
+  {k:'q1', t:'Atendimento do médico'},
+  {k:'q2', t:'Clareza das orientações'},
+  {k:'q3', t:'Tempo de espera'},
+  {k:'q4', t:'Acolhimento e privacidade'},
+  {k:'q5', t:'Resolução do problema'},
+];
+const SAT_AMB = [
+  {k:'q1', t:'Atendimento da equipe'},
+  {k:'q2', t:'Tempo de espera'},
+  {k:'q3', t:'Limpeza do ambiente'},
+  {k:'q4', t:'Acolhimento'},
+  {k:'q5', t:'Resolução do atendimento'},
+];
+const EMOJIS = ['😠','🙁','😐','🙂','😄'];
+const ROLES = {admin:'Administrador', operador:'Operador'};
+const NAV_DEF = [
+  {id:'dashboard',   label:'Dashboard',      ic:'▦', roles:['admin','operador']},
+  {id:'absenteismo', label:'Absenteísmo',    ic:'⚕', roles:['admin','operador']},
+  {id:'absimport',   label:'Absenteísmo TXT', ic:'📄', roles:['admin']},
+  {id:'exames',      label:'Exames periódicos', ic:'🩺', roles:['admin','operador']},
+  {id:'agenda',      label:'Agenda médicos', ic:'📅', roles:['admin','operador']},
+  {id:'dsp',         label:'DSP',            ic:'🗣', roles:['admin','operador']},
+  {id:'pesquisas',   label:'Pesquisas',      ic:'★', roles:['admin','operador']},
+  {id:'config',      label:'Metas & Config', ic:'⚙', roles:['admin']},
+];
+const DEFAULT_CFG = {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, efetivo:0};
+
+let state = { users:[], abs:[], exames:[], agenda:[], dsp:[], satMed:[], satAmb:[], cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
+let currentUser = null;
+let surveyAnswers = {}, surveyDef = null, surveyKind = null;
+let unsubs = [];
+const surveyParam = new URLSearchParams(location.search).get('p'); // 'medico' | 'amb'
+
+/* ================= HELPERS ================= */
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function monthISO(){ return todayISO().slice(0,7); }
+function fmtBR(d){ if(!d) return '—'; const [y,m,dd]=d.split('-'); return dd+'/'+m+'/'+y; }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function baseURL(){ return location.origin + location.pathname; }
+function toast(msg, isErr){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), 2800);
+}
+function tableHTML(headers, rows){
+  if(!rows.length) return '<div class="empty">Sem registros ainda</div>';
+  return '<table><thead><tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+r.map(c=>'<td class="num">'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+}
+function pillNota(n){
+  if(!n) return '<span class="pill p-neutral">—</span>';
+  const cls = n>=4.5?'p-ok':(n>=3.5?'p-warn':'p-bad');
+  return '<span class="pill '+cls+'">'+n.toFixed(1)+'</span>';
+}
+function inRange(d){ if(!d) return false; if(state.filterDe && d<state.filterDe) return false; if(state.filterAte && d>state.filterAte) return false; return true; }
+function businessDays(deISO, ateISO){
+  if(!deISO || !ateISO) return 0;
+  let n=0; const d=new Date(deISO+'T00:00:00'); const end=new Date(ateISO+'T00:00:00');
+  while(d<=end){ const wd=d.getDay(); if(wd!==0 && wd!==6) n++; d.setDate(d.getDate()+1); }
+  return n;
+}
+function authErrPT(e){
+  const c = e?.code || '';
+  if(c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'E-mail ou senha incorretos.';
+  if(c.includes('invalid-email')) return 'E-mail inválido.';
+  if(c.includes('email-already-in-use')) return 'Este e-mail já está cadastrado.';
+  if(c.includes('weak-password')) return 'Senha muito curta — use pelo menos 6 caracteres.';
+  if(c.includes('too-many-requests')) return 'Muitas tentativas — aguarde alguns minutos.';
+  if(c.includes('network')) return 'Falha de conexão — verifique a internet.';
+  if(c.includes('requires-recent-login')) return 'Por segurança, saia e entre de novo antes de alterar a senha.';
+  return 'Erro: '+(e?.message||e);
+}
+function logoSVG(size){
+  return `<svg width="${size}" height="${size*0.78}" viewBox="0 0 100 78" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#8CB43E" stroke-width="7"/>
+    <circle cx="30" cy="27" r="6.5" fill="#8CB43E"/>
+    <circle cx="50" cy="23" r="6.5" fill="#8CB43E"/>
+    <circle cx="70" cy="27" r="6.5" fill="#8CB43E"/>
+    <path d="M27 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+    <path d="M50 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ================= ACESSO ================= */
+/* O login acontece em index.html. Aqui só conferimos a permissão do módulo. */
+async function logout(){ await signOut(auth); location.replace('index.html'); }
+
+onAuthStateChanged(auth, async (user)=>{
+  if(surveyParam) return;
+  if(!user || user.isAnonymous){ location.replace('index.html'); return; }
+  try{
+    const prof = await getDoc(doc(db,'nrh_usuarios',user.uid));
+    if(!prof.exists()){ await signOut(auth); location.replace('index.html'); return; }
+    const d = prof.data();
+    if(d.ativo === false){ await signOut(auth); location.replace('index.html?erro=inativo'); return; }
+    if(!d.admin && !(d.modulos && d.modulos.ambulatorio)){ location.replace('index.html?erro=semacesso'); return; }
+    const role = d.admin ? 'admin' : 'operador';
+    currentUser = {uid:user.uid, ...d, role};
+    await loadConfig();
+    enterApp();
+    subscribeData();
+    await loadSat();
+  }catch(e){
+    document.body.innerHTML = '<div style="padding:40px;font-family:Inter,sans-serif">Erro ao carregar seu perfil. <a href="index.html">Voltar ao início</a></div>';
+  }
+});
+
+
+/* ================= DADOS ================= */
+async function loadConfig(){
+  try{
+    const m = await getDoc(doc(db,'config','amb_metas'));
+    state.cfg = m.exists()? {...DEFAULT_CFG, ...m.data()} : {...DEFAULT_CFG};
+  }catch(e){ state.cfg = {...DEFAULT_CFG}; }
+  await loadPesquisas();
+}
+function normPesq(arr){
+  if(!Array.isArray(arr) || !arr.length) return null;
+  const out = arr.map((q,i)=>({k:'q'+(i+1), t:(typeof q==='string'?q:(q&&q.t)||'')})).filter(q=>q.t.trim());
+  return out.length? out : null;
+}
+function getPesq(kind){ return (kind==='medico'? state.pesqMedico : state.pesqAmb) || (kind==='medico'?SAT_MEDICO:SAT_AMB); }
+async function loadPesquisas(){
+  try{
+    const p = await getDoc(doc(db,'config','amb_pesquisas'));
+    if(p.exists()){
+      const d = p.data();
+      state.pesqMedico = normPesq(d.medico) || [...SAT_MEDICO];
+      state.pesqAmb = normPesq(d.amb) || [...SAT_AMB];
+    } else { state.pesqMedico=[...SAT_MEDICO]; state.pesqAmb=[...SAT_AMB]; }
+  }catch(e){ state.pesqMedico=[...SAT_MEDICO]; state.pesqAmb=[...SAT_AMB]; }
+}
+function sub(colName, target, after){
+  const u = onSnapshot(collection(db,colName), snap=>{
+    state[target] = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    after && after();
+  }, e=>console.error(colName, e));
+  unsubs.push(u);
+}
+function subscribeData(){
+  unsubs.forEach(u=>u()); unsubs=[];
+  sub('amb_absenteismo','abs', ()=>{ renderAbs(); renderDashboard(); });
+  sub('amb_exames','exames', ()=>{ renderExames(); renderDashboard(); });
+  sub('amb_agenda','agenda', ()=>{ renderAgenda(); });
+  sub('amb_dsp','dsp', ()=>{ renderDsp(); renderDashboard(); });
+}
+async function loadSat(){
+  const de = state.filterDe || todayISO().slice(0,8)+'01';
+  const ate = state.filterAte || todayISO();
+  try{
+    const s1 = await getDocs(query(collection(db,'amb_sat_medico'), where('data','>=',de), where('data','<=',ate)));
+    state.satMed = s1.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){ console.error(e); }
+  try{
+    const s2 = await getDocs(query(collection(db,'amb_sat_amb'), where('data','>=',de), where('data','<=',ate)));
+    state.satAmb = s2.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){ console.error(e); }
+  renderDashboard(); renderSatDetalhe();
+}
+
+/* ================= NAV / SHELL ================= */
+function allowedNav(){ return NAV_DEF.filter(n=>n.roles.includes(currentUser.role)); }
+function enterApp(){
+  document.getElementById('app').style.display='block';
+  montarAtalhos();
+  document.getElementById('chip-nome').textContent = currentUser.nome;
+  document.getElementById('chip-role').textContent = ROLES[currentUser.role] + (currentUser.setor? ' · '+currentUser.setor : '');
+  const nav = allowedNav();
+  document.getElementById('sidenav').innerHTML =
+    '<div class="navlbl">Menu</div>' +
+    nav.map(n=>`<button class="navbtn" data-id="${n.id}" onclick="showPage('${n.id}')"><span class="ic">${n.ic}</span>${n.label}</button>`).join('');
+
+  document.getElementById('ab-inicio').value = todayISO();
+  document.getElementById('ex-prev').value = todayISO();
+  document.getElementById('ag-data').value = todayISO();
+  document.getElementById('ag-filtro-data').value = todayISO();
+  document.getElementById('ds-data').value = todayISO();
+  document.getElementById('f-de').value = todayISO().slice(0,8)+'01';
+  document.getElementById('f-ate').value = todayISO();
+  state.filterDe = document.getElementById('f-de').value;
+  state.filterAte = document.getElementById('f-ate').value;
+
+  document.getElementById('link-medico').value = baseURL()+'?p=medico';
+  document.getElementById('link-amb').value = baseURL()+'?p=amb';
+  document.getElementById('qr-amb').src = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=8&data='+encodeURIComponent(baseURL()+'?p=amb');
+
+  document.getElementById('cfg-abs').value = state.cfg.metaAbs;
+  document.getElementById('cfg-exames').value = state.cfg.metaExames;
+  document.getElementById('cfg-satmed').value = state.cfg.metaSatMed;
+  document.getElementById('cfg-satamb').value = state.cfg.metaSatAmb;
+  document.getElementById('cfg-efetivo').value = state.cfg.efetivo||'';
+  renderPesqEditor();
+
+  showPage(nav[0].id);
+}
+function showPage(id){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
+  if(id==='dashboard') renderDashboard();
+  if(id==='agenda') renderAgenda();
+  if(id==='pesquisas') renderSatDetalhe();
+}
+
+/* ================= SAVE: ABSENTEISMO ================= */
+async function salvarAbsenteismo(){
+  const nome = document.getElementById('ab-nome').value.trim();
+  if(!nome){ toast('Informe o colaborador.', true); return; }
+  try{
+    await addDoc(collection(db,'amb_absenteismo'), {
+      nome, setor: document.getElementById('ab-setor').value.trim(),
+      inicio: document.getElementById('ab-inicio').value || todayISO(),
+      dias: Number(document.getElementById('ab-dias').value)||1,
+      cid: document.getElementById('ab-cid').value.trim().toUpperCase(),
+      cidDesc: document.getElementById('ab-ciddesc').value.trim(),
+      tipo: document.getElementById('ab-tipo').value,
+      medico: document.getElementById('ab-medico').value.trim(),
+      por: currentUser.nome,
+    });
+    ['ab-nome','ab-setor','ab-cid','ab-ciddesc','ab-medico'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('ab-dias').value=1;
+    toast('Atestado salvo ✓');
+  }catch(e){ toast('Falha ao salvar — verifique a internet.', true); }
+}
+async function delAbs(id){ confirmModal('Remover este atestado?', async()=>{ try{ await deleteDoc(doc(db,'amb_absenteismo',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+
+/* ================= SAVE: EXAMES ================= */
+async function salvarExame(){
+  const nome = document.getElementById('ex-nome').value.trim();
+  if(!nome){ toast('Informe o colaborador.', true); return; }
+  try{
+    await addDoc(collection(db,'amb_exames'), {
+      nome, setor: document.getElementById('ex-setor').value.trim(),
+      tipo: document.getElementById('ex-tipo').value,
+      prevista: document.getElementById('ex-prev').value || todayISO(),
+      realizada: document.getElementById('ex-real').value || '',
+      resultado: document.getElementById('ex-result').value,
+      por: currentUser.nome,
+    });
+    ['ex-nome','ex-setor','ex-real'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('ex-result').value='';
+    toast('Exame salvo ✓');
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+async function delExame(id){ confirmModal('Remover este exame?', async()=>{ try{ await deleteDoc(doc(db,'amb_exames',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+function statusExame(e){
+  if(e.realizada){
+    return e.realizada <= e.prevista ? {t:'No prazo', c:'p-ok'} : {t:'Atrasado', c:'p-warn'};
+  }
+  return todayISO() > e.prevista ? {t:'Vencido', c:'p-bad'} : {t:'Agendado', c:'p-neutral'};
+}
+
+/* ================= SAVE: AGENDA ================= */
+async function salvarAgenda(){
+  const nome = document.getElementById('ag-nome').value.trim();
+  if(!nome){ toast('Informe o colaborador.', true); return; }
+  try{
+    await addDoc(collection(db,'amb_agenda'), {
+      data: document.getElementById('ag-data').value || todayISO(),
+      hora: document.getElementById('ag-hora').value || '',
+      medico: document.getElementById('ag-medico').value.trim(),
+      nome, tipo: document.getElementById('ag-tipo').value,
+      obs: document.getElementById('ag-obs').value.trim(),
+    });
+    ['ag-hora','ag-medico','ag-nome','ag-obs'].forEach(i=>document.getElementById(i).value='');
+    toast('Agendamento salvo ✓');
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+async function delAgenda(id){ confirmModal('Remover este agendamento?', async()=>{ try{ await deleteDoc(doc(db,'amb_agenda',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+
+/* ================= SAVE: DSP ================= */
+async function salvarDsp(){
+  const tema = document.getElementById('ds-tema').value.trim();
+  if(!tema){ toast('Informe o tema.', true); return; }
+  try{
+    await addDoc(collection(db,'amb_dsp'), {
+      data: document.getElementById('ds-data').value || todayISO(),
+      tema, depto: document.getElementById('ds-depto').value.trim(),
+      participantes: Number(document.getElementById('ds-part').value)||0,
+      resp: document.getElementById('ds-resp').value.trim(),
+    });
+    ['ds-tema','ds-depto','ds-part','ds-resp'].forEach(i=>document.getElementById(i).value='');
+    toast('DSP salvo ✓');
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+async function delDsp(id){ confirmModal('Remover este DSP?', async()=>{ try{ await deleteDoc(doc(db,'amb_dsp',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+
+
+/* ================= CONFIG ================= */
+async function salvarConfig(){
+  state.cfg = {
+    metaAbs: Number(document.getElementById('cfg-abs').value)||DEFAULT_CFG.metaAbs,
+    metaExames: Number(document.getElementById('cfg-exames').value)||DEFAULT_CFG.metaExames,
+    metaSatMed: Number(document.getElementById('cfg-satmed').value)||DEFAULT_CFG.metaSatMed,
+    metaSatAmb: Number(document.getElementById('cfg-satamb').value)||DEFAULT_CFG.metaSatAmb,
+    efetivo: Number(document.getElementById('cfg-efetivo').value)||0,
+  };
+  try{ await setDoc(doc(db,'config','amb_metas'), state.cfg); toast('Configuração salva ✓'); renderDashboard(); }
+  catch(e){ toast('Falha ao salvar.', true); }
+}
+
+/* ================= EDITOR DE PESQUISAS ================= */
+function renderPesqEditor(){ renderPesqList('medico'); renderPesqList('amb'); }
+function renderPesqList(kind){
+  const list = kind==='medico'? state.pesqMedico : state.pesqAmb;
+  const el = document.getElementById('pq-'+kind);
+  if(!el) return;
+  el.innerHTML = (list.length? list.map((q,i)=>`
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <input type="text" value="${esc(q.t)}" oninput="pesqEdit('${kind}',${i},this.value)" placeholder="texto da pergunta">
+      <button class="btn btn-danger btn-mini" onclick="pesqRemove('${kind}',${i})">×</button>
+    </div>`).join('') : '<div class="empty">Sem perguntas — adicione abaixo</div>');
+}
+function pesqEdit(kind,i,val){ (kind==='medico'?state.pesqMedico:state.pesqAmb)[i].t = val; }
+function pesqAdd(kind){
+  const list = kind==='medico'?state.pesqMedico:state.pesqAmb;
+  list.push({k:'q'+(list.length+1), t:''});
+  renderPesqList(kind);
+}
+function pesqRemove(kind,i){
+  const list = kind==='medico'?state.pesqMedico:state.pesqAmb;
+  list.splice(i,1);
+  list.forEach((q,idx)=>q.k='q'+(idx+1));
+  renderPesqList(kind);
+}
+async function salvarPesquisas(){
+  const med = normPesq(state.pesqMedico), amb = normPesq(state.pesqAmb);
+  if(!med || !amb){ toast('Cada pesquisa precisa de ao menos 1 pergunta preenchida.', true); return; }
+  state.pesqMedico = med; state.pesqAmb = amb;
+  try{
+    await setDoc(doc(db,'config','amb_pesquisas'), {medico:med, amb:amb});
+    toast('Perguntas salvas ✓'); renderPesqEditor(); renderSatDetalhe();
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+
+/* ================= RENDER: TABELAS ================= */
+function renderAbs(){
+  const rows = [...state.abs].sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||'')).slice(0,20).map(a=>[
+    fmtBR(a.inicio), esc(a.nome), esc(a.setor||'—'),
+    (a.dias||0)+'d', esc(a.cid||'—'), esc(a.tipo||'—'),
+    `<button class="btn btn-danger btn-mini" onclick="delAbs('${a.id}')">×</button>`
+  ]);
+  document.getElementById('tbl-abs-full').innerHTML = tableHTML(['Início','Colaborador','Setor','Dias','CID','Tipo',''], rows);
+}
+function renderExames(){
+  const rows = [...state.exames].sort((a,b)=>(b.prevista||'').localeCompare(a.prevista||'')).slice(0,30).map(e=>{
+    const s = statusExame(e);
+    return [fmtBR(e.prevista), esc(e.nome), esc(e.tipo||'—'),
+      e.realizada?fmtBR(e.realizada):'—', `<span class="pill ${s.c}">${s.t}</span>`,
+      `<button class="btn btn-danger btn-mini" onclick="delExame('${e.id}')">×</button>`];
+  });
+  document.getElementById('tbl-exames').innerHTML = tableHTML(['Prevista','Colaborador','Tipo','Realizada','Status',''], rows);
+}
+function renderAgenda(){
+  const fData = (document.getElementById('ag-filtro-data')||{}).value || todayISO();
+  const fMed = ((document.getElementById('ag-filtro-medico')||{}).value||'').trim().toLowerCase();
+  const rows = state.agenda
+    .filter(a=>a.data===fData && (!fMed || (a.medico||'').toLowerCase().includes(fMed)))
+    .sort((a,b)=>(a.hora||'').localeCompare(b.hora||''))
+    .map(a=>[a.hora||'—', esc(a.medico||'—'), esc(a.nome), esc(a.tipo||'—'), esc(a.obs||'—'),
+      `<button class="btn btn-danger btn-mini" onclick="delAgenda('${a.id}')">×</button>`]);
+  document.getElementById('tbl-agenda').innerHTML = tableHTML(['Hora','Médico','Colaborador','Tipo','Obs',''], rows);
+}
+function renderDsp(){
+  const rows = [...state.dsp].sort((a,b)=>(b.data||'').localeCompare(a.data||'')).slice(0,30).map(d=>[
+    fmtBR(d.data), esc(d.tema), esc(d.depto||'—'), (d.participantes||0),
+    `<button class="btn btn-danger btn-mini" onclick="delDsp('${d.id}')">×</button>`
+  ]);
+  document.getElementById('tbl-dsp').innerHTML = tableHTML(['Data','Tema','Departamento','Participantes',''], rows);
+}
+
+/* ================= RENDER: DASHBOARD ================= */
+function mediaSat(rows, def){
+  if(!rows.length) return 0; let sum=0,n=0;
+  rows.forEach(r=>def.forEach(q=>{ if(r[q.k]!=null){ sum+=r[q.k]; n++; } }));
+  return n? sum/n : 0;
+}
+function kpiCard(title, value, metaText, ok, val, max){
+  const pct = max? Math.max(0, Math.min(100, (val/max)*100)) : 0;
+  const color = ok? 'var(--ok)' : 'var(--erro)';
+  const pill = ok? '<span class="pill p-ok abs">Na meta</span>' : '<span class="pill p-bad abs">Fora da meta</span>';
+  return `<div class="kpi">${pill}
+    <div class="eyebrow">${title}</div>
+    <div class="val">${value}</div>
+    <div class="meta">${metaText}</div>
+    <div class="bar"><span style="width:${pct}%;background:${color}"></span></div></div>`;
+}
+function renderDashboard(){
+  const absF = state.abs.filter(a=>inRange(a.inicio));
+  const diasPerdidos = absF.reduce((s,a)=>s+(a.dias||0),0);
+  const nAtestados = absF.length;
+  const efetivo = state.cfg.efetivo||0;
+  const diasUteis = businessDays(state.filterDe, state.filterAte);
+  const planejado = efetivo * diasUteis;
+  const taxaAbs = planejado ? (diasPerdidos/planejado*100) : null;
+
+  // exames: base = previstos no período
+  const exF = state.exames.filter(e=>inRange(e.prevista));
+  const noPrazo = exF.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const pctExames = exF.length ? (noPrazo/exF.length*100) : null;
+
+  const satMed = mediaSat(state.satMed, getPesq('medico'));
+  const satAmb = mediaSat(state.satAmb, getPesq('amb'));
+
+  const dspF = state.dsp.filter(d=>inRange(d.data));
+  const dspPart = dspF.reduce((s,d)=>s+(d.participantes||0),0);
+
+  const cfg = state.cfg;
+  const cards = [];
+  cards.push(kpiCard('Absenteísmo',
+    taxaAbs==null ? diasPerdidos+' dias' : taxaAbs.toFixed(2)+'%',
+    taxaAbs==null ? `${nAtestados} atestados · defina o efetivo para ver a taxa` : `Meta: até ${cfg.metaAbs}% · ${diasPerdidos} dias / ${nAtestados} atestados`,
+    taxaAbs==null ? true : taxaAbs<=cfg.metaAbs, taxaAbs==null?0:taxaAbs, cfg.metaAbs*1.6));
+  cards.push(kpiCard('Exames no prazo',
+    pctExames==null ? '—' : pctExames.toFixed(0)+'%',
+    pctExames==null ? 'Sem exames previstos no período' : `Meta: ≥ ${cfg.metaExames}% · ${noPrazo}/${exF.length} no prazo`,
+    pctExames==null ? true : pctExames>=cfg.metaExames, pctExames||0, 100));
+  cards.push(kpiCard('Satisfação — consulta',
+    satMed? satMed.toFixed(2)+' / 5':'—',
+    `Meta: ≥ ${cfg.metaSatMed} · ${state.satMed.length} respostas`,
+    satMed>=cfg.metaSatMed, satMed, 5));
+  cards.push(kpiCard('Satisfação — ambulatório',
+    satAmb? satAmb.toFixed(2)+' / 5':'—',
+    `Meta: ≥ ${cfg.metaSatAmb} · ${state.satAmb.length} respostas`,
+    satAmb>=cfg.metaSatAmb, satAmb, 5));
+  cards.push(kpiCard('DSP no período',
+    dspF.length+'',
+    `${dspPart} participantes no total`, true, 0, 0));
+  document.getElementById('kpi-grid').innerHTML = cards.join('');
+
+  // Top CIDs
+  const cidMap = {};
+  absF.forEach(a=>{ const k=(a.cid||'Sem CID')+(a.cidDesc?(' — '+a.cidDesc):''); if(!cidMap[k]) cidMap[k]={dias:0,n:0}; cidMap[k].dias+=(a.dias||0); cidMap[k].n++; });
+  const cidRows = Object.entries(cidMap).sort((a,b)=>b[1].dias-a[1].dias).slice(0,10)
+    .map(([k,v])=>[esc(k), v.n, v.dias+'d']);
+  document.getElementById('tbl-cid').innerHTML = tableHTML(['CID','Atestados','Dias perdidos'], cidRows);
+
+  // Por setor
+  const setMap = {};
+  absF.forEach(a=>{ const k=a.setor||'—'; if(!setMap[k]) setMap[k]={dias:0,n:0}; setMap[k].dias+=(a.dias||0); setMap[k].n++; });
+  const setRows = Object.entries(setMap).sort((a,b)=>b[1].dias-a[1].dias)
+    .map(([k,v])=>[esc(k), v.n, v.dias+'d']);
+  document.getElementById('tbl-setor').innerHTML = tableHTML(['Setor','Atestados','Dias perdidos'], setRows);
+
+  // Últimos atestados
+  const dashRows = [...absF].sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||'')).slice(0,8)
+    .map(a=>[fmtBR(a.inicio), esc(a.nome), esc(a.setor||'—'), (a.dias||0)+'d', esc(a.cid||'—')]);
+  document.getElementById('tbl-abs-dash').innerHTML = tableHTML(['Início','Colaborador','Setor','Dias','CID'], dashRows);
+}
+function renderSatDetalhe(){
+  const rowsM = getPesq('medico').map(q=>{
+    const vals = state.satMed.map(r=>r[q.k]).filter(v=>v!=null);
+    const m = vals.length? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+    return [esc(q.t), pillNota(m), vals.length];
+  });
+  document.getElementById('tbl-sat-medico').innerHTML =
+    '<div style="font-weight:700;color:var(--verde);margin-bottom:6px;font-size:13px">Consulta médica</div>'+
+    tableHTML(['Pergunta','Média','Respostas'], rowsM);
+  const rowsA = getPesq('amb').map(q=>{
+    const vals = state.satAmb.map(r=>r[q.k]).filter(v=>v!=null);
+    const m = vals.length? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+    return [esc(q.t), pillNota(m), vals.length];
+  });
+  document.getElementById('tbl-sat-amb').innerHTML =
+    '<div style="font-weight:700;color:var(--verde);margin-bottom:6px;font-size:13px">Atendimento no ambulatório</div>'+
+    tableHTML(['Pergunta','Média','Respostas'], rowsA);
+}
+
+/* ================= LINKS / QR ================= */
+function copyLink(kind){
+  const inp = document.getElementById(kind==='medico'?'link-medico':'link-amb');
+  inp.select();
+  try{ navigator.clipboard && navigator.clipboard.writeText(inp.value); }catch(e){}
+  try{ document.execCommand('copy'); }catch(e){}
+  toast('Link copiado ✓');
+}
+function abrirWhats(kind){
+  const url = document.getElementById('link-medico').value;
+  const msg = 'Olá! Como foi seu atendimento no ambulatório hoje? Leva 1 minuto e é anônimo: '+url;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg), '_blank');
+}
+function imprimirQR(){
+  const url = baseURL()+'?p=amb';
+  const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=520x520&margin=12&data='+encodeURIComponent(url);
+  const area = document.getElementById('print-area');
+  area.innerHTML = `<div style="text-align:center;font-family:'Poppins',sans-serif;padding:40px">
+    <div style="font-size:30px;font-weight:700;color:#024f2b">raguife · Ambulatório</div>
+    <div style="font-size:40px;font-weight:700;margin:26px 0 6px;color:#22301f">Avalie seu atendimento</div>
+    <div style="font-size:18px;color:#666;margin-bottom:24px">Aponte a câmera do celular para o código · leva 1 minuto · é anônimo</div>
+    <img src="${qr}" style="width:360px;height:360px">
+  </div>`;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Cartaz QR — Ambulatório</title></head><body>'+area.innerHTML+'</body></html>');
+  w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 400);
+}
+
+/* ================= PESQUISA PÚBLICA ================= */
+function renderSurvey(){
+  const wrap = document.getElementById('survey-body-wrap');
+  const qs = document.getElementById('survey-questions');
+  const titulo = surveyKind==='medico' ? 'Como foi sua consulta médica?' : 'Como foi seu atendimento no ambulatório?';
+  wrap.innerHTML = `<h1>${titulo}</h1><div class="sub">Toque uma carinha para cada item · sua resposta é anônima</div>`;
+  qs.innerHTML = surveyDef.map(q=>`
+    <div class="qblock">
+      <div class="qtitle">${q.t}</div>
+      <div class="emoji-scale" data-k="${q.k}">
+        ${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}"><span class="em">${EMOJIS[n-1]}</span><span class="n">${n}</span></button>`).join('')}
+      </div>
+    </div>`).join('') +
+    `<div class="qblock survey-comment"><div class="qtitle">Quer deixar um comentário? (opcional)</div>
+      <textarea id="survey-obs" placeholder="Escreva aqui..."></textarea></div>
+     <button class="survey-send" onclick="enviarSurvey()">Enviar avaliação</button>`;
+  qs.querySelectorAll('.emoji-scale').forEach(sc=>{
+    const k = sc.dataset.k;
+    sc.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        surveyAnswers[k] = Number(btn.dataset.n);
+        sc.querySelectorAll('button').forEach(b=>b.classList.toggle('sel', b===btn));
+      });
+    });
+  });
+}
+async function enviarSurvey(){
+  if(Object.keys(surveyAnswers).length < surveyDef.length){
+    toast('Toque uma carinha em todos os itens 🙂', true); return;
+  }
+  const now = new Date();
+  const col = surveyKind==='medico' ? 'amb_sat_medico' : 'amb_sat_amb';
+  try{
+    await addDoc(collection(db,col), {
+      data: todayISO(),
+      hora: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
+      obs: (document.getElementById('survey-obs')||{}).value||'',
+      ...surveyAnswers
+    });
+    document.getElementById('survey-questions').innerHTML = '<div class="survey-thanks">Obrigado pela avaliação! 🙌</div>';
+    document.getElementById('survey-body-wrap').innerHTML = '';
+    surveyAnswers = {};
+  }catch(e){ toast('Falha ao enviar — verifique a internet.', true); }
+}
+
+/* ================= IMPORT TXT (absenteísmo) ================= */
+let importRaw = null;      // {atestados, previdencia, acidente, outros}
+let importSetorMap = {};   // matricula -> setor
+let importPendingTxt = null, importPendingFunc = null;
+
+function _norm(s){ return s? s.trim().replace(/\s+/g,' ').toUpperCase() : ''; }
+function _cap(s){ return s? s.charAt(0).toUpperCase()+s.slice(1).toLowerCase() : ''; }
+function _parseHoras(h){ if(!h||!h.includes(':')) return 0; const [hh,mm]=h.split(':').map(Number); return (hh||0)*60+(mm||0); }
+function _fmtMin(m){ const h=Math.floor(m/60), mn=m%60; if(h===0) return mn+'min'; return mn>0? h+'h '+mn+'min' : h+'h'; }
+function _classifyAfast(tipo){
+  const t=_norm(tipo);
+  if(t.includes('ACIDENTE')) return 'acidente';
+  if(t.includes('PREVID')||t.includes('APOSENTADO')||t.includes('INVALIDEZ')) return 'previdencia';
+  if(t.includes('LICENCA')) return 'outros';
+  return 'atestado';
+}
+function _cidLabel(r){ const c=r.cidFilho||r.cidPai; if(!c) return 'Não informado'; const s=c.length>55? c.substring(0,55)+'…':c; return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase(); }
+function _parseTxt(text){
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const atestados=[],previdencia=[],acidente=[],outros=[];
+  let mode=null;
+  for(const line of lines){
+    if(line.startsWith('Matr') && line.includes('Nome') && line.includes('Inicial')){
+      mode = line.includes('Afastamento')?'afastamento':'atestado'; continue;
+    }
+    if(!mode) continue;
+    const cols=line.split(';');
+    if(cols.length<6) continue;
+    const mat=(cols[0]||'').trim();
+    if(!mat || isNaN(mat)) continue;
+    if(mode==='atestado'){
+      atestados.push({matricula:mat,nome:_norm(cols[1]),dataInicial:(cols[2]||'').trim(),dataFinal:(cols[3]||'').trim(),diasPeriodo:parseInt(cols[4])||0,horas:(cols[6]||'').trim()||'0:00',minutos:_parseHoras((cols[6]||'').trim()),medico:_norm(cols[7]),cidPai:_norm(cols[8]),cidFilho:_norm(cols[9]),categoria:'atestado'});
+    } else {
+      const tipoAf=_norm(cols[7]), cat=_classifyAfast(tipoAf);
+      const rec={matricula:mat,nome:_norm(cols[1]),dataInicial:(cols[2]||'').trim(),dataFinal:(cols[3]||'').trim(),diasPeriodo:parseInt(cols[4])||0,horas:'0:00',minutos:0,tipoAfastamento:tipoAf,medico:_norm(cols[8]),cidPai:_norm(cols[9]),cidFilho:_norm(cols[10]),categoria:cat};
+      if(cat==='acidente') acidente.push(rec);
+      else if(cat==='previdencia') previdencia.push(rec);
+      else if(cat==='outros') outros.push(rec);
+      else atestados.push(rec);
+    }
+  }
+  return {atestados,previdencia,acidente,outros};
+}
+function _parseFuncionarios(text){
+  const lines=text.split(/\r?\n/);
+  const map={};
+  const skip=[/^RAGUIFE/i,/^NEVES QUEIROZ/i,/^[Áa]rea Rural/i,/^Santa F/i,/^\d{2}\.\d{3}/,/^Sistema MixFolha/i,/^TOTAL/,/^Chapa/,/^\s*$/,/^01\/01\/1900/];
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line || skip.some(p=>p.test(line))) continue;
+    const m=line.match(/^\d{6}[A-Za-z\s]*\s+(.+?)\s{2,}(\d+)\s{2,}(.+)$/);
+    if(m){
+      const ref=m[2].trim(); let depto=m[3].trim();
+      const next=(lines[i+1]||'').trim();
+      if(next && /^[A-Z]/.test(next) && next.length<40 && !/^\d{6}/.test(next) && !/^\d+$/.test(next)){ depto=depto+' '+next; i++; }
+      map[ref]=depto.replace(/\s+/g,' ').trim();
+    }
+  }
+  return map;
+}
+
+function lerTxtAtestados(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    importPendingTxt=_parseTxt(e.target.result);
+    const st=document.getElementById('imp-txt-status'); st.style.display='';
+    st.textContent=`${importPendingTxt.atestados.length} atestados · ${importPendingTxt.previdencia.length} previdência · ${importPendingTxt.acidente.length} acidente`;
+  };
+  r.readAsText(f,'latin1');
+}
+function lerTxtFuncionarios(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    importPendingFunc=_parseFuncionarios(e.target.result);
+    const st=document.getElementById('imp-func-status'); st.style.display='';
+    st.textContent=`${Object.keys(importPendingFunc).length} colaboradores mapeados por setor`;
+  };
+  r.readAsText(f,'latin1');
+}
+function processarImport(){
+  if(!importPendingTxt){ toast('Carregue ao menos o arquivo de atestados.', true); return; }
+  importRaw=importPendingTxt;
+  importSetorMap=importPendingFunc||{};
+  // anexa setor a cada registro
+  const setorDe = mat => importSetorMap[mat] ? _cap(importSetorMap[mat]) : 'Sem setor';
+  ['atestados','previdencia','acidente','outros'].forEach(k=>importRaw[k].forEach(r=>r.setor=setorDe(r.matricula)));
+  const setores=[...new Set([...importRaw.atestados,...importRaw.previdencia,...importRaw.acidente].map(r=>r.setor))].sort();
+  document.getElementById('imp-setor').innerHTML='<option value="">Todos os setores</option>'+setores.map(s=>`<option>${esc(s)}</option>`).join('');
+  document.getElementById('imp-resultado').style.display='block';
+  document.getElementById('imp-export-btn').style.display='';
+  renderImport();
+  toast('Resultados carregados ✓');
+}
+function limparImport(){
+  importRaw=null; importPendingTxt=null; importPendingFunc=null; importSetorMap={};
+  document.getElementById('imp-txt').value=''; document.getElementById('imp-func').value='';
+  document.getElementById('imp-txt-status').style.display='none';
+  document.getElementById('imp-func-status').style.display='none';
+  document.getElementById('imp-resultado').style.display='none';
+  document.getElementById('imp-export-btn').style.display='none';
+}
+function _filtSetor(arr, setor){ return setor? arr.filter(r=>r.setor===setor) : arr; }
+function renderImport(){
+  if(!importRaw) return;
+  const setor=document.getElementById('imp-setor').value;
+  const at=_filtSetor(importRaw.atestados,setor);
+  const pv=_filtSetor(importRaw.previdencia,setor);
+  const ac=_filtSetor(importRaw.acidente,setor);
+  const atDias=at.reduce((s,r)=>s+(r.diasPeriodo||0),0);
+  const atMin=at.reduce((s,r)=>s+(r.minutos||0),0);
+  const pvDias=pv.reduce((s,r)=>s+(r.diasPeriodo||0),0);
+  const acDias=ac.reduce((s,r)=>s+(r.diasPeriodo||0),0);
+  const colabs=new Set([...at,...pv,...ac].map(r=>r.matricula)).size;
+  const card=(lbl,val,sub)=>`<div class="kpi"><div class="eyebrow">${lbl}</div><div class="val">${val}</div><div class="meta">${sub}</div></div>`;
+  document.getElementById('imp-kpi').innerHTML=
+    card('Atestados', at.length, `${atDias} dias · ${_fmtMin(atMin)}`)+
+    card('Previdência', pv.length, `${pvDias} dias de afastamento`)+
+    card('Acidente de trabalho', ac.length, `${acDias} dias de afastamento`)+
+    card('Colaboradores afetados', colabs, 'no período do arquivo');
+
+  // CID (dos atestados)
+  const cidMap={};
+  at.forEach(r=>{ const k=_cidLabel(r); if(!cidMap[k]) cidMap[k]={n:0,dias:0,min:0}; cidMap[k].n++; cidMap[k].dias+=r.diasPeriodo||0; cidMap[k].min+=r.minutos||0; });
+  document.getElementById('imp-tbl-cid').innerHTML=tableHTML(['CID','Ocorrências','Dias','Horas'],
+    Object.entries(cidMap).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([k,d])=>[esc(k),d.n,d.dias,_fmtMin(d.min)]));
+
+  // Setor
+  const setMap={};
+  [...at,...pv,...ac].forEach(r=>{ const s=r.setor; if(!setMap[s]) setMap[s]={colabs:new Set(),n:0,dias:0}; setMap[s].colabs.add(r.matricula); setMap[s].n++; setMap[s].dias+=r.diasPeriodo||0; });
+  document.getElementById('imp-tbl-setor').innerHTML=tableHTML(['Setor','Colaboradores','Ocorrências','Dias'],
+    Object.entries(setMap).sort((a,b)=>b[1].n-a[1].n).map(([s,d])=>[esc(s),d.colabs.size,d.n,d.dias]));
+
+  // Médico (dos atestados)
+  const medMap={};
+  at.forEach(r=>{ const m=r.medico||'Não informado'; if(!medMap[m]) medMap[m]={n:0,dias:0}; medMap[m].n++; medMap[m].dias+=r.diasPeriodo||0; });
+  document.getElementById('imp-tbl-med').innerHTML=tableHTML(['Médico','Atestados','Dias'],
+    Object.entries(medMap).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([m,d])=>[esc(_cap(m)),d.n,d.dias]));
+
+  // Afastamentos
+  const afast=[...pv,...ac].sort((a,b)=>(b.diasPeriodo||0)-(a.diasPeriodo||0));
+  document.getElementById('imp-tbl-afast').innerHTML=tableHTML(['Matrícula','Nome','Setor','Tipo','CID','Dias','Início','Fim','Médico'],
+    afast.map(r=>[r.matricula,esc(_cap(r.nome)),esc(r.setor),
+      r.categoria==='acidente'?'<span class="pill p-warn">Acidente</span>':'<span class="pill p-bad">Previdência</span>',
+      esc(_cidLabel(r)),r.diasPeriodo||0,r.dataInicial||'—',r.dataFinal||'—',esc(_cap(r.medico))||'—']));
+}
+
+function exportarHTML(){
+  if(!importRaw){ toast('Nada para exportar.', true); return; }
+  const data={
+    atestados:importRaw.atestados, previdencia:importRaw.previdencia, acidente:importRaw.acidente,
+    geradoEm:new Date().toLocaleString('pt-BR')
+  };
+  const html = buildExportHTML(data);
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='absenteismo_'+todayISO()+'.html'; a.click();
+  URL.revokeObjectURL(url);
+  toast('HTML gerado ✓');
+}
+function buildExportHTML(data){
+  const json=JSON.stringify(data).replace(/</g,'\\u003c');
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absenteísmo — Raguife</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--verde:#024f2b;--folha:#739630;--cinza:#666;--bg:#f4f6f1;--branco:#fff;--linha:#e2e6dc;--erro:#c0392b;--amber:#d99a2b;--ok:#3d7a26;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:#22301f;font-size:14px;padding:24px;}
+h1,h2{font-family:'Poppins',sans-serif;color:var(--verde);}
+.head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:3px solid var(--verde);padding-bottom:14px;margin-bottom:18px;}
+.head .wm{font-family:'Poppins';font-weight:700;font-size:26px;color:var(--verde);}
+.head .sub{font-size:12px;color:var(--cinza);}
+.bar{background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:14px 16px;margin-bottom:18px;display:flex;gap:12px;align-items:end;flex-wrap:wrap;}
+label{display:block;font-size:12px;font-weight:600;color:#40503b;margin-bottom:5px;}
+select{padding:9px 11px;border:1px solid var(--linha);border-radius:9px;font-size:14px;background:#fbfcf9;min-width:220px;}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px;}
+.kpi{background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:16px;}
+.kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--cinza);font-weight:700;margin-bottom:6px;}
+.kpi .val{font-family:'Poppins';font-size:26px;font-weight:700;}
+.kpi .sub{font-size:11.5px;color:var(--cinza);margin-top:3px;}
+.panel{background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:18px;margin-bottom:16px;}
+.panel h2{font-size:15px;margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;color:var(--cinza);font-weight:700;font-size:10.5px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--linha);}
+td{padding:8px 10px;border-bottom:1px solid #eef0e8;}
+.pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;}
+.p-bad{background:#f7e3df;color:var(--erro);}.p-warn{background:#f9efd9;color:#996c14;}
+.empty{color:var(--cinza);text-align:center;padding:18px;}
+.table-wrap{overflow-x:auto;}
+@media print{.bar{display:none;}body{padding:0;}}
+</style></head><body>
+<div class="head"><div><span class="wm">raguife</span><div class="sub">Relatório de absenteísmo médico</div></div>
+<div class="sub">Gerado em ${data.geradoEm}</div></div>
+<div class="bar"><div><label>Filtrar por setor</label><select id="setor" onchange="render()"></select></div>
+<button onclick="window.print()" style="padding:9px 16px;border:1px solid var(--linha);border-radius:9px;background:var(--folha);color:#fff;font-weight:600;cursor:pointer;font-family:'Poppins'">Imprimir / PDF</button></div>
+<div class="kpis" id="kpis"></div>
+<div class="panel"><h2>Principais CID</h2><div class="table-wrap" id="t-cid"></div></div>
+<div class="panel"><h2>Por setor</h2><div class="table-wrap" id="t-setor"></div></div>
+<div class="panel"><h2>Por médico</h2><div class="table-wrap" id="t-med"></div></div>
+<div class="panel"><h2>Afastamentos (previdência + acidente)</h2><div class="table-wrap" id="t-afast"></div></div>
+<script>
+const D=${json};
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1).toLowerCase():'';}
+function fmtMin(m){const h=Math.floor(m/60),n=m%60;if(h===0)return n+'min';return n>0?h+'h '+n+'min':h+'h';}
+function cidLabel(r){const c=r.cidFilho||r.cidPai;if(!c)return'Não informado';const s=c.length>55?c.substring(0,55)+'…':c;return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function tbl(h,rows){if(!rows.length)return'<div class="empty">Sem registros</div>';return'<table><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>';}
+const all=[...D.atestados,...D.previdencia,...D.acidente];
+const setores=[...new Set(all.map(r=>r.setor))].sort();
+document.getElementById('setor').innerHTML='<option value="">Todos os setores</option>'+setores.map(s=>'<option>'+esc(s)+'</option>').join('');
+function filt(a,s){return s?a.filter(r=>r.setor===s):a;}
+function render(){
+  const s=document.getElementById('setor').value;
+  const at=filt(D.atestados,s),pv=filt(D.previdencia,s),ac=filt(D.acidente,s);
+  const atDias=at.reduce((x,r)=>x+(r.diasPeriodo||0),0),atMin=at.reduce((x,r)=>x+(r.minutos||0),0);
+  const pvDias=pv.reduce((x,r)=>x+(r.diasPeriodo||0),0),acDias=ac.reduce((x,r)=>x+(r.diasPeriodo||0),0);
+  const colabs=new Set([...at,...pv,...ac].map(r=>r.matricula)).size;
+  const k=(l,v,su)=>'<div class="kpi"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+su+'</div></div>';
+  document.getElementById('kpis').innerHTML=k('Atestados',at.length,atDias+' dias · '+fmtMin(atMin))+k('Previdência',pv.length,pvDias+' dias')+k('Acidente',ac.length,acDias+' dias')+k('Colaboradores afetados',colabs,'no período');
+  const cm={};at.forEach(r=>{const kk=cidLabel(r);if(!cm[kk])cm[kk]={n:0,d:0,m:0};cm[kk].n++;cm[kk].d+=r.diasPeriodo||0;cm[kk].m+=r.minutos||0;});
+  document.getElementById('t-cid').innerHTML=tbl(['CID','Ocorrências','Dias','Horas'],Object.entries(cm).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([kk,d])=>[esc(kk),d.n,d.d,fmtMin(d.m)]));
+  const sm={};[...at,...pv,...ac].forEach(r=>{const ss=r.setor;if(!sm[ss])sm[ss]={c:new Set(),n:0,d:0};sm[ss].c.add(r.matricula);sm[ss].n++;sm[ss].d+=r.diasPeriodo||0;});
+  document.getElementById('t-setor').innerHTML=tbl(['Setor','Colaboradores','Ocorrências','Dias'],Object.entries(sm).sort((a,b)=>b[1].n-a[1].n).map(([ss,d])=>[esc(ss),d.c.size,d.n,d.d]));
+  const mm={};at.forEach(r=>{const md=r.medico||'Não informado';if(!mm[md])mm[md]={n:0,d:0};mm[md].n++;mm[md].d+=r.diasPeriodo||0;});
+  document.getElementById('t-med').innerHTML=tbl(['Médico','Atestados','Dias'],Object.entries(mm).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([md,d])=>[esc(cap(md)),d.n,d.d]));
+  const af=[...pv,...ac].sort((a,b)=>(b.diasPeriodo||0)-(a.diasPeriodo||0));
+  document.getElementById('t-afast').innerHTML=tbl(['Matrícula','Nome','Setor','Tipo','CID','Dias','Início','Fim','Médico'],af.map(r=>[r.matricula,esc(cap(r.nome)),esc(r.setor),r.categoria==='acidente'?'<span class="pill p-warn">Acidente</span>':'<span class="pill p-bad">Previdência</span>',esc(cidLabel(r)),r.diasPeriodo||0,r.dataInicial||'—',r.dataFinal||'—',esc(cap(r.medico))||'—']));
+}
+render();
+<\/script></body></html>`;
+}
+
+/* ================= MODAL ================= */
+function openModal(html){ document.getElementById('modal-box').innerHTML = html; document.getElementById('modal-bg').classList.add('open'); }
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+let _confirmFn = null;
+function confirmModal(msg, fn){
+  _confirmFn = fn;
+  openModal(`<h3>Confirmar</h3><p style="font-size:14px;color:#40503b;margin:0 0 16px">${msg}</p>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-primary" onclick="_runConfirm()">Confirmar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function _runConfirm(){ const f=_confirmFn; closeModal(); f && f(); }
+function openModalSenha(){
+  openModal(`<h3>Alterar minha senha</h3>
+    <label>Senha atual</label><input type="password" id="cs-old" style="margin-bottom:12px">
+    <label>Nova senha (mín. 6)</label><input type="password" id="cs-new">
+    <div class="btn-row"><button class="btn btn-primary" onclick="salvarNovaSenha()">Salvar</button>
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function salvarNovaSenha(){
+  const oldP = document.getElementById('cs-old').value;
+  const newP = document.getElementById('cs-new').value;
+  if(!oldP || !newP){ toast('Preencha as duas senhas.', true); return; }
+  try{
+    const cred = EmailAuthProvider.credential(currentUser.email, oldP);
+    await reauthenticateWithCredential(auth.currentUser, cred);
+    await updatePassword(auth.currentUser, newP);
+    closeModal(); toast('Senha alterada ✓');
+  }catch(e){ toast(authErrPT(e), true); }
+}
+
+/* ================= FILTRO ================= */
+function applyFilter(){
+  state.filterDe = document.getElementById('f-de').value;
+  state.filterAte = document.getElementById('f-ate').value;
+  loadSat();
+  renderDashboard();
+}
+function setPreset(p){
+  let de, ate = todayISO();
+  if(p==='hoje') de = todayISO();
+  else if(p==='7d'){ const d=new Date(); d.setDate(d.getDate()-6); de=d.toISOString().slice(0,10); }
+  else if(p==='mes'){ de = todayISO().slice(0,8)+'01'; }
+  else if(p==='ano'){ de = todayISO().slice(0,4)+'-01-01'; }
+  document.getElementById('f-de').value = de;
+  document.getElementById('f-ate').value = ate;
+  applyFilter();
+}
+
+/* ================= ATALHOS DE NAVEGAÇÃO ================= */
+function montarAtalhos(){
+  const chip = document.querySelector('.topbar .userchip');
+  if(!chip || document.getElementById('btn-inicio')) return;
+  const podeFac = currentUser.admin || (currentUser.modulos && currentUser.modulos.facilities);
+  const html = `<button class="btn-top" id="btn-inicio" onclick="location.href='index.html'">Início</button>` +
+    (podeFac ? `<button class="btn-top" onclick="location.href='facilities.html'">🍽 Facilities</button>` : '');
+  chip.insertAdjacentHTML('afterbegin', html);
+}
+
+/* ================= INIT ================= */
+async function init(){
+  document.getElementById('logo-small').innerHTML = logoSVG(34);
+  document.getElementById('logo-survey').innerHTML = logoSVG(64);
+
+  if(surveyParam==='medico' || surveyParam==='amb'){
+    surveyKind = surveyParam;
+    document.getElementById('survey-screen').style.display='block';
+    try{ await signInAnonymously(auth); }
+    catch(e){
+      document.getElementById('survey-questions').innerHTML =
+        '<div class="survey-thanks" style="font-size:15px;padding:50px 20px">Não foi possível conectar.<br>Habilite o login "Anônimo" no Firebase Authentication.</div>';
+      return;
+    }
+    await loadPesquisas();
+    surveyDef = getPesq(surveyKind);
+    renderSurvey();
+    return;
+  }
+}
+
+Object.assign(window, {
+  logout, showPage,
+  salvarAbsenteismo, delAbs, salvarExame, delExame,
+  salvarAgenda, delAgenda, renderAgenda, salvarDsp, delDsp,
+  salvarConfig,
+  applyFilter, setPreset, copyLink, abrirWhats, imprimirQR,
+  enviarSurvey, openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
+  lerTxtAtestados, lerTxtFuncionarios, processarImport, renderImport, exportarHTML, limparImport,
+  pesqAdd, pesqRemove, pesqEdit, salvarPesquisas,
+});
+init();
+</script>
+</body>
+</html>
