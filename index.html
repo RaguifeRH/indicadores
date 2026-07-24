@@ -490,10 +490,25 @@ async function criarAdminInicial(){
 }
 async function logout(){ await signOut(auth); location.reload(); }
 async function checkBootstrap(){
+  const card = document.getElementById('bootstrap-card');
+  const err  = document.getElementById('lg-err');
   try{
     const s = await getDoc(doc(db,'config','setup_novo'));
-    document.getElementById('bootstrap-card').style.display = s.exists()? 'none':'block';
-  }catch(e){ console.error(e); }
+    card.style.display = s.exists()? 'none':'block';
+  }catch(e){
+    console.error('checkBootstrap:', e);
+    const c = (e && e.code) || '';
+    // Não conseguimos saber se já existe administrador. Melhor mostrar o bloco
+    // e dizer o que houve do que sumir com ele sem explicação.
+    card.style.display = 'block';
+    if(c.includes('permission-denied')){
+      err.textContent = 'O banco recusou a leitura. Publique o firestore.rules no console do Firebase.';
+    }else if(c.includes('unavailable') || c.includes('network')){
+      err.textContent = 'Sem conexão com o Firestore. Verifique se o banco de dados foi criado.';
+    }else{
+      err.textContent = 'Não foi possível falar com o banco: ' + (e && e.message ? e.message : c);
+    }
+  }
 }
 
 /* ================= PORTAL ================= */
