@@ -225,6 +225,12 @@
           <button class="btn btn-leaf" onclick="applyFilter()">Aplicar</button>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
+        <div class="panel" id="panel-tendencia" style="display:none">
+          <h2>Tendência do absenteísmo</h2>
+          <div class="desc">Taxa mensal (fonte: ponto). Barra cheia = sem abono · marca = com abono médico</div>
+          <div id="tend-chart"></div>
+          <div class="table-wrap" id="tend-tbl" style="margin-top:14px"></div>
+        </div>
         <div class="panel">
           <h2>Absenteísmo por CID</h2>
           <div class="desc">Principais causas de afastamento no período (código CID)</div>
@@ -267,50 +273,63 @@
       </div>
 
       <!-- ABSENTEISMO TXT (IMPORT) -->
-      <div class="page" id="page-absimport">
-        <h1 class="page-title">Absenteísmo — importar TXT</h1>
-        <div class="page-desc">Leia os arquivos exportados da folha/SST. Os dados são só visualizados aqui — nada é salvo no banco — e você pode gerar um HTML para os gestores.</div>
+            <div class="page" id="page-absimport">
+        <h1 class="page-title">Absenteísmo — importar mês</h1>
+        <div class="page-desc">Suba os três relatórios do mês. O sistema cruza os dados, calcula os indicadores de horas e salva o consolidado para o histórico.</div>
+
         <div class="panel">
-          <h2>1 · Carregar arquivos</h2>
+          <h2>1 · Competência</h2>
           <div class="form-grid">
-            <div>
-              <label>Arquivo de atestados / afastamentos (.txt)</label>
-              <input type="file" id="imp-txt" accept=".txt" onchange="lerTxtAtestados(event)">
-              <div class="note" id="imp-txt-status" style="display:none"></div>
-            </div>
-            <div>
-              <label>Arquivo de funcionários — mapa de setor (.txt, opcional)</label>
-              <input type="file" id="imp-func" accept=".txt" onchange="lerTxtFuncionarios(event)">
-              <div class="note" id="imp-func-status" style="display:none"></div>
-            </div>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-primary" onclick="processarImport()">Visualizar resultados</button>
-            <button class="btn btn-leaf" id="imp-export-btn" onclick="exportarHTML()" style="display:none">Exportar HTML para gestores</button>
-            <button class="btn btn-ghost" onclick="limparImport()">Limpar</button>
+            <div><label>Mês de referência</label><input type="month" id="imp-comp"></div>
+            <div><label>Período do ponto (informativo)</label><input type="text" id="imp-periodo" placeholder="ex: 26/05 a 25/06" ></div>
           </div>
         </div>
 
+        <div class="panel">
+          <h2>2 · Arquivos</h2>
+          <div class="form-grid">
+            <div>
+              <label>Ponto — MixPonto (.pdf)</label>
+              <input type="file" id="imp-pdf" accept=".pdf" onchange="lerPontoPDF(event)">
+              <div class="note" id="imp-pdf-status" style="display:none"></div>
+            </div>
+            <div>
+              <label>Cadastro — Relação de Funcionários (.xlsx)</label>
+              <input type="file" id="imp-xlsx" accept=".xlsx" onchange="lerCadastroXLSX(event)">
+              <div class="note" id="imp-xlsx-status" style="display:none"></div>
+            </div>
+            <div>
+              <label>Atestados / CID (.txt) — opcional</label>
+              <input type="file" id="imp-txt" accept=".txt" onchange="lerAtestadosTXT(event)">
+              <div class="note" id="imp-txt-status" style="display:none"></div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="processarMes()">Processar</button>
+            <button class="btn btn-leaf" id="imp-save-btn" onclick="salvarMes()" style="display:none">Salvar no histórico</button>
+            <button class="btn btn-ghost" onclick="limparImport()">Limpar</button>
+          </div>
+          <div class="note">O ponto é a fonte das horas (previstas, faltas, atrasos, abono médico). O cadastro dá filial e departamento de cada pessoa. O bloco de causas por CID fica desativado até a exportação do RH ser corrigida.</div>
+        </div>
+
         <div id="imp-resultado" style="display:none">
-          <div class="filter-bar">
-            <div class="fld"><label>Filtrar por setor</label><select id="imp-setor" onchange="renderImport()"></select></div>
-          </div>
           <div class="grid-kpi" id="imp-kpi"></div>
+
           <div class="panel">
-            <h2>Principais CID</h2>
-            <div class="table-wrap" id="imp-tbl-cid"></div>
+            <h2>Absenteísmo por filial</h2>
+            <div class="desc">Taxa = faltas ÷ horas previstas no período</div>
+            <div class="table-wrap" id="imp-tbl-filial"></div>
           </div>
+
           <div class="panel">
-            <h2>Por setor</h2>
-            <div class="table-wrap" id="imp-tbl-setor"></div>
+            <h2>Absenteísmo por departamento</h2>
+            <div class="desc">Ordenado da maior para a menor taxa</div>
+            <div class="table-wrap" id="imp-tbl-depto"></div>
           </div>
-          <div class="panel">
-            <h2>Por médico</h2>
-            <div class="table-wrap" id="imp-tbl-med"></div>
-          </div>
-          <div class="panel">
-            <h2>Afastamentos (previdência + acidente)</h2>
-            <div class="table-wrap" id="imp-tbl-afast"></div>
+
+          <div class="panel" id="imp-panel-avisos" style="display:none">
+            <h2>Avisos de cruzamento</h2>
+            <div class="note" id="imp-avisos"></div>
           </div>
         </div>
       </div>
@@ -373,7 +392,7 @@
 
       <!-- DSP -->
       <div class="page" id="page-dsp">
-        <h1 class="page-title">DSP — Diálogo de Segurança e Prevenção</h1>
+        <h1 class="page-title">DSP — Diálogo de Segurança Psicológica</h1>
         <div class="page-desc">Registro dos diálogos realizados</div>
         <div class="panel">
           <h2>Novo DSP</h2>
@@ -494,12 +513,12 @@ import {
 
 /* Mesmo projeto Firebase do Facilities — mesmos usuários fazem login */
 const firebaseConfig = {
-  apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
-  authDomain: "controlepix-cc524.firebaseapp.com",
-  projectId: "controlepix-cc524",
-  storageBucket: "controlepix-cc524.firebasestorage.app",
-  messagingSenderId: "949223824940",
-  appId: "1:949223824940:web:d56a9e04901aff35273b89"
+  apiKey: "AIzaSyBVS-UnYSOPXUUSDru0y5nEstN-3prKn-c",
+  authDomain: "facilities-aef2f.firebaseapp.com",
+  projectId: "facilities-aef2f",
+  storageBucket: "facilities-aef2f.firebasestorage.app",
+  messagingSenderId: "546452013311",
+  appId: "1:546452013311:web:a1ff4a2605dcb93209ccca"
 };
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
@@ -525,7 +544,7 @@ const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
   {id:'dashboard',   label:'Dashboard',      ic:'▦', roles:['admin','operador']},
   {id:'absenteismo', label:'Absenteísmo',    ic:'⚕', roles:['admin','operador']},
-  {id:'absimport',   label:'Absenteísmo TXT', ic:'📄', roles:['admin']},
+  {id:'absimport',   label:'Importar mês', ic:'📄', roles:['admin']},
   {id:'exames',      label:'Exames periódicos', ic:'🩺', roles:['admin','operador']},
   {id:'agenda',      label:'Agenda médicos', ic:'📅', roles:['admin','operador']},
   {id:'dsp',         label:'DSP',            ic:'🗣', roles:['admin','operador']},
@@ -534,7 +553,7 @@ const NAV_DEF = [
 ];
 const DEFAULT_CFG = {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, efetivo:0};
 
-let state = { users:[], abs:[], exames:[], agenda:[], dsp:[], satMed:[], satAmb:[], cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
+let state = { users:[], abs:[], absMensal:[], exames:[], agenda:[], dsp:[], satMed:[], satAmb:[], cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
 let currentUser = null;
 let surveyAnswers = {}, surveyDef = null, surveyKind = null;
 let unsubs = [];
@@ -543,6 +562,7 @@ const surveyParam = new URLSearchParams(location.search).get('p'); // 'medico' |
 /* ================= HELPERS ================= */
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function monthISO(){ return todayISO().slice(0,7); }
+function fmtMesComp(c){ if(!c) return '—'; const [y,m]=String(c).split('-'); const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return (nomes[parseInt(m,10)-1]||m)+'/'+y; }
 function fmtBR(d){ if(!d) return '—'; const [y,m,dd]=d.split('-'); return dd+'/'+m+'/'+y; }
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function baseURL(){ return location.origin + location.pathname; }
@@ -649,6 +669,7 @@ function sub(colName, target, after){
 function subscribeData(){
   unsubs.forEach(u=>u()); unsubs=[];
   sub('amb_absenteismo','abs', ()=>{ renderAbs(); renderDashboard(); });
+  sub('amb_absenteismo_mensal','absMensal', ()=>{ renderDashboard(); });
   sub('amb_exames','exames', ()=>{ renderExames(); renderDashboard(); });
   sub('amb_agenda','agenda', ()=>{ renderAgenda(); });
   sub('amb_dsp','dsp', ()=>{ renderDsp(); renderDashboard(); });
@@ -915,10 +936,24 @@ function renderDashboard(){
 
   const cfg = state.cfg;
   const cards = [];
-  cards.push(kpiCard('Absenteísmo',
-    taxaAbs==null ? diasPerdidos+' dias' : taxaAbs.toFixed(2)+'%',
-    taxaAbs==null ? `${nAtestados} atestados · defina o efetivo para ver a taxa` : `Meta: até ${cfg.metaAbs}% · ${diasPerdidos} dias / ${nAtestados} atestados`,
-    taxaAbs==null ? true : taxaAbs<=cfg.metaAbs, taxaAbs==null?0:taxaAbs, cfg.metaAbs*1.6));
+
+  // Absenteísmo: usa o último mês importado (fonte: ponto). Cai no cálculo manual se não houver import.
+  const meses = [...(state.absMensal||[])].sort((a,b)=>(a.competencia||a.id||'').localeCompare(b.competencia||b.id||''));
+  const ultimo = meses[meses.length-1];
+  if(ultimo && ultimo.geral){
+    const g = ultimo.geral;
+    cards.push(kpiCard('Absenteísmo (s/ abono)', g.taxaSemAbono.toFixed(2)+'%',
+      `${fmtMesComp(ultimo.competencia||ultimo.id)} · meta até ${cfg.metaAbs}% · ${g.falH.toFixed(0)}h faltas`,
+      g.taxaSemAbono<=cfg.metaAbs, g.taxaSemAbono, cfg.metaAbs*1.6));
+    cards.push(kpiCard('Absenteísmo (c/ abono méd.)', g.taxaComAbono.toFixed(2)+'%',
+      `inclui ${g.medH.toFixed(0)}h de atestado abonado`,
+      g.taxaComAbono<=cfg.metaAbs, g.taxaComAbono, cfg.metaAbs*1.6));
+  } else {
+    cards.push(kpiCard('Absenteísmo',
+      taxaAbs==null ? diasPerdidos+' dias' : taxaAbs.toFixed(2)+'%',
+      taxaAbs==null ? `Importe o mês para ver a taxa` : `Meta: até ${cfg.metaAbs}% · ${diasPerdidos} dias / ${nAtestados} atestados`,
+      taxaAbs==null ? true : taxaAbs<=cfg.metaAbs, taxaAbs==null?0:taxaAbs, cfg.metaAbs*1.6));
+  }
   cards.push(kpiCard('Exames no prazo',
     pctExames==null ? '—' : pctExames.toFixed(0)+'%',
     pctExames==null ? 'Sem exames previstos no período' : `Meta: ≥ ${cfg.metaExames}% · ${noPrazo}/${exF.length} no prazo`,
@@ -954,7 +989,52 @@ function renderDashboard(){
   const dashRows = [...absF].sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||'')).slice(0,8)
     .map(a=>[fmtBR(a.inicio), esc(a.nome), esc(a.setor||'—'), (a.dias||0)+'d', esc(a.cid||'—')]);
   document.getElementById('tbl-abs-dash').innerHTML = tableHTML(['Início','Colaborador','Setor','Dias','CID'], dashRows);
+
+  renderTendencia();
 }
+
+function renderTendencia(){
+  const painel = document.getElementById('panel-tendencia');
+  const meses = [...(state.absMensal||[])]
+    .filter(m=>m.geral)
+    .sort((a,b)=>(a.competencia||a.id||'').localeCompare(b.competencia||b.id||''));
+  if(meses.length < 1){ painel.style.display='none'; return; }
+  painel.style.display='block';
+
+  const maxTaxa = Math.max(...meses.map(m=>m.geral.taxaComAbono), state.cfg.metaAbs||5, 1);
+  const W = 640, H = 180, pad = 30, bw = Math.min(46, (W-pad*2)/meses.length - 10);
+  const x = i => pad + i*((W-pad*2)/meses.length) + ((W-pad*2)/meses.length - bw)/2;
+  const y = v => H-pad - (v/maxTaxa)*(H-pad*2);
+
+  const metaY = y(state.cfg.metaAbs||0);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;font-family:Inter,sans-serif">`;
+  // linha da meta
+  svg += `<line x1="${pad}" y1="${metaY}" x2="${W-pad}" y2="${metaY}" stroke="#d99a2b" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  svg += `<text x="${W-pad}" y="${metaY-4}" text-anchor="end" font-size="10" fill="#d99a2b">meta ${(state.cfg.metaAbs||0)}%</text>`;
+  meses.forEach((m,i)=>{
+    const t0 = m.geral.taxaSemAbono, t1 = m.geral.taxaComAbono;
+    const ok = t0 <= (state.cfg.metaAbs||99);
+    const cor = ok ? '#3d7a26' : '#c0392b';
+    const bx = x(i), by = y(t0), bh = (H-pad) - by;
+    svg += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${cor}" opacity="0.85"/>`;
+    // marca do com-abono
+    const my = y(t1);
+    svg += `<line x1="${bx-2}" y1="${my}" x2="${bx+bw+2}" y2="${my}" stroke="#22301f" stroke-width="2"/>`;
+    svg += `<text x="${bx+bw/2}" y="${by-5}" text-anchor="middle" font-size="10" font-weight="600" fill="${cor}">${t0.toFixed(1)}%</text>`;
+    svg += `<text x="${bx+bw/2}" y="${H-pad+14}" text-anchor="middle" font-size="10" fill="#666">${fmtMesComp(m.competencia||m.id)}</text>`;
+  });
+  svg += `</svg>`;
+  document.getElementById('tend-chart').innerHTML = svg;
+
+  const rows = [...meses].reverse().map(m=>{
+    const g = m.geral;
+    return [ fmtMesComp(m.competencia||m.id), g.prev.toFixed(0)+'h', g.falO+'',
+             g.falH.toFixed(0)+'h', pillNota2(g.taxaSemAbono), pillNota2(g.taxaComAbono) ];
+  });
+  document.getElementById('tend-tbl').innerHTML =
+    tableHTML(['Mês','Previstas','Faltas','Horas falta','Taxa s/ abono','Taxa c/ abono'], rows);
+}
+
 function renderSatDetalhe(){
   const rowsM = getPesq('medico').map(q=>{
     const vals = state.satMed.map(r=>r[q.k]).filter(v=>v!=null);
@@ -1109,179 +1189,293 @@ function _parseFuncionarios(text){
   return map;
 }
 
-function lerTxtAtestados(ev){
-  const f=ev.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=e=>{
-    importPendingTxt=_parseTxt(e.target.result);
-    const st=document.getElementById('imp-txt-status'); st.style.display='';
-    st.textContent=`${importPendingTxt.atestados.length} atestados · ${importPendingTxt.previdencia.length} previdência · ${importPendingTxt.acidente.length} acidente`;
+/* ============================================================
+   IMPORTAÇÃO MENSAL DE ABSENTEÍSMO
+   Fontes: ponto (PDF MixPonto) + cadastro (xlsx) + atestados (txt, opcional)
+   Cruzamento pelo nome normalizado. Salva consolidado em amb_absenteismo_mensal.
+   ============================================================ */
+
+let impPonto = null;      // { deptos:{cod:{nome,prev,trab,legH,medH,falH,falO,atrH,pessoas:Set}}, totais:{} }
+let impCadastro = null;   // Map(nomeNorm -> {chapa,filial,depto,status,adm,dem})
+let impAtestados = null;  // reservado (bloco de causas desativado)
+let impConsolidado = null;
+
+function normNome(s){
+  return String(s||'')
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .toUpperCase().replace(/\s+/g,' ').trim();
+}
+function numBR(s){
+  // "1.180,80" -> 1180.80 ; "193,60" -> 193.60 ; "30" -> 30
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+
+/* ---------- PONTO (PDF via pdf.js) ---------- */
+async function lerPontoPDF(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const st = document.getElementById('imp-pdf-status');
+  st.style.display = 'block'; st.textContent = 'Lendo PDF…';
+  try{
+    if(!window.pdfjsLib){
+      st.textContent = 'Carregando leitor de PDF…';
+      await carregarPdfJs();
+    }
+    const buf = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({data:buf}).promise;
+    let linhas = [];
+    for(let p=1; p<=pdf.numPages; p++){
+      const page = await pdf.getPage(p);
+      const tc = await page.getTextContent();
+      // reagrupa os itens por linha (mesma coordenada Y aproximada)
+      const porY = {};
+      tc.items.forEach(it=>{
+        const y = Math.round(it.transform[5]);
+        (porY[y] = porY[y] || []).push(it);
+      });
+      Object.keys(porY).sort((a,b)=>b-a).forEach(y=>{
+        const txt = porY[y].sort((a,b)=>a.transform[4]-b.transform[4])
+                            .map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+        if(txt) linhas.push(txt);
+      });
+    }
+    impPonto = parsePonto(linhas);
+    st.textContent = `✓ ${Object.keys(impPonto.deptos).length} departamentos · ${impPonto.totais.pessoas} pessoas · ${impPonto.totais.prev.toFixed(0)}h previstas`;
+  }catch(e){
+    console.error(e);
+    st.textContent = 'Falha ao ler o PDF: ' + (e.message||e);
+    impPonto = null;
+  }
+}
+
+function parsePonto(linhas){
+  // linha de funcionário: COD NOME PREV TRAB (H O)x? ... RES1 RES2
+  // ordem real das 6 colunas de horas: TRAB, LEGAIS, MEDICOS, FALTAS, LIBER, ATRASOS
+  const depRe = /DEPARTAMENTO:\s+([\d.]+)\s+-\s+(.+)/;
+  const NUM = '([\\d.]*\\d,\\d+|\\d+)';
+  const pair = NUM + '\\s+(\\d+)\\s+';
+  const full = new RegExp('^(\\d{5,7})\\s+(.+?)\\s+'+NUM+'\\s+'+pair.repeat(6)+NUM+'\\s+'+NUM+'$');
+
+  const deptos = {};
+  let cur = null;
+  const T = {prev:0,trab:0,legH:0,medH:0,falH:0,falO:0,atrH:0,atrO:0, pessoas:0};
+  const vistos = new Set();
+
+  for(const ln of linhas){
+    const d = depRe.exec(ln);
+    if(d){
+      const cod = d[1], nome = d[2].trim();
+      cur = cod;
+      deptos[cod] = deptos[cod] || {cod, nome, prev:0,trab:0,legH:0,medH:0,falH:0,falO:0,atrH:0,atrO:0, pessoas:new Set()};
+      continue;
+    }
+    const m = full.exec(ln.trim());
+    if(m && cur){
+      const g = m;
+      const prev = numBR(g[3]);
+      // pares: [4,5]=trab [6,7]=leg [8,9]=med [10,11]=faltas [12,13]=liber [14,15]=atrasos
+      const trab = numBR(g[4]);
+      const legH = numBR(g[6]);
+      const medH = numBR(g[8]);
+      const falH = numBR(g[10]), falO = parseInt(g[11],10);
+      const atrH = numBR(g[14]), atrO = parseInt(g[15],10);
+      const D = deptos[cur];
+      D.prev+=prev; D.trab+=trab; D.legH+=legH; D.medH+=medH;
+      D.falH+=falH; D.falO+=falO; D.atrH+=atrH; D.atrO+=atrO;
+      D.pessoas.add(g[2].trim());
+      T.prev+=prev; T.trab+=trab; T.legH+=legH; T.medH+=medH;
+      T.falH+=falH; T.falO+=falO; T.atrH+=atrH; T.atrO+=atrO;
+      vistos.add(normNome(g[2]));
+    }
+  }
+  T.pessoas = vistos.size;
+  return {deptos, totais:T, nomes:vistos};
+}
+
+/* ---------- CADASTRO (xlsx via SheetJS) ---------- */
+async function lerCadastroXLSX(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const st = document.getElementById('imp-xlsx-status');
+  st.style.display = 'block'; st.textContent = 'Lendo planilha…';
+  try{
+    if(!window.XLSX){ st.textContent='Carregando leitor de planilha…'; await carregarSheetJS(); }
+    const buf = await file.arrayBuffer();
+    const wb = window.XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = window.XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
+    const map = new Map();
+    let header = -1;
+    for(let i=0;i<rows.length;i++){
+      const r = rows[i]||[];
+      if(String(r[0]).trim()==='Chapa'){ header = i; break; }
+    }
+    if(header<0) throw new Error('Não achei o cabeçalho "Chapa" na planilha.');
+    for(let i=header+1;i<rows.length;i++){
+      const r = rows[i]||[];
+      const chapa=r[0], nome=r[1], filial=r[2], depto=r[3], adm=r[4], dem=r[5], st_=r[6];
+      if(!nome) continue;
+      const key = normNome(nome);
+      const ativo = st_ && String(st_).includes('Ativo');
+      if(!map.has(key) || ativo){
+        map.set(key, {chapa:String(chapa||'').trim(), filial:filial||'', depto:depto||'',
+                      status:st_||'', adm:adm||'', dem:dem||''});
+      }
+    }
+    impCadastro = map;
+    const ativos = [...map.values()].filter(v=>String(v.status).includes('Ativo')).length;
+    st.textContent = `✓ ${map.size} pessoas no cadastro · ${ativos} ativas`;
+  }catch(e){
+    console.error(e);
+    st.textContent = 'Falha ao ler a planilha: ' + (e.message||e);
+    impCadastro = null;
+  }
+}
+
+/* ---------- ATESTADOS TXT (reservado) ---------- */
+async function lerAtestadosTXT(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const st = document.getElementById('imp-txt-status');
+  st.style.display = 'block';
+  const buf = await file.arrayBuffer();
+  // decodifica latin-1
+  const txt = new TextDecoder('iso-8859-1').decode(buf);
+  const linhas = txt.split(/\r?\n/).filter(l=>l.trim());
+  impAtestados = linhas.slice(1).map(l=>l.split(';'));
+  st.textContent = `✓ ${impAtestados.length} atestados lidos (bloco de causas desativado por ora)`;
+}
+
+/* ---------- PROCESSAR ---------- */
+function processarMes(){
+  if(!impPonto){ toast('Suba o PDF do ponto primeiro.', true); return; }
+  const filiais = {}, deptos = [];
+  const avisos = [];
+
+  // mapa depto-código -> filial, via cadastro. Como o ponto tem código MixPonto e o
+  // cadastro tem nome de filial/depto textual, cruzamos as PESSOAS do ponto pelo nome.
+  const nomePorDepto = {};  // codDepto -> Set(nomesNorm)
+  for(const [cod,D] of Object.entries(impPonto.deptos)){
+    const filContagem = {};
+    let semCadastro = 0;
+    D.pessoas.forEach(nm=>{
+      const c = impCadastro && impCadastro.get(normNome(nm));
+      if(c && c.filial){ filContagem[c.filial]=(filContagem[c.filial]||0)+1; }
+      else semCadastro++;
+    });
+    // filial predominante do departamento
+    const filial = Object.entries(filContagem).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Sem filial';
+    if(semCadastro) avisos.push(`${D.nome}: ${semCadastro} pessoa(s) sem correspondência no cadastro`);
+
+    const taxa = D.prev ? (D.falH/D.prev*100) : 0;
+    const taxaCom = D.prev ? ((D.falH+D.medH)/D.prev*100) : 0;
+    deptos.push({cod, nome:D.nome, filial, prev:D.prev, falH:D.falH, medH:D.medH,
+                 atrH:D.atrH, pessoas:D.pessoas.size, taxa, taxaCom});
+
+    if(!filiais[filial]) filiais[filial]={prev:0,falH:0,medH:0,atrH:0,pessoas:0};
+    filiais[filial].prev+=D.prev; filiais[filial].falH+=D.falH;
+    filiais[filial].medH+=D.medH; filiais[filial].atrH+=D.atrH;
+    filiais[filial].pessoas+=D.pessoas.size;
+  }
+
+  const T = impPonto.totais;
+  impConsolidado = {
+    competencia: document.getElementById('imp-comp').value || monthISO(),
+    periodo: document.getElementById('imp-periodo').value || '',
+    geral: {
+      prev:T.prev, trab:T.trab, falH:T.falH, falO:T.falO, medH:T.medH, atrH:T.atrH,
+      pessoas:T.pessoas,
+      taxaSemAbono: T.prev? (T.falH/T.prev*100):0,
+      taxaComAbono: T.prev? ((T.falH+T.medH)/T.prev*100):0,
+    },
+    filiais: Object.entries(filiais).map(([nome,f])=>({
+      nome, ...f, taxa: f.prev?(f.falH/f.prev*100):0, taxaCom: f.prev?((f.falH+f.medH)/f.prev*100):0
+    })),
+    deptos: deptos.sort((a,b)=>b.taxa-a.taxa),
+    avisos,
+    geradoEm: todayISO(),
   };
-  r.readAsText(f,'latin1');
+  renderResultadoMes();
+  document.getElementById('imp-save-btn').style.display = 'inline-flex';
 }
-function lerTxtFuncionarios(ev){
-  const f=ev.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=e=>{
-    importPendingFunc=_parseFuncionarios(e.target.result);
-    const st=document.getElementById('imp-func-status'); st.style.display='';
-    st.textContent=`${Object.keys(importPendingFunc).length} colaboradores mapeados por setor`;
-  };
-  r.readAsText(f,'latin1');
+
+function renderResultadoMes(){
+  const c = impConsolidado; if(!c) return;
+  const g = c.geral;
+  document.getElementById('imp-resultado').style.display = 'block';
+
+  const cards = [
+    kpiCard('Absenteísmo (s/ abono)', g.taxaSemAbono.toFixed(2)+'%',
+      `Faltas: ${g.falH.toFixed(0)}h / ${g.prev.toFixed(0)}h previstas`, g.taxaSemAbono<=state.cfg.metaAbs, g.taxaSemAbono, state.cfg.metaAbs*1.6),
+    kpiCard('Absenteísmo (c/ abono méd.)', g.taxaComAbono.toFixed(2)+'%',
+      `Inclui ${g.medH.toFixed(0)}h de atestado abonado`, g.taxaComAbono<=state.cfg.metaAbs, g.taxaComAbono, state.cfg.metaAbs*1.6),
+    kpiCard('Faltas', g.falO+'',
+      `${g.falH.toFixed(0)} horas de falta`, true, 0,0),
+    kpiCard('Atrasos', g.atrH.toFixed(0)+'h',
+      `no período`, true, 0,0),
+    kpiCard('Pessoas no ponto', g.pessoas+'',
+      `horas previstas: ${g.prev.toFixed(0)}h`, true, 0,0),
+  ];
+  document.getElementById('imp-kpi').innerHTML = cards.join('');
+
+  const filRows = c.filiais.sort((a,b)=>b.taxa-a.taxa).map(f=>[
+    esc(f.nome), f.prev.toFixed(0)+'h', f.falH.toFixed(0)+'h',
+    pillNota2(f.taxa), pillNota2(f.taxaCom)
+  ]);
+  document.getElementById('imp-tbl-filial').innerHTML =
+    tableHTML(['Filial','Previstas','Faltas','Taxa s/ abono','Taxa c/ abono'], filRows);
+
+  const depRows = c.deptos.map(d=>[
+    esc(d.nome), esc(d.filial), d.prev.toFixed(0)+'h', d.pessoas,
+    d.falH.toFixed(0)+'h', pillNota2(d.taxa)
+  ]);
+  document.getElementById('imp-tbl-depto').innerHTML =
+    tableHTML(['Departamento','Filial','Previstas','Pessoas','Faltas','Taxa'], depRows);
+
+  if(c.avisos.length){
+    document.getElementById('imp-panel-avisos').style.display='block';
+    document.getElementById('imp-avisos').innerHTML = c.avisos.map(esc).join('<br>');
+  }
 }
-function processarImport(){
-  if(!importPendingTxt){ toast('Carregue ao menos o arquivo de atestados.', true); return; }
-  importRaw=importPendingTxt;
-  importSetorMap=importPendingFunc||{};
-  // anexa setor a cada registro
-  const setorDe = mat => importSetorMap[mat] ? _cap(importSetorMap[mat]) : 'Sem setor';
-  ['atestados','previdencia','acidente','outros'].forEach(k=>importRaw[k].forEach(r=>r.setor=setorDe(r.matricula)));
-  const setores=[...new Set([...importRaw.atestados,...importRaw.previdencia,...importRaw.acidente].map(r=>r.setor))].sort();
-  document.getElementById('imp-setor').innerHTML='<option value="">Todos os setores</option>'+setores.map(s=>`<option>${esc(s)}</option>`).join('');
-  document.getElementById('imp-resultado').style.display='block';
-  document.getElementById('imp-export-btn').style.display='';
-  renderImport();
-  toast('Resultados carregados ✓');
+
+function pillNota2(taxa){
+  const cls = taxa<=3 ? 'p-ok' : taxa<=6 ? 'p-warn' : 'p-bad';
+  return `<span class="pill ${cls}">${taxa.toFixed(1)}%</span>`;
 }
+
+/* ---------- SALVAR NO HISTÓRICO ---------- */
+async function salvarMes(){
+  if(!impConsolidado){ toast('Processe os arquivos primeiro.', true); return; }
+  const comp = impConsolidado.competencia;
+  if(!comp){ toast('Informe a competência (mês).', true); return; }
+  try{
+    await setDoc(doc(db,'amb_absenteismo_mensal', comp), impConsolidado);
+    toast('Mês '+comp+' salvo no histórico ✓');
+  }catch(e){ toast('Falha ao salvar: '+(e.message||e), true); }
+}
+
 function limparImport(){
-  importRaw=null; importPendingTxt=null; importPendingFunc=null; importSetorMap={};
-  document.getElementById('imp-txt').value=''; document.getElementById('imp-func').value='';
-  document.getElementById('imp-txt-status').style.display='none';
-  document.getElementById('imp-func-status').style.display='none';
+  impPonto = impCadastro = impAtestados = impConsolidado = null;
+  ['imp-pdf','imp-xlsx','imp-txt'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['imp-pdf-status','imp-xlsx-status','imp-txt-status'].forEach(id=>{ const el=document.getElementById(id); if(el){el.style.display='none';el.textContent='';} });
   document.getElementById('imp-resultado').style.display='none';
-  document.getElementById('imp-export-btn').style.display='none';
-}
-function _filtSetor(arr, setor){ return setor? arr.filter(r=>r.setor===setor) : arr; }
-function renderImport(){
-  if(!importRaw) return;
-  const setor=document.getElementById('imp-setor').value;
-  const at=_filtSetor(importRaw.atestados,setor);
-  const pv=_filtSetor(importRaw.previdencia,setor);
-  const ac=_filtSetor(importRaw.acidente,setor);
-  const atDias=at.reduce((s,r)=>s+(r.diasPeriodo||0),0);
-  const atMin=at.reduce((s,r)=>s+(r.minutos||0),0);
-  const pvDias=pv.reduce((s,r)=>s+(r.diasPeriodo||0),0);
-  const acDias=ac.reduce((s,r)=>s+(r.diasPeriodo||0),0);
-  const colabs=new Set([...at,...pv,...ac].map(r=>r.matricula)).size;
-  const card=(lbl,val,sub)=>`<div class="kpi"><div class="eyebrow">${lbl}</div><div class="val">${val}</div><div class="meta">${sub}</div></div>`;
-  document.getElementById('imp-kpi').innerHTML=
-    card('Atestados', at.length, `${atDias} dias · ${_fmtMin(atMin)}`)+
-    card('Previdência', pv.length, `${pvDias} dias de afastamento`)+
-    card('Acidente de trabalho', ac.length, `${acDias} dias de afastamento`)+
-    card('Colaboradores afetados', colabs, 'no período do arquivo');
-
-  // CID (dos atestados)
-  const cidMap={};
-  at.forEach(r=>{ const k=_cidLabel(r); if(!cidMap[k]) cidMap[k]={n:0,dias:0,min:0}; cidMap[k].n++; cidMap[k].dias+=r.diasPeriodo||0; cidMap[k].min+=r.minutos||0; });
-  document.getElementById('imp-tbl-cid').innerHTML=tableHTML(['CID','Ocorrências','Dias','Horas'],
-    Object.entries(cidMap).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([k,d])=>[esc(k),d.n,d.dias,_fmtMin(d.min)]));
-
-  // Setor
-  const setMap={};
-  [...at,...pv,...ac].forEach(r=>{ const s=r.setor; if(!setMap[s]) setMap[s]={colabs:new Set(),n:0,dias:0}; setMap[s].colabs.add(r.matricula); setMap[s].n++; setMap[s].dias+=r.diasPeriodo||0; });
-  document.getElementById('imp-tbl-setor').innerHTML=tableHTML(['Setor','Colaboradores','Ocorrências','Dias'],
-    Object.entries(setMap).sort((a,b)=>b[1].n-a[1].n).map(([s,d])=>[esc(s),d.colabs.size,d.n,d.dias]));
-
-  // Médico (dos atestados)
-  const medMap={};
-  at.forEach(r=>{ const m=r.medico||'Não informado'; if(!medMap[m]) medMap[m]={n:0,dias:0}; medMap[m].n++; medMap[m].dias+=r.diasPeriodo||0; });
-  document.getElementById('imp-tbl-med').innerHTML=tableHTML(['Médico','Atestados','Dias'],
-    Object.entries(medMap).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([m,d])=>[esc(_cap(m)),d.n,d.dias]));
-
-  // Afastamentos
-  const afast=[...pv,...ac].sort((a,b)=>(b.diasPeriodo||0)-(a.diasPeriodo||0));
-  document.getElementById('imp-tbl-afast').innerHTML=tableHTML(['Matrícula','Nome','Setor','Tipo','CID','Dias','Início','Fim','Médico'],
-    afast.map(r=>[r.matricula,esc(_cap(r.nome)),esc(r.setor),
-      r.categoria==='acidente'?'<span class="pill p-warn">Acidente</span>':'<span class="pill p-bad">Previdência</span>',
-      esc(_cidLabel(r)),r.diasPeriodo||0,r.dataInicial||'—',r.dataFinal||'—',esc(_cap(r.medico))||'—']));
+  document.getElementById('imp-save-btn').style.display='none';
 }
 
-function exportarHTML(){
-  if(!importRaw){ toast('Nada para exportar.', true); return; }
-  const data={
-    atestados:importRaw.atestados, previdencia:importRaw.previdencia, acidente:importRaw.acidente,
-    geradoEm:new Date().toLocaleString('pt-BR')
-  };
-  const html = buildExportHTML(data);
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='absenteismo_'+todayISO()+'.html'; a.click();
-  URL.revokeObjectURL(url);
-  toast('HTML gerado ✓');
+/* ---------- carregadores de biblioteca (lazy) ---------- */
+function carregarPdfJs(){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(); };
+    s.onerror=()=>rej(new Error('Não foi possível carregar o pdf.js'));
+    document.head.appendChild(s);
+  });
 }
-function buildExportHTML(data){
-  const json=JSON.stringify(data).replace(/</g,'\\u003c');
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Absenteísmo — Raguife</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{--verde:#024f2b;--folha:#739630;--cinza:#666;--bg:#f4f6f1;--branco:#fff;--linha:#e2e6dc;--erro:#c0392b;--amber:#d99a2b;--ok:#3d7a26;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:#22301f;font-size:14px;padding:24px;}
-h1,h2{font-family:'Poppins',sans-serif;color:var(--verde);}
-.head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:3px solid var(--verde);padding-bottom:14px;margin-bottom:18px;}
-.head .wm{font-family:'Poppins';font-weight:700;font-size:26px;color:var(--verde);}
-.head .sub{font-size:12px;color:var(--cinza);}
-.bar{background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:14px 16px;margin-bottom:18px;display:flex;gap:12px;align-items:end;flex-wrap:wrap;}
-label{display:block;font-size:12px;font-weight:600;color:#40503b;margin-bottom:5px;}
-select{padding:9px 11px;border:1px solid var(--linha);border-radius:9px;font-size:14px;background:#fbfcf9;min-width:220px;}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px;}
-.kpi{background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:16px;}
-.kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--cinza);font-weight:700;margin-bottom:6px;}
-.kpi .val{font-family:'Poppins';font-size:26px;font-weight:700;}
-.kpi .sub{font-size:11.5px;color:var(--cinza);margin-top:3px;}
-.panel{background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:18px;margin-bottom:16px;}
-.panel h2{font-size:15px;margin-bottom:12px;}
-table{width:100%;border-collapse:collapse;font-size:12.5px;}
-th{text-align:left;color:var(--cinza);font-weight:700;font-size:10.5px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--linha);}
-td{padding:8px 10px;border-bottom:1px solid #eef0e8;}
-.pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;}
-.p-bad{background:#f7e3df;color:var(--erro);}.p-warn{background:#f9efd9;color:#996c14;}
-.empty{color:var(--cinza);text-align:center;padding:18px;}
-.table-wrap{overflow-x:auto;}
-@media print{.bar{display:none;}body{padding:0;}}
-</style></head><body>
-<div class="head"><div><span class="wm">raguife</span><div class="sub">Relatório de absenteísmo médico</div></div>
-<div class="sub">Gerado em ${data.geradoEm}</div></div>
-<div class="bar"><div><label>Filtrar por setor</label><select id="setor" onchange="render()"></select></div>
-<button onclick="window.print()" style="padding:9px 16px;border:1px solid var(--linha);border-radius:9px;background:var(--folha);color:#fff;font-weight:600;cursor:pointer;font-family:'Poppins'">Imprimir / PDF</button></div>
-<div class="kpis" id="kpis"></div>
-<div class="panel"><h2>Principais CID</h2><div class="table-wrap" id="t-cid"></div></div>
-<div class="panel"><h2>Por setor</h2><div class="table-wrap" id="t-setor"></div></div>
-<div class="panel"><h2>Por médico</h2><div class="table-wrap" id="t-med"></div></div>
-<div class="panel"><h2>Afastamentos (previdência + acidente)</h2><div class="table-wrap" id="t-afast"></div></div>
-<script>
-const D=${json};
-function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1).toLowerCase():'';}
-function fmtMin(m){const h=Math.floor(m/60),n=m%60;if(h===0)return n+'min';return n>0?h+'h '+n+'min':h+'h';}
-function cidLabel(r){const c=r.cidFilho||r.cidPai;if(!c)return'Não informado';const s=c.length>55?c.substring(0,55)+'…':c;return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();}
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function tbl(h,rows){if(!rows.length)return'<div class="empty">Sem registros</div>';return'<table><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>';}
-const all=[...D.atestados,...D.previdencia,...D.acidente];
-const setores=[...new Set(all.map(r=>r.setor))].sort();
-document.getElementById('setor').innerHTML='<option value="">Todos os setores</option>'+setores.map(s=>'<option>'+esc(s)+'</option>').join('');
-function filt(a,s){return s?a.filter(r=>r.setor===s):a;}
-function render(){
-  const s=document.getElementById('setor').value;
-  const at=filt(D.atestados,s),pv=filt(D.previdencia,s),ac=filt(D.acidente,s);
-  const atDias=at.reduce((x,r)=>x+(r.diasPeriodo||0),0),atMin=at.reduce((x,r)=>x+(r.minutos||0),0);
-  const pvDias=pv.reduce((x,r)=>x+(r.diasPeriodo||0),0),acDias=ac.reduce((x,r)=>x+(r.diasPeriodo||0),0);
-  const colabs=new Set([...at,...pv,...ac].map(r=>r.matricula)).size;
-  const k=(l,v,su)=>'<div class="kpi"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+su+'</div></div>';
-  document.getElementById('kpis').innerHTML=k('Atestados',at.length,atDias+' dias · '+fmtMin(atMin))+k('Previdência',pv.length,pvDias+' dias')+k('Acidente',ac.length,acDias+' dias')+k('Colaboradores afetados',colabs,'no período');
-  const cm={};at.forEach(r=>{const kk=cidLabel(r);if(!cm[kk])cm[kk]={n:0,d:0,m:0};cm[kk].n++;cm[kk].d+=r.diasPeriodo||0;cm[kk].m+=r.minutos||0;});
-  document.getElementById('t-cid').innerHTML=tbl(['CID','Ocorrências','Dias','Horas'],Object.entries(cm).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([kk,d])=>[esc(kk),d.n,d.d,fmtMin(d.m)]));
-  const sm={};[...at,...pv,...ac].forEach(r=>{const ss=r.setor;if(!sm[ss])sm[ss]={c:new Set(),n:0,d:0};sm[ss].c.add(r.matricula);sm[ss].n++;sm[ss].d+=r.diasPeriodo||0;});
-  document.getElementById('t-setor').innerHTML=tbl(['Setor','Colaboradores','Ocorrências','Dias'],Object.entries(sm).sort((a,b)=>b[1].n-a[1].n).map(([ss,d])=>[esc(ss),d.c.size,d.n,d.d]));
-  const mm={};at.forEach(r=>{const md=r.medico||'Não informado';if(!mm[md])mm[md]={n:0,d:0};mm[md].n++;mm[md].d+=r.diasPeriodo||0;});
-  document.getElementById('t-med').innerHTML=tbl(['Médico','Atestados','Dias'],Object.entries(mm).sort((a,b)=>b[1].n-a[1].n).slice(0,15).map(([md,d])=>[esc(cap(md)),d.n,d.d]));
-  const af=[...pv,...ac].sort((a,b)=>(b.diasPeriodo||0)-(a.diasPeriodo||0));
-  document.getElementById('t-afast').innerHTML=tbl(['Matrícula','Nome','Setor','Tipo','CID','Dias','Início','Fim','Médico'],af.map(r=>[r.matricula,esc(cap(r.nome)),esc(r.setor),r.categoria==='acidente'?'<span class="pill p-warn">Acidente</span>':'<span class="pill p-bad">Previdência</span>',esc(cidLabel(r)),r.diasPeriodo||0,r.dataInicial||'—',r.dataFinal||'—',esc(cap(r.medico))||'—']));
-}
-render();
-<\/script></body></html>`;
+function carregarSheetJS(){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('Não foi possível carregar o SheetJS'));
+    document.head.appendChild(s);
+  });
 }
 
 /* ================= MODAL ================= */
@@ -1372,7 +1566,7 @@ Object.assign(window, {
   salvarConfig,
   applyFilter, setPreset, copyLink, abrirWhats, imprimirQR,
   enviarSurvey, openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
-  lerTxtAtestados, lerTxtFuncionarios, processarImport, renderImport, exportarHTML, limparImport,
+  lerPontoPDF, lerCadastroXLSX, lerAtestadosTXT, processarMes, salvarMes, limparImport,
   pesqAdd, pesqRemove, pesqEdit, salvarPesquisas,
 });
 init();
