@@ -1238,8 +1238,15 @@ async function lerPontoPDF(ev){
         if(txt) linhas.push(txt);
       });
     }
+    if(linhas.length === 0){
+      throw new Error('O PDF foi aberto mas nenhum texto foi extraído (provável bloqueio do worker do pdf.js). Sirva a página por http:// ou verifique a conexão.');
+    }
     impPonto = parsePonto(linhas);
-    st.textContent = `✓ ${Object.keys(impPonto.deptos).length} departamentos · ${impPonto.totais.pessoas} pessoas · ${impPonto.totais.prev.toFixed(0)}h previstas`;
+    const nDep = Object.keys(impPonto.deptos).length;
+    if(nDep === 0 && impPonto.totais.pessoas === 0){
+      throw new Error(`Texto extraído (${linhas.length} linhas) mas nenhum departamento/funcionário reconhecido. O layout do PDF pode ter mudado.`);
+    }
+    st.textContent = `✓ ${nDep} departamentos · ${impPonto.totais.pessoas} pessoas · ${impPonto.totais.prev.toFixed(0)}h previstas`;
   }catch(e){
     console.error(e);
     st.textContent = 'Falha ao ler o PDF: ' + (e.message||e);
@@ -1461,10 +1468,27 @@ function limparImport(){
 
 /* ---------- carregadores de biblioteca (lazy) ---------- */
 function carregarPdfJs(){
+  const WORKER_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   return new Promise((res,rej)=>{
     const s=document.createElement('script');
     s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(); };
+    s.onload=async()=>{
+      // Sob file:// o navegador bloqueia criar um Worker de outra origem, e o pdf.js
+      // cai num modo que devolve texto vazio sem erro. Solução: baixar o worker e
+      // rodá-lo como blob da própria origem.
+      try{
+        const resp=await fetch(WORKER_URL);
+        if(!resp.ok) throw new Error('HTTP '+resp.status);
+        const code=await resp.text();
+        const blob=new Blob([code],{type:'application/javascript'});
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
+      }catch(err){
+        // fallback: usa a URL direta (funciona quando servido por http/https)
+        console.warn('Worker via blob falhou, usando URL direta:', err);
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=WORKER_URL;
+      }
+      res();
+    };
     s.onerror=()=>rej(new Error('Não foi possível carregar o pdf.js'));
     document.head.appendChild(s);
   });
