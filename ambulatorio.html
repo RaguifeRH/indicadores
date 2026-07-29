@@ -1238,15 +1238,8 @@ async function lerPontoPDF(ev){
         if(txt) linhas.push(txt);
       });
     }
-    if(linhas.length === 0){
-      throw new Error('O PDF foi aberto mas nenhum texto foi extraído (provável bloqueio do worker do pdf.js). Sirva a página por http:// ou verifique a conexão.');
-    }
     impPonto = parsePonto(linhas);
-    const nDep = Object.keys(impPonto.deptos).length;
-    if(nDep === 0 && impPonto.totais.pessoas === 0){
-      throw new Error(`Texto extraído (${linhas.length} linhas) mas nenhum departamento/funcionário reconhecido. O layout do PDF pode ter mudado.`);
-    }
-    st.textContent = `✓ ${nDep} departamentos · ${impPonto.totais.pessoas} pessoas · ${impPonto.totais.prev.toFixed(0)}h previstas`;
+    st.textContent = `✓ ${Object.keys(impPonto.deptos).length} departamentos · ${impPonto.totais.pessoas} pessoas · ${impPonto.totais.prev.toFixed(0)}h previstas`;
   }catch(e){
     console.error(e);
     st.textContent = 'Falha ao ler o PDF: ' + (e.message||e);
@@ -1256,7 +1249,7 @@ async function lerPontoPDF(ev){
 
 function parsePonto(linhas){
   // linha de funcionário: COD NOME PREV TRAB (H O)x? ... RES1 RES2
-  // ordem real das 6 colunas de horas: TRAB, LEGAIS, MEDICOS, FALTAS, LIBER, ATRASOS
+  // ordem real das 6 colunas de horas: TRAB, LEGAIS, MEDICOS, ATRASOS, LIBER, FALTAS
   const depRe = /DEPARTAMENTO:\s+([\d.]+)\s+-\s+(.+)/;
   const NUM = '([\\d.]*\\d,\\d+|\\d+)';
   const pair = NUM + '\\s+(\\d+)\\s+';
@@ -1279,12 +1272,12 @@ function parsePonto(linhas){
     if(m && cur){
       const g = m;
       const prev = numBR(g[3]);
-      // pares: [4,5]=trab [6,7]=leg [8,9]=med [10,11]=faltas [12,13]=liber [14,15]=atrasos
+      // pares: [4,5]=trab [6,7]=leg [8,9]=med [10,11]=atrasos [12,13]=liber [14,15]=faltas
       const trab = numBR(g[4]);
       const legH = numBR(g[6]);
       const medH = numBR(g[8]);
-      const falH = numBR(g[10]), falO = parseInt(g[11],10);
-      const atrH = numBR(g[14]), atrO = parseInt(g[15],10);
+      const atrH = numBR(g[10]), atrO = parseInt(g[11],10);
+      const falH = numBR(g[14]), falO = parseInt(g[15],10);
       const D = deptos[cur];
       D.prev+=prev; D.trab+=trab; D.legH+=legH; D.medH+=medH;
       D.falH+=falH; D.falO+=falO; D.atrH+=atrH; D.atrO+=atrO;
@@ -1468,27 +1461,10 @@ function limparImport(){
 
 /* ---------- carregadores de biblioteca (lazy) ---------- */
 function carregarPdfJs(){
-  const WORKER_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   return new Promise((res,rej)=>{
     const s=document.createElement('script');
     s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    s.onload=async()=>{
-      // Sob file:// o navegador bloqueia criar um Worker de outra origem, e o pdf.js
-      // cai num modo que devolve texto vazio sem erro. Solução: baixar o worker e
-      // rodá-lo como blob da própria origem.
-      try{
-        const resp=await fetch(WORKER_URL);
-        if(!resp.ok) throw new Error('HTTP '+resp.status);
-        const code=await resp.text();
-        const blob=new Blob([code],{type:'application/javascript'});
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
-      }catch(err){
-        // fallback: usa a URL direta (funciona quando servido por http/https)
-        console.warn('Worker via blob falhou, usando URL direta:', err);
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc=WORKER_URL;
-      }
-      res();
-    };
+    s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(); };
     s.onerror=()=>rej(new Error('Não foi possível carregar o pdf.js'));
     document.head.appendChild(s);
   });
