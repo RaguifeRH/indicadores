@@ -84,6 +84,8 @@
   .kpi .meta{font-size:11.5px;color:var(--cinza);margin-top:3px;}
   .kpi .bar{margin-top:11px;height:6px;border-radius:4px;background:#edf0e6;overflow:hidden;}
   .kpi .bar span{display:block;height:100%;border-radius:4px;}
+  .kpi .cmp{font-size:11px;font-weight:600;margin-top:7px;display:inline-flex;align-items:center;gap:4px;}
+  .cmp-up{color:var(--ok);} .cmp-down{color:var(--erro);} .cmp-flat{color:var(--cinza);}
   .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.02em;display:inline-block;}
   .pill.abs{position:absolute;top:14px;right:14px;}
   .p-ok{background:#e5f1db;color:var(--ok);}
@@ -225,11 +227,10 @@
           <button class="btn btn-leaf" onclick="applyFilter()">Aplicar</button>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
-        <div class="panel" id="panel-tendencia" style="display:none">
-          <h2>Tendência do absenteísmo</h2>
-          <div class="desc">Taxa mensal (fonte: ponto). Barra cheia = sem abono · marca = com abono médico</div>
-          <div id="tend-chart"></div>
-          <div class="table-wrap" id="tend-tbl" style="margin-top:14px"></div>
+        <div class="panel">
+          <h2>Histórico comparativo mensal</h2>
+          <div class="desc">Os cinco indicadores mês a mês (últimos 12 meses com registro)</div>
+          <div class="table-wrap" id="tbl-historico"></div>
         </div>
         <div class="panel">
           <h2>Absenteísmo por CID</h2>
@@ -243,6 +244,16 @@
         <div class="panel">
           <h2>Últimos atestados lançados</h2>
           <div class="table-wrap" id="tbl-abs-dash"></div>
+        </div>
+        <div class="panel">
+          <h2>DSP por setor</h2>
+          <div class="desc">Diálogos realizados e alcance por departamento no período</div>
+          <div class="table-wrap" id="tbl-dsp-setor"></div>
+        </div>
+        <div class="panel">
+          <h2>DSP — top performers</h2>
+          <div class="desc">Responsáveis que mais conduziram diálogos no período</div>
+          <div class="table-wrap" id="tbl-dsp-top"></div>
         </div>
       </div>
 
@@ -269,68 +280,6 @@
         <div class="panel">
           <h2>Histórico recente</h2>
           <div class="table-wrap" id="tbl-abs-full"></div>
-        </div>
-      </div>
-
-      <!-- ABSENTEISMO TXT (IMPORT) -->
-            <div class="page" id="page-absimport">
-        <h1 class="page-title">Absenteísmo — importar mês</h1>
-        <div class="page-desc">Suba os três relatórios do mês. O sistema cruza os dados, calcula os indicadores de horas e salva o consolidado para o histórico.</div>
-
-        <div class="panel">
-          <h2>1 · Competência</h2>
-          <div class="form-grid">
-            <div><label>Mês de referência</label><input type="month" id="imp-comp"></div>
-            <div><label>Período do ponto (informativo)</label><input type="text" id="imp-periodo" placeholder="ex: 26/05 a 25/06" ></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h2>2 · Arquivos</h2>
-          <div class="form-grid">
-            <div>
-              <label>Ponto — MixPonto (.pdf)</label>
-              <input type="file" id="imp-pdf" accept=".pdf" onchange="lerPontoPDF(event)">
-              <div class="note" id="imp-pdf-status" style="display:none"></div>
-            </div>
-            <div>
-              <label>Cadastro — Relação de Funcionários (.xlsx)</label>
-              <input type="file" id="imp-xlsx" accept=".xlsx" onchange="lerCadastroXLSX(event)">
-              <div class="note" id="imp-xlsx-status" style="display:none"></div>
-            </div>
-            <div>
-              <label>Atestados / CID (.txt) — opcional</label>
-              <input type="file" id="imp-txt" accept=".txt" onchange="lerAtestadosTXT(event)">
-              <div class="note" id="imp-txt-status" style="display:none"></div>
-            </div>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-primary" onclick="processarMes()">Processar</button>
-            <button class="btn btn-leaf" id="imp-save-btn" onclick="salvarMes()" style="display:none">Salvar no histórico</button>
-            <button class="btn btn-ghost" onclick="limparImport()">Limpar</button>
-          </div>
-          <div class="note">O ponto é a fonte das horas (previstas, faltas, atrasos, abono médico). O cadastro dá filial e departamento de cada pessoa. O bloco de causas por CID fica desativado até a exportação do RH ser corrigida.</div>
-        </div>
-
-        <div id="imp-resultado" style="display:none">
-          <div class="grid-kpi" id="imp-kpi"></div>
-
-          <div class="panel">
-            <h2>Absenteísmo por filial</h2>
-            <div class="desc">Taxa = faltas ÷ horas previstas no período</div>
-            <div class="table-wrap" id="imp-tbl-filial"></div>
-          </div>
-
-          <div class="panel">
-            <h2>Absenteísmo por departamento</h2>
-            <div class="desc">Ordenado da maior para a menor taxa</div>
-            <div class="table-wrap" id="imp-tbl-depto"></div>
-          </div>
-
-          <div class="panel" id="imp-panel-avisos" style="display:none">
-            <h2>Avisos de cruzamento</h2>
-            <div class="note" id="imp-avisos"></div>
-          </div>
         </div>
       </div>
 
@@ -544,7 +493,6 @@ const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
   {id:'dashboard',   label:'Dashboard',      ic:'▦', roles:['admin','operador']},
   {id:'absenteismo', label:'Absenteísmo',    ic:'⚕', roles:['admin','operador']},
-  {id:'absimport',   label:'Importar mês', ic:'📄', roles:['admin']},
   {id:'exames',      label:'Exames periódicos', ic:'🩺', roles:['admin','operador']},
   {id:'agenda',      label:'Agenda médicos', ic:'📅', roles:['admin','operador']},
   {id:'dsp',         label:'DSP',            ic:'🗣', roles:['admin','operador']},
@@ -553,7 +501,7 @@ const NAV_DEF = [
 ];
 const DEFAULT_CFG = {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, efetivo:0};
 
-let state = { users:[], abs:[], absMensal:[], exames:[], agenda:[], dsp:[], satMed:[], satAmb:[], cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
+let state = { users:[], abs:[], exames:[], agenda:[], dsp:[], satMed:[], satAmb:[], satMedPrev:[], satAmbPrev:[], satHist:{}, cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
 let currentUser = null;
 let surveyAnswers = {}, surveyDef = null, surveyKind = null;
 let unsubs = [];
@@ -582,6 +530,26 @@ function pillNota(n){
   return '<span class="pill '+cls+'">'+n.toFixed(1)+'</span>';
 }
 function inRange(d){ if(!d) return false; if(state.filterDe && d<state.filterDe) return false; if(state.filterAte && d>state.filterAte) return false; return true; }
+function addDaysISO(iso, n){ const d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+// período imediatamente anterior, com a mesma duração do intervalo atual
+function prevRange(deISO, ateISO){
+  if(!deISO || !ateISO) return {de:'', ate:''};
+  const dias = Math.round((new Date(ateISO)-new Date(deISO))/86400000);
+  const ate = addDaysISO(deISO, -1);
+  const de = addDaysISO(ate, -dias);
+  return {de, ate};
+}
+function inPrev(d, pr){ return d && d>=pr.de && d<=pr.ate; }
+// selo comparativo: compara valor atual x anterior. higherIsBetter define a cor.
+function cmpLine(curr, prev, higherIsBetter, fmt){
+  if(prev==null) return '<div class="cmp cmp-flat">— sem período anterior</div>';
+  const diff = curr - prev;
+  if(Math.abs(diff) < 1e-9) return `<div class="cmp cmp-flat">＝ estável vs. anterior (${fmt(prev)})</div>`;
+  const up = diff>0, good = higherIsBetter? up : !up;
+  const cls = good? 'cmp-up':'cmp-down';
+  const arrow = up? '▲':'▼';
+  return `<div class="cmp ${cls}">${arrow} ${fmt(Math.abs(diff))} vs. anterior (${fmt(prev)})</div>`;
+}
 function businessDays(deISO, ateISO){
   if(!deISO || !ateISO) return 0;
   let n=0; const d=new Date(deISO+'T00:00:00'); const end=new Date(ateISO+'T00:00:00');
@@ -669,7 +637,6 @@ function sub(colName, target, after){
 function subscribeData(){
   unsubs.forEach(u=>u()); unsubs=[];
   sub('amb_absenteismo','abs', ()=>{ renderAbs(); renderDashboard(); });
-  sub('amb_absenteismo_mensal','absMensal', ()=>{ renderDashboard(); });
   sub('amb_exames','exames', ()=>{ renderExames(); renderDashboard(); });
   sub('amb_agenda','agenda', ()=>{ renderAgenda(); });
   sub('amb_dsp','dsp', ()=>{ renderDsp(); renderDashboard(); });
@@ -677,6 +644,7 @@ function subscribeData(){
 async function loadSat(){
   const de = state.filterDe || todayISO().slice(0,8)+'01';
   const ate = state.filterAte || todayISO();
+  const pr = prevRange(de, ate);
   try{
     const s1 = await getDocs(query(collection(db,'amb_sat_medico'), where('data','>=',de), where('data','<=',ate)));
     state.satMed = s1.docs.map(d=>({id:d.id, ...d.data()}));
@@ -685,7 +653,37 @@ async function loadSat(){
     const s2 = await getDocs(query(collection(db,'amb_sat_amb'), where('data','>=',de), where('data','<=',ate)));
     state.satAmb = s2.docs.map(d=>({id:d.id, ...d.data()}));
   }catch(e){ console.error(e); }
+  // período anterior (mesma duração) para o comparativo
+  try{
+    const p1 = await getDocs(query(collection(db,'amb_sat_medico'), where('data','>=',pr.de), where('data','<=',pr.ate)));
+    state.satMedPrev = p1.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){ state.satMedPrev=[]; }
+  try{
+    const p2 = await getDocs(query(collection(db,'amb_sat_amb'), where('data','>=',pr.de), where('data','<=',pr.ate)));
+    state.satAmbPrev = p2.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){ state.satAmbPrev=[]; }
+  await loadSatHist();
   renderDashboard(); renderSatDetalhe();
+}
+// Carrega 12 meses de satisfação e agrupa por mês (para o histórico comparativo)
+async function loadSatHist(){
+  const d = new Date(); d.setMonth(d.getMonth()-11); d.setDate(1);
+  const desde = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';
+  const hist = {};
+  const bucket = (rows, key, def)=>rows.forEach(r=>{
+    const mes = (r.data||'').slice(0,7); if(!mes) return;
+    hist[mes] = hist[mes] || {medSum:0,medN:0,ambSum:0,ambN:0};
+    def.forEach(q=>{ if(r[q.k]!=null){ hist[mes][key+'Sum']+=r[q.k]; hist[mes][key+'N']++; } });
+  });
+  try{
+    const m = await getDocs(query(collection(db,'amb_sat_medico'), where('data','>=',desde)));
+    bucket(m.docs.map(x=>x.data()), 'med', getPesq('medico'));
+  }catch(e){}
+  try{
+    const a = await getDocs(query(collection(db,'amb_sat_amb'), where('data','>=',desde)));
+    bucket(a.docs.map(x=>x.data()), 'amb', getPesq('amb'));
+  }catch(e){}
+  state.satHist = hist;
 }
 
 /* ================= NAV / SHELL ================= */
@@ -904,7 +902,7 @@ function mediaSat(rows, def){
   rows.forEach(r=>def.forEach(q=>{ if(r[q.k]!=null){ sum+=r[q.k]; n++; } }));
   return n? sum/n : 0;
 }
-function kpiCard(title, value, metaText, ok, val, max){
+function kpiCard(title, value, metaText, ok, val, max, cmpHTML){
   const pct = max? Math.max(0, Math.min(100, (val/max)*100)) : 0;
   const color = ok? 'var(--ok)' : 'var(--erro)';
   const pill = ok? '<span class="pill p-ok abs">Na meta</span>' : '<span class="pill p-bad abs">Fora da meta</span>';
@@ -912,63 +910,72 @@ function kpiCard(title, value, metaText, ok, val, max){
     <div class="eyebrow">${title}</div>
     <div class="val">${value}</div>
     <div class="meta">${metaText}</div>
+    ${cmpHTML||''}
     <div class="bar"><span style="width:${pct}%;background:${color}"></span></div></div>`;
 }
 function renderDashboard(){
+  const pr = prevRange(state.filterDe, state.filterAte);
+  const semAnterior = '<div class="cmp cmp-flat">— sem período anterior</div>';
+
+  // ---- Absenteísmo médico (só atestados) ----
   const absF = state.abs.filter(a=>inRange(a.inicio));
+  const absP = state.abs.filter(a=>inPrev(a.inicio, pr));
   const diasPerdidos = absF.reduce((s,a)=>s+(a.dias||0),0);
+  const diasPerdidosP = absP.reduce((s,a)=>s+(a.dias||0),0);
   const nAtestados = absF.length;
   const efetivo = state.cfg.efetivo||0;
-  const diasUteis = businessDays(state.filterDe, state.filterAte);
-  const planejado = efetivo * diasUteis;
-  const taxaAbs = planejado ? (diasPerdidos/planejado*100) : null;
+  const taxaAbs  = efetivo ? (diasPerdidos /(efetivo*businessDays(state.filterDe,state.filterAte))*100) : null;
+  const taxaAbsP = efetivo ? (diasPerdidosP/(efetivo*businessDays(pr.de,pr.ate))*100) : null;
 
-  // exames: base = previstos no período
+  // ---- Exames no prazo ----
   const exF = state.exames.filter(e=>inRange(e.prevista));
   const noPrazo = exF.filter(e=>e.realizada && e.realizada<=e.prevista).length;
   const pctExames = exF.length ? (noPrazo/exF.length*100) : null;
+  const exP = state.exames.filter(e=>inPrev(e.prevista, pr));
+  const noPrazoP = exP.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const pctExamesP = exP.length ? (noPrazoP/exP.length*100) : null;
 
+  // ---- Satisfação ----
   const satMed = mediaSat(state.satMed, getPesq('medico'));
   const satAmb = mediaSat(state.satAmb, getPesq('amb'));
+  const satMedP = mediaSat(state.satMedPrev, getPesq('medico'));
+  const satAmbP = mediaSat(state.satAmbPrev, getPesq('amb'));
 
+  // ---- DSP ----
   const dspF = state.dsp.filter(d=>inRange(d.data));
+  const dspP = state.dsp.filter(d=>inPrev(d.data, pr));
   const dspPart = dspF.reduce((s,d)=>s+(d.participantes||0),0);
 
   const cfg = state.cfg;
   const cards = [];
 
-  // Absenteísmo: usa o último mês importado (fonte: ponto). Cai no cálculo manual se não houver import.
-  const meses = [...(state.absMensal||[])].sort((a,b)=>(a.competencia||a.id||'').localeCompare(b.competencia||b.id||''));
-  const ultimo = meses[meses.length-1];
-  if(ultimo && ultimo.geral){
-    const g = ultimo.geral;
-    cards.push(kpiCard('Absenteísmo (s/ abono)', g.taxaSemAbono.toFixed(2)+'%',
-      `${fmtMesComp(ultimo.competencia||ultimo.id)} · meta até ${cfg.metaAbs}% · ${g.falH.toFixed(0)}h faltas`,
-      g.taxaSemAbono<=cfg.metaAbs, g.taxaSemAbono, cfg.metaAbs*1.6));
-    cards.push(kpiCard('Absenteísmo (c/ abono méd.)', g.taxaComAbono.toFixed(2)+'%',
-      `inclui ${g.medH.toFixed(0)}h de atestado abonado`,
-      g.taxaComAbono<=cfg.metaAbs, g.taxaComAbono, cfg.metaAbs*1.6));
-  } else {
-    cards.push(kpiCard('Absenteísmo',
-      taxaAbs==null ? diasPerdidos+' dias' : taxaAbs.toFixed(2)+'%',
-      taxaAbs==null ? `Importe o mês para ver a taxa` : `Meta: até ${cfg.metaAbs}% · ${diasPerdidos} dias / ${nAtestados} atestados`,
-      taxaAbs==null ? true : taxaAbs<=cfg.metaAbs, taxaAbs==null?0:taxaAbs, cfg.metaAbs*1.6));
-  }
+  // Absenteísmo médico — comparativo por taxa (se há efetivo) ou por dias perdidos
+  const absCmp = (taxaAbs!=null)
+    ? cmpLine(taxaAbs, taxaAbsP, false, v=>v.toFixed(1)+'%')
+    : cmpLine(diasPerdidos, diasPerdidosP, false, v=>Math.round(v)+'d');
+  cards.push(kpiCard('Absenteísmo médico',
+    taxaAbs==null ? diasPerdidos+' dias' : taxaAbs.toFixed(2)+'%',
+    taxaAbs==null ? `${nAtestados} atestados · defina o efetivo p/ ver a taxa` : `Meta: até ${cfg.metaAbs}% · ${diasPerdidos} dias / ${nAtestados} atestados`,
+    taxaAbs==null ? true : taxaAbs<=cfg.metaAbs, taxaAbs==null?0:taxaAbs, cfg.metaAbs*1.6, absCmp));
   cards.push(kpiCard('Exames no prazo',
     pctExames==null ? '—' : pctExames.toFixed(0)+'%',
     pctExames==null ? 'Sem exames previstos no período' : `Meta: ≥ ${cfg.metaExames}% · ${noPrazo}/${exF.length} no prazo`,
-    pctExames==null ? true : pctExames>=cfg.metaExames, pctExames||0, 100));
+    pctExames==null ? true : pctExames>=cfg.metaExames, pctExames||0, 100,
+    (pctExames!=null && pctExamesP!=null)? cmpLine(pctExames, pctExamesP, true, v=>v.toFixed(0)+'%') : semAnterior));
   cards.push(kpiCard('Satisfação — consulta',
     satMed? satMed.toFixed(2)+' / 5':'—',
     `Meta: ≥ ${cfg.metaSatMed} · ${state.satMed.length} respostas`,
-    satMed>=cfg.metaSatMed, satMed, 5));
+    satMed>=cfg.metaSatMed, satMed, 5,
+    satMedP? cmpLine(satMed, satMedP, true, v=>v.toFixed(2)) : semAnterior));
   cards.push(kpiCard('Satisfação — ambulatório',
     satAmb? satAmb.toFixed(2)+' / 5':'—',
     `Meta: ≥ ${cfg.metaSatAmb} · ${state.satAmb.length} respostas`,
-    satAmb>=cfg.metaSatAmb, satAmb, 5));
+    satAmb>=cfg.metaSatAmb, satAmb, 5,
+    satAmbP? cmpLine(satAmb, satAmbP, true, v=>v.toFixed(2)) : semAnterior));
   cards.push(kpiCard('DSP no período',
     dspF.length+'',
-    `${dspPart} participantes no total`, true, 0, 0));
+    `${dspPart} participantes no total`, true, 0, 0,
+    cmpLine(dspF.length, dspP.length, true, v=>Math.round(v)+'')));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
   // Top CIDs
@@ -990,49 +997,50 @@ function renderDashboard(){
     .map(a=>[fmtBR(a.inicio), esc(a.nome), esc(a.setor||'—'), (a.dias||0)+'d', esc(a.cid||'—')]);
   document.getElementById('tbl-abs-dash').innerHTML = tableHTML(['Início','Colaborador','Setor','Dias','CID'], dashRows);
 
-  renderTendencia();
+  // DSP por setor (departamento)
+  const dspSetMap = {};
+  dspF.forEach(d=>{ const k=(d.depto||'').trim()||'—'; if(!dspSetMap[k]) dspSetMap[k]={n:0,part:0}; dspSetMap[k].n++; dspSetMap[k].part+=(d.participantes||0); });
+  const dspSetRows = Object.entries(dspSetMap).sort((a,b)=>b[1].n-a[1].n || b[1].part-a[1].part)
+    .map(([k,v])=>[esc(k), v.n, v.part]);
+  document.getElementById('tbl-dsp-setor').innerHTML = tableHTML(['Setor','DSPs','Participantes'], dspSetRows);
+
+  // DSP top performers (por responsável)
+  const dspTopMap = {};
+  dspF.forEach(d=>{ const k=(d.resp||'').trim()||'Sem responsável'; if(!dspTopMap[k]) dspTopMap[k]={n:0,part:0}; dspTopMap[k].n++; dspTopMap[k].part+=(d.participantes||0); });
+  const dspTopRows = Object.entries(dspTopMap).sort((a,b)=>b[1].n-a[1].n || b[1].part-a[1].part).slice(0,10)
+    .map(([k,v],i)=>[(i+1)+'º', esc(k), v.n, v.part]);
+  document.getElementById('tbl-dsp-top').innerHTML = tableHTML(['#','Responsável','DSPs','Participantes'], dspTopRows);
+
+  renderHistorico();
 }
 
-function renderTendencia(){
-  const painel = document.getElementById('panel-tendencia');
-  const meses = [...(state.absMensal||[])]
-    .filter(m=>m.geral)
-    .sort((a,b)=>(a.competencia||a.id||'').localeCompare(b.competencia||b.id||''));
-  if(meses.length < 1){ painel.style.display='none'; return; }
-  painel.style.display='block';
-
-  const maxTaxa = Math.max(...meses.map(m=>m.geral.taxaComAbono), state.cfg.metaAbs||5, 1);
-  const W = 640, H = 180, pad = 30, bw = Math.min(46, (W-pad*2)/meses.length - 10);
-  const x = i => pad + i*((W-pad*2)/meses.length) + ((W-pad*2)/meses.length - bw)/2;
-  const y = v => H-pad - (v/maxTaxa)*(H-pad*2);
-
-  const metaY = y(state.cfg.metaAbs||0);
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;font-family:Inter,sans-serif">`;
-  // linha da meta
-  svg += `<line x1="${pad}" y1="${metaY}" x2="${W-pad}" y2="${metaY}" stroke="#d99a2b" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-  svg += `<text x="${W-pad}" y="${metaY-4}" text-anchor="end" font-size="10" fill="#d99a2b">meta ${(state.cfg.metaAbs||0)}%</text>`;
-  meses.forEach((m,i)=>{
-    const t0 = m.geral.taxaSemAbono, t1 = m.geral.taxaComAbono;
-    const ok = t0 <= (state.cfg.metaAbs||99);
-    const cor = ok ? '#3d7a26' : '#c0392b';
-    const bx = x(i), by = y(t0), bh = (H-pad) - by;
-    svg += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${cor}" opacity="0.85"/>`;
-    // marca do com-abono
-    const my = y(t1);
-    svg += `<line x1="${bx-2}" y1="${my}" x2="${bx+bw+2}" y2="${my}" stroke="#22301f" stroke-width="2"/>`;
-    svg += `<text x="${bx+bw/2}" y="${by-5}" text-anchor="middle" font-size="10" font-weight="600" fill="${cor}">${t0.toFixed(1)}%</text>`;
-    svg += `<text x="${bx+bw/2}" y="${H-pad+14}" text-anchor="middle" font-size="10" fill="#666">${fmtMesComp(m.competencia||m.id)}</text>`;
+function fimDoMes(m){ const [y,mo]=m.split('-').map(Number); const d=new Date(y,mo,0); return m+'-'+String(d.getDate()).padStart(2,'0'); }
+// Histórico comparativo: os cinco indicadores mês a mês (últimos 12 meses com registro)
+function renderHistorico(){
+  const meses = new Set();
+  state.abs.forEach(a=>{ if(a.inicio) meses.add(a.inicio.slice(0,7)); });
+  state.exames.forEach(e=>{ if(e.prevista) meses.add(e.prevista.slice(0,7)); });
+  state.dsp.forEach(d=>{ if(d.data) meses.add(d.data.slice(0,7)); });
+  Object.keys(state.satHist||{}).forEach(m=>meses.add(m));
+  const lista = [...meses].filter(Boolean).sort().slice(-12).reverse();
+  const efetivo = state.cfg.efetivo||0;
+  const rows = lista.map(m=>{
+    const de = m+'-01', ate = fimDoMes(m);
+    const absM = state.abs.filter(a=>(a.inicio||'').slice(0,7)===m);
+    const dias = absM.reduce((s,a)=>s+(a.dias||0),0);
+    const taxa = efetivo ? (dias/(efetivo*businessDays(de,ate))*100) : null;
+    const absTxt = taxa!=null ? taxa.toFixed(1)+'%' : dias+'d';
+    const exM = state.exames.filter(e=>(e.prevista||'').slice(0,7)===m);
+    const np = exM.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+    const exTxt = exM.length ? Math.round(np/exM.length*100)+'%' : '—';
+    const h = (state.satHist||{})[m]||{};
+    const sc = h.medN? (h.medSum/h.medN):0;
+    const sa = h.ambN? (h.ambSum/h.ambN):0;
+    const dspM = state.dsp.filter(d=>(d.data||'').slice(0,7)===m).length;
+    return [ fmtMesComp(m), absTxt, exTxt, sc?sc.toFixed(2):'—', sa?sa.toFixed(2):'—', dspM+'' ];
   });
-  svg += `</svg>`;
-  document.getElementById('tend-chart').innerHTML = svg;
-
-  const rows = [...meses].reverse().map(m=>{
-    const g = m.geral;
-    return [ fmtMesComp(m.competencia||m.id), g.prev.toFixed(0)+'h', g.falO+'',
-             g.falH.toFixed(0)+'h', pillNota2(g.taxaSemAbono), pillNota2(g.taxaComAbono) ];
-  });
-  document.getElementById('tend-tbl').innerHTML =
-    tableHTML(['Mês','Previstas','Faltas','Horas falta','Taxa s/ abono','Taxa c/ abono'], rows);
+  document.getElementById('tbl-historico').innerHTML =
+    tableHTML(['Mês','Absenteísmo','Exames no prazo','Sat. consulta','Sat. ambulatório','DSPs'], rows);
 }
 
 function renderSatDetalhe(){
@@ -1128,356 +1136,6 @@ async function enviarSurvey(){
   }catch(e){ toast('Falha ao enviar — verifique a internet.', true); }
 }
 
-/* ================= IMPORT TXT (absenteísmo) ================= */
-let importRaw = null;      // {atestados, previdencia, acidente, outros}
-let importSetorMap = {};   // matricula -> setor
-let importPendingTxt = null, importPendingFunc = null;
-
-function _norm(s){ return s? s.trim().replace(/\s+/g,' ').toUpperCase() : ''; }
-function _cap(s){ return s? s.charAt(0).toUpperCase()+s.slice(1).toLowerCase() : ''; }
-function _parseHoras(h){ if(!h||!h.includes(':')) return 0; const [hh,mm]=h.split(':').map(Number); return (hh||0)*60+(mm||0); }
-function _fmtMin(m){ const h=Math.floor(m/60), mn=m%60; if(h===0) return mn+'min'; return mn>0? h+'h '+mn+'min' : h+'h'; }
-function _classifyAfast(tipo){
-  const t=_norm(tipo);
-  if(t.includes('ACIDENTE')) return 'acidente';
-  if(t.includes('PREVID')||t.includes('APOSENTADO')||t.includes('INVALIDEZ')) return 'previdencia';
-  if(t.includes('LICENCA')) return 'outros';
-  return 'atestado';
-}
-function _cidLabel(r){ const c=r.cidFilho||r.cidPai; if(!c) return 'Não informado'; const s=c.length>55? c.substring(0,55)+'…':c; return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase(); }
-function _parseTxt(text){
-  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  const atestados=[],previdencia=[],acidente=[],outros=[];
-  let mode=null;
-  for(const line of lines){
-    if(line.startsWith('Matr') && line.includes('Nome') && line.includes('Inicial')){
-      mode = line.includes('Afastamento')?'afastamento':'atestado'; continue;
-    }
-    if(!mode) continue;
-    const cols=line.split(';');
-    if(cols.length<6) continue;
-    const mat=(cols[0]||'').trim();
-    if(!mat || isNaN(mat)) continue;
-    if(mode==='atestado'){
-      atestados.push({matricula:mat,nome:_norm(cols[1]),dataInicial:(cols[2]||'').trim(),dataFinal:(cols[3]||'').trim(),diasPeriodo:parseInt(cols[4])||0,horas:(cols[6]||'').trim()||'0:00',minutos:_parseHoras((cols[6]||'').trim()),medico:_norm(cols[7]),cidPai:_norm(cols[8]),cidFilho:_norm(cols[9]),categoria:'atestado'});
-    } else {
-      const tipoAf=_norm(cols[7]), cat=_classifyAfast(tipoAf);
-      const rec={matricula:mat,nome:_norm(cols[1]),dataInicial:(cols[2]||'').trim(),dataFinal:(cols[3]||'').trim(),diasPeriodo:parseInt(cols[4])||0,horas:'0:00',minutos:0,tipoAfastamento:tipoAf,medico:_norm(cols[8]),cidPai:_norm(cols[9]),cidFilho:_norm(cols[10]),categoria:cat};
-      if(cat==='acidente') acidente.push(rec);
-      else if(cat==='previdencia') previdencia.push(rec);
-      else if(cat==='outros') outros.push(rec);
-      else atestados.push(rec);
-    }
-  }
-  return {atestados,previdencia,acidente,outros};
-}
-function _parseFuncionarios(text){
-  const lines=text.split(/\r?\n/);
-  const map={};
-  const skip=[/^RAGUIFE/i,/^NEVES QUEIROZ/i,/^[Áa]rea Rural/i,/^Santa F/i,/^\d{2}\.\d{3}/,/^Sistema MixFolha/i,/^TOTAL/,/^Chapa/,/^\s*$/,/^01\/01\/1900/];
-  for(let i=0;i<lines.length;i++){
-    const line=lines[i].trim();
-    if(!line || skip.some(p=>p.test(line))) continue;
-    const m=line.match(/^\d{6}[A-Za-z\s]*\s+(.+?)\s{2,}(\d+)\s{2,}(.+)$/);
-    if(m){
-      const ref=m[2].trim(); let depto=m[3].trim();
-      const next=(lines[i+1]||'').trim();
-      if(next && /^[A-Z]/.test(next) && next.length<40 && !/^\d{6}/.test(next) && !/^\d+$/.test(next)){ depto=depto+' '+next; i++; }
-      map[ref]=depto.replace(/\s+/g,' ').trim();
-    }
-  }
-  return map;
-}
-
-/* ============================================================
-   IMPORTAÇÃO MENSAL DE ABSENTEÍSMO
-   Fontes: ponto (PDF MixPonto) + cadastro (xlsx) + atestados (txt, opcional)
-   Cruzamento pelo nome normalizado. Salva consolidado em amb_absenteismo_mensal.
-   ============================================================ */
-
-let impPonto = null;      // { deptos:{cod:{nome,prev,trab,legH,medH,falH,falO,atrH,pessoas:Set}}, totais:{} }
-let impCadastro = null;   // Map(nomeNorm -> {chapa,filial,depto,status,adm,dem})
-let impAtestados = null;  // reservado (bloco de causas desativado)
-let impConsolidado = null;
-
-function normNome(s){
-  return String(s||'')
-    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
-    .toUpperCase().replace(/\s+/g,' ').trim();
-}
-function numBR(s){
-  // "1.180,80" -> 1180.80 ; "193,60" -> 193.60 ; "30" -> 30
-  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
-}
-
-/* ---------- PONTO (PDF via pdf.js) ---------- */
-async function lerPontoPDF(ev){
-  const file = ev.target.files[0]; if(!file) return;
-  const st = document.getElementById('imp-pdf-status');
-  st.style.display = 'block'; st.textContent = 'Lendo PDF…';
-  try{
-    if(!window.pdfjsLib){
-      st.textContent = 'Carregando leitor de PDF…';
-      await carregarPdfJs();
-    }
-    const buf = await file.arrayBuffer();
-    const pdf = await window.pdfjsLib.getDocument({data:buf}).promise;
-    let linhas = [];
-    for(let p=1; p<=pdf.numPages; p++){
-      const page = await pdf.getPage(p);
-      const tc = await page.getTextContent();
-      // reagrupa os itens por linha (mesma coordenada Y aproximada)
-      const porY = {};
-      tc.items.forEach(it=>{
-        const y = Math.round(it.transform[5]);
-        (porY[y] = porY[y] || []).push(it);
-      });
-      Object.keys(porY).sort((a,b)=>b-a).forEach(y=>{
-        const txt = porY[y].sort((a,b)=>a.transform[4]-b.transform[4])
-                            .map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
-        if(txt) linhas.push(txt);
-      });
-    }
-    impPonto = parsePonto(linhas);
-    st.textContent = `✓ ${Object.keys(impPonto.deptos).length} departamentos · ${impPonto.totais.pessoas} pessoas · ${impPonto.totais.prev.toFixed(0)}h previstas`;
-  }catch(e){
-    console.error(e);
-    st.textContent = 'Falha ao ler o PDF: ' + (e.message||e);
-    impPonto = null;
-  }
-}
-
-function parsePonto(linhas){
-  // linha de funcionário: COD NOME PREV TRAB (H O)x? ... RES1 RES2
-  // ordem real das 6 colunas de horas: TRAB, LEGAIS, MEDICOS, ATRASOS, LIBER, FALTAS
-  const depRe = /DEPARTAMENTO:\s+([\d.]+)\s+-\s+(.+)/;
-  const NUM = '([\\d.]*\\d,\\d+|\\d+)';
-  const pair = NUM + '\\s+(\\d+)\\s+';
-  const full = new RegExp('^(\\d{5,7})\\s+(.+?)\\s+'+NUM+'\\s+'+pair.repeat(6)+NUM+'\\s+'+NUM+'$');
-
-  const deptos = {};
-  let cur = null;
-  const T = {prev:0,trab:0,legH:0,medH:0,falH:0,falO:0,atrH:0,atrO:0, pessoas:0};
-  const vistos = new Set();
-
-  for(const ln of linhas){
-    const d = depRe.exec(ln);
-    if(d){
-      const cod = d[1], nome = d[2].trim();
-      cur = cod;
-      deptos[cod] = deptos[cod] || {cod, nome, prev:0,trab:0,legH:0,medH:0,falH:0,falO:0,atrH:0,atrO:0, pessoas:new Set()};
-      continue;
-    }
-    const m = full.exec(ln.trim());
-    if(m && cur){
-      const g = m;
-      const prev = numBR(g[3]);
-      // pares: [4,5]=trab [6,7]=leg [8,9]=med [10,11]=atrasos [12,13]=liber [14,15]=faltas
-      const trab = numBR(g[4]);
-      const legH = numBR(g[6]);
-      const medH = numBR(g[8]);
-      const atrH = numBR(g[10]), atrO = parseInt(g[11],10);
-      const falH = numBR(g[14]), falO = parseInt(g[15],10);
-      const D = deptos[cur];
-      D.prev+=prev; D.trab+=trab; D.legH+=legH; D.medH+=medH;
-      D.falH+=falH; D.falO+=falO; D.atrH+=atrH; D.atrO+=atrO;
-      D.pessoas.add(g[2].trim());
-      T.prev+=prev; T.trab+=trab; T.legH+=legH; T.medH+=medH;
-      T.falH+=falH; T.falO+=falO; T.atrH+=atrH; T.atrO+=atrO;
-      vistos.add(normNome(g[2]));
-    }
-  }
-  T.pessoas = vistos.size;
-  return {deptos, totais:T, nomes:vistos};
-}
-
-/* ---------- CADASTRO (xlsx via SheetJS) ---------- */
-async function lerCadastroXLSX(ev){
-  const file = ev.target.files[0]; if(!file) return;
-  const st = document.getElementById('imp-xlsx-status');
-  st.style.display = 'block'; st.textContent = 'Lendo planilha…';
-  try{
-    if(!window.XLSX){ st.textContent='Carregando leitor de planilha…'; await carregarSheetJS(); }
-    const buf = await file.arrayBuffer();
-    const wb = window.XLSX.read(buf, {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = window.XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
-    const map = new Map();
-    let header = -1;
-    for(let i=0;i<rows.length;i++){
-      const r = rows[i]||[];
-      if(String(r[0]).trim()==='Chapa'){ header = i; break; }
-    }
-    if(header<0) throw new Error('Não achei o cabeçalho "Chapa" na planilha.');
-    for(let i=header+1;i<rows.length;i++){
-      const r = rows[i]||[];
-      const chapa=r[0], nome=r[1], filial=r[2], depto=r[3], adm=r[4], dem=r[5], st_=r[6];
-      if(!nome) continue;
-      const key = normNome(nome);
-      const ativo = st_ && String(st_).includes('Ativo');
-      if(!map.has(key) || ativo){
-        map.set(key, {chapa:String(chapa||'').trim(), filial:filial||'', depto:depto||'',
-                      status:st_||'', adm:adm||'', dem:dem||''});
-      }
-    }
-    impCadastro = map;
-    const ativos = [...map.values()].filter(v=>String(v.status).includes('Ativo')).length;
-    st.textContent = `✓ ${map.size} pessoas no cadastro · ${ativos} ativas`;
-  }catch(e){
-    console.error(e);
-    st.textContent = 'Falha ao ler a planilha: ' + (e.message||e);
-    impCadastro = null;
-  }
-}
-
-/* ---------- ATESTADOS TXT (reservado) ---------- */
-async function lerAtestadosTXT(ev){
-  const file = ev.target.files[0]; if(!file) return;
-  const st = document.getElementById('imp-txt-status');
-  st.style.display = 'block';
-  const buf = await file.arrayBuffer();
-  // decodifica latin-1
-  const txt = new TextDecoder('iso-8859-1').decode(buf);
-  const linhas = txt.split(/\r?\n/).filter(l=>l.trim());
-  impAtestados = linhas.slice(1).map(l=>l.split(';'));
-  st.textContent = `✓ ${impAtestados.length} atestados lidos (bloco de causas desativado por ora)`;
-}
-
-/* ---------- PROCESSAR ---------- */
-function processarMes(){
-  if(!impPonto){ toast('Suba o PDF do ponto primeiro.', true); return; }
-  const filiais = {}, deptos = [];
-  const avisos = [];
-
-  // mapa depto-código -> filial, via cadastro. Como o ponto tem código MixPonto e o
-  // cadastro tem nome de filial/depto textual, cruzamos as PESSOAS do ponto pelo nome.
-  const nomePorDepto = {};  // codDepto -> Set(nomesNorm)
-  for(const [cod,D] of Object.entries(impPonto.deptos)){
-    const filContagem = {};
-    let semCadastro = 0;
-    D.pessoas.forEach(nm=>{
-      const c = impCadastro && impCadastro.get(normNome(nm));
-      if(c && c.filial){ filContagem[c.filial]=(filContagem[c.filial]||0)+1; }
-      else semCadastro++;
-    });
-    // filial predominante do departamento
-    const filial = Object.entries(filContagem).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Sem filial';
-    if(semCadastro) avisos.push(`${D.nome}: ${semCadastro} pessoa(s) sem correspondência no cadastro`);
-
-    const taxa = D.prev ? (D.falH/D.prev*100) : 0;
-    const taxaCom = D.prev ? ((D.falH+D.medH)/D.prev*100) : 0;
-    deptos.push({cod, nome:D.nome, filial, prev:D.prev, falH:D.falH, medH:D.medH,
-                 atrH:D.atrH, pessoas:D.pessoas.size, taxa, taxaCom});
-
-    if(!filiais[filial]) filiais[filial]={prev:0,falH:0,medH:0,atrH:0,pessoas:0};
-    filiais[filial].prev+=D.prev; filiais[filial].falH+=D.falH;
-    filiais[filial].medH+=D.medH; filiais[filial].atrH+=D.atrH;
-    filiais[filial].pessoas+=D.pessoas.size;
-  }
-
-  const T = impPonto.totais;
-  impConsolidado = {
-    competencia: document.getElementById('imp-comp').value || monthISO(),
-    periodo: document.getElementById('imp-periodo').value || '',
-    geral: {
-      prev:T.prev, trab:T.trab, falH:T.falH, falO:T.falO, medH:T.medH, atrH:T.atrH,
-      pessoas:T.pessoas,
-      taxaSemAbono: T.prev? (T.falH/T.prev*100):0,
-      taxaComAbono: T.prev? ((T.falH+T.medH)/T.prev*100):0,
-    },
-    filiais: Object.entries(filiais).map(([nome,f])=>({
-      nome, ...f, taxa: f.prev?(f.falH/f.prev*100):0, taxaCom: f.prev?((f.falH+f.medH)/f.prev*100):0
-    })),
-    deptos: deptos.sort((a,b)=>b.taxa-a.taxa),
-    avisos,
-    geradoEm: todayISO(),
-  };
-  renderResultadoMes();
-  document.getElementById('imp-save-btn').style.display = 'inline-flex';
-}
-
-function renderResultadoMes(){
-  const c = impConsolidado; if(!c) return;
-  const g = c.geral;
-  document.getElementById('imp-resultado').style.display = 'block';
-
-  const cards = [
-    kpiCard('Absenteísmo (s/ abono)', g.taxaSemAbono.toFixed(2)+'%',
-      `Faltas: ${g.falH.toFixed(0)}h / ${g.prev.toFixed(0)}h previstas`, g.taxaSemAbono<=state.cfg.metaAbs, g.taxaSemAbono, state.cfg.metaAbs*1.6),
-    kpiCard('Absenteísmo (c/ abono méd.)', g.taxaComAbono.toFixed(2)+'%',
-      `Inclui ${g.medH.toFixed(0)}h de atestado abonado`, g.taxaComAbono<=state.cfg.metaAbs, g.taxaComAbono, state.cfg.metaAbs*1.6),
-    kpiCard('Faltas', g.falO+'',
-      `${g.falH.toFixed(0)} horas de falta`, true, 0,0),
-    kpiCard('Atrasos', g.atrH.toFixed(0)+'h',
-      `no período`, true, 0,0),
-    kpiCard('Pessoas no ponto', g.pessoas+'',
-      `horas previstas: ${g.prev.toFixed(0)}h`, true, 0,0),
-  ];
-  document.getElementById('imp-kpi').innerHTML = cards.join('');
-
-  const filRows = c.filiais.sort((a,b)=>b.taxa-a.taxa).map(f=>[
-    esc(f.nome), f.prev.toFixed(0)+'h', f.falH.toFixed(0)+'h',
-    pillNota2(f.taxa), pillNota2(f.taxaCom)
-  ]);
-  document.getElementById('imp-tbl-filial').innerHTML =
-    tableHTML(['Filial','Previstas','Faltas','Taxa s/ abono','Taxa c/ abono'], filRows);
-
-  const depRows = c.deptos.map(d=>[
-    esc(d.nome), esc(d.filial), d.prev.toFixed(0)+'h', d.pessoas,
-    d.falH.toFixed(0)+'h', pillNota2(d.taxa)
-  ]);
-  document.getElementById('imp-tbl-depto').innerHTML =
-    tableHTML(['Departamento','Filial','Previstas','Pessoas','Faltas','Taxa'], depRows);
-
-  if(c.avisos.length){
-    document.getElementById('imp-panel-avisos').style.display='block';
-    document.getElementById('imp-avisos').innerHTML = c.avisos.map(esc).join('<br>');
-  }
-}
-
-function pillNota2(taxa){
-  const cls = taxa<=3 ? 'p-ok' : taxa<=6 ? 'p-warn' : 'p-bad';
-  return `<span class="pill ${cls}">${taxa.toFixed(1)}%</span>`;
-}
-
-/* ---------- SALVAR NO HISTÓRICO ---------- */
-async function salvarMes(){
-  if(!impConsolidado){ toast('Processe os arquivos primeiro.', true); return; }
-  const comp = impConsolidado.competencia;
-  if(!comp){ toast('Informe a competência (mês).', true); return; }
-  try{
-    await setDoc(doc(db,'amb_absenteismo_mensal', comp), impConsolidado);
-    toast('Mês '+comp+' salvo no histórico ✓');
-  }catch(e){ toast('Falha ao salvar: '+(e.message||e), true); }
-}
-
-function limparImport(){
-  impPonto = impCadastro = impAtestados = impConsolidado = null;
-  ['imp-pdf','imp-xlsx','imp-txt'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  ['imp-pdf-status','imp-xlsx-status','imp-txt-status'].forEach(id=>{ const el=document.getElementById(id); if(el){el.style.display='none';el.textContent='';} });
-  document.getElementById('imp-resultado').style.display='none';
-  document.getElementById('imp-save-btn').style.display='none';
-}
-
-/* ---------- carregadores de biblioteca (lazy) ---------- */
-function carregarPdfJs(){
-  return new Promise((res,rej)=>{
-    const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(); };
-    s.onerror=()=>rej(new Error('Não foi possível carregar o pdf.js'));
-    document.head.appendChild(s);
-  });
-}
-function carregarSheetJS(){
-  return new Promise((res,rej)=>{
-    const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload=()=>res(); s.onerror=()=>rej(new Error('Não foi possível carregar o SheetJS'));
-    document.head.appendChild(s);
-  });
-}
-
 /* ================= MODAL ================= */
 function openModal(html){ document.getElementById('modal-box').innerHTML = html; document.getElementById('modal-bg').classList.add('open'); }
 function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
@@ -1566,7 +1224,6 @@ Object.assign(window, {
   salvarConfig,
   applyFilter, setPreset, copyLink, abrirWhats, imprimirQR,
   enviarSurvey, openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
-  lerPontoPDF, lerCadastroXLSX, lerAtestadosTXT, processarMes, salvarMes, limparImport,
   pesqAdd, pesqRemove, pesqEdit, salvarPesquisas,
 });
 init();
