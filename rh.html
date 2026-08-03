@@ -211,7 +211,7 @@
             </div>
           </div>
           <div class="note" id="imp-status-atestado" style="display:none"></div>
-          <div class="note">Calcula duas taxas por departamento a partir das horas previstas: <strong>com abono médico</strong> (conta atestado como falta) e <strong>sem abono médico</strong> (não conta). Abonos legais nunca contam como falta. O relatório não separa por filial — uso o prefixo do código do departamento para isso: 002.01 → RAGUIFE - MATRIZ, 002.12 → FILIAL BOM DESPACHO, 029.01 → NOVA ASSESSORIA, 016.01 → M B PRONI DO AMARAL CONSTRUÇÕES E ACABAMENTOS (mesmos nomes da Relação de Funcionários). Departamentos fora dessas faixas ficam sem filial definida.</div>
+          <div class="note">Calcula, por departamento: <strong>absenteísmo com abono médico</strong> (abonos legais + abonos médicos + faltas), <strong>absenteísmo sem abono médico</strong> (abonos legais + faltas, sem contar atestado) e <strong>faltas</strong> isolado — todos sobre as horas previstas. "Abonos p/ liberação" e "Atrasos/Outros" não entram em nenhum dos três. O relatório não separa por filial — uso o prefixo do código do departamento para isso: 002.01 → RAGUIFE - MATRIZ, 002.12 → FILIAL BOM DESPACHO, 029.01 → NOVA ASSESSORIA, 016.01 → M B PRONI DO AMARAL CONSTRUÇÕES E ACABAMENTOS (mesmos nomes da Relação de Funcionários). Departamentos fora dessas faixas ficam sem filial definida.</div>
         </div>
 
         <div class="panel" id="imp-preview" style="display:none">
@@ -644,8 +644,8 @@ function processarLinhasPonto(linhas){
     if(m && atual){
       const nums = m[1].trim().split(/\s+/).map(parseNumBR);
       if(nums.length>=15){
-        const horasprev=nums[0], medicos=nums[5], pliber=nums[7], atrasos=nums[9], faltas=nums[11];
-        deptos.push({codigo:atual.codigo, nome:atual.nome, horasprev, medicos, pliber, atrasos, faltas});
+        const horasprev=nums[0], legais=nums[3], medicos=nums[5], pliber=nums[7], atrasos=nums[9], faltas=nums[11];
+        deptos.push({codigo:atual.codigo, nome:atual.nome, horasprev, legais, medicos, pliber, atrasos, faltas});
       }
       atual = null;
     }
@@ -670,8 +670,9 @@ async function processarPonto(ev){
     let aplicados = 0, semFilial = 0, foraDaJanela = 0;
     deptos.forEach(d=>{
       if(!d.horasprev) return;
-      const semAbono = (d.pliber + d.atrasos + d.faltas) / d.horasprev * 100;
-      const comAbono = (d.pliber + d.medicos + d.atrasos + d.faltas) / d.horasprev * 100;
+      const semAbono = (d.legais + d.faltas) / d.horasprev * 100;
+      const comAbono = (d.legais + d.medicos + d.faltas) / d.horasprev * 100;
+      const faltasPct = d.faltas / d.horasprev * 100;
       const filial = filialPorCodigo(d.codigo);
       if(!filial){ semFilial++; return; }
       const id = chaveLanc(comp, filial, d.nome);
@@ -679,13 +680,14 @@ async function processarPonto(ev){
       if(row){
         row.absenteismoComAbono = comAbono;
         row.absenteismoSemAbono = semAbono;
+        row.faltasPct = faltasPct;
         aplicados++;
       } else {
         // mês/filial/depto fora do que o roster calculou — cria um registro só com absenteísmo
         importRows.push({
           id, competencia:comp, filial, depto:d.nome,
           ativos:0, admitidos:0, demitidos:0, turnover:0,
-          absenteismoComAbono:comAbono, absenteismoSemAbono:semAbono,
+          absenteismoComAbono:comAbono, absenteismoSemAbono:semAbono, faltasPct,
         });
         foraDaJanela++;
       }
@@ -705,8 +707,9 @@ function renderPreviewImportacao(){
     `${importRows.length} registros · ${mesesUsados.length} mês(es), de ${fmtMesComp(mesesUsados[0])} a ${fmtMesComp(mesesUsados[mesesUsados.length-1])} · filiais: ${filiais.join(', ')}`;
   const prevRows = importRows.slice(-8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), r.ativos, r.admitidos, r.demitidos, r.turnover.toFixed(1)+'%',
     r.absenteismoComAbono!=null? r.absenteismoComAbono.toFixed(1)+'%' : '—',
-    r.absenteismoSemAbono!=null? r.absenteismoSemAbono.toFixed(1)+'%' : '—']);
-  document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover','Absent. c/ abono','Absent. s/ abono'], prevRows) +
+    r.absenteismoSemAbono!=null? r.absenteismoSemAbono.toFixed(1)+'%' : '—',
+    r.faltasPct!=null? r.faltasPct.toFixed(1)+'%' : '—']);
+  document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], prevRows) +
     (importRows.length>8 ? `<div class="note">mostrando 8 de ${importRows.length} linhas (as mais recentes)</div>` : '');
 }
 async function gravarImportacao(){
@@ -726,6 +729,7 @@ async function gravarImportacao(){
         };
         if(r.absenteismoComAbono!=null) dados.absenteismoComAbono = r.absenteismoComAbono;
         if(r.absenteismoSemAbono!=null) dados.absenteismoSemAbono = r.absenteismoSemAbono;
+        if(r.faltasPct!=null) dados.faltasPct = r.faltasPct;
         batch.set(doc(db,'rh_lancamentos', r.id), dados, {merge:true});
       });
       await batch.commit();
@@ -780,10 +784,10 @@ function renderLancamentos(){
   const rows = [...state.lanc].sort((a,b)=>(b.competencia||'').localeCompare(a.competencia||'')).slice(0,40).map(l=>[
     fmtMesComp(l.competencia), esc(l.filial), esc(l.depto), l.ativos,
     l.admitidos, l.demitidos, (l.turnover||0).toFixed(1)+'%',
-    (l.absenteismoComAbono||0).toFixed(1)+'%', (l.absenteismoSemAbono||0).toFixed(1)+'%'
+    (l.absenteismoComAbono||0).toFixed(1)+'%', (l.absenteismoSemAbono||0).toFixed(1)+'%', (l.faltasPct||0).toFixed(1)+'%'
   ]);
   document.getElementById('tbl-lancamentos').innerHTML =
-    tableHTML(['Mês','Filial','Departamento','Ativos','Admitidos','Demitidos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
+    tableHTML(['Mês','Filial','Departamento','Ativos','Admitidos','Demitidos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
 }
 
 /* ================= RENDER: DASHBOARD ================= */
@@ -803,13 +807,15 @@ function agregarPeriodo(rows, de, ate){
   const somaAtivosPorMes = meses.map(m=> f.filter(l=>l.competencia===m).reduce((s,l)=>s+(l.ativos||0),0));
   const mediaAtivos = somaAtivosPorMes.length ? somaAtivosPorMes.reduce((a,b)=>a+b,0)/somaAtivosPorMes.length : 0;
   const turnover = mediaAtivos ? (somaMovs/mediaAtivos*100) : null;
-  // absenteísmo do período: média ponderada pelos ativos de cada linha (duas taxas)
+  // absenteísmo do período: média ponderada pelos ativos de cada linha (duas taxas + faltas isolado)
   const somaAtivosLinhas = f.reduce((s,l)=>s+(l.ativos||0),0);
   const somaAbsComPond = f.reduce((s,l)=>s+((l.absenteismoComAbono||0)*(l.ativos||0)),0);
   const somaAbsSemPond = f.reduce((s,l)=>s+((l.absenteismoSemAbono||0)*(l.ativos||0)),0);
+  const somaFaltasPond = f.reduce((s,l)=>s+((l.faltasPct||0)*(l.ativos||0)),0);
   const absenteismoComAbono = somaAtivosLinhas ? (somaAbsComPond/somaAtivosLinhas) : null;
   const absenteismoSemAbono = somaAtivosLinhas ? (somaAbsSemPond/somaAtivosLinhas) : null;
-  return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, nMeses:meses.length};
+  const faltasPct = somaAtivosLinhas ? (somaFaltasPond/somaAtivosLinhas) : null;
+  return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, faltasPct, nMeses:meses.length};
 }
 function renderDashboard(){
   const base = filtroBase(state.lanc);
@@ -845,6 +851,12 @@ function renderDashboard(){
     atual.absenteismoSemAbono==null ? true : atual.absenteismoSemAbono<=cfg.metaAbsenteismo, atual.absenteismoSemAbono||0, cfg.metaAbsenteismo*1.6,
     (atual.absenteismoSemAbono!=null && anterior.absenteismoSemAbono!=null)? cmpLine(atual.absenteismoSemAbono, anterior.absenteismoSemAbono, false, v=>v.toFixed(1)+'%') : semAnterior));
 
+  cards.push(kpiCard('Faltas',
+    atual.faltasPct==null ? '—' : atual.faltasPct.toFixed(2)+'%',
+    atual.faltasPct==null ? 'Sem lançamentos no período' : `Só faltas — sem abono legal, médico ou de liberação`,
+    true, atual.faltasPct||0, cfg.metaAbsenteismo*1.6,
+    (atual.faltasPct!=null && anterior.faltasPct!=null)? cmpLine(atual.faltasPct, anterior.faltasPct, false, v=>v.toFixed(1)+'%') : semAnterior));
+
   cards.push(kpiCard('Admissões no período', atual.admitidos+'', `${atual.nMeses||0} mês(es) considerado(s)`, true, 0, 0,
     anterior.nMeses? cmpLine(atual.admitidos, anterior.admitidos, true, v=>Math.round(v)+'') : semAnterior));
 
@@ -864,10 +876,11 @@ function renderHistorico(base){
     return [ fmtMesComp(m), r.headcount, r.admitidos, r.demitidos,
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
-      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%' ];
+      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
+      r.faltasPct==null?'—':r.faltasPct.toFixed(1)+'%' ];
   });
   document.getElementById('tbl-historico').innerHTML =
-    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
+    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
 }
 function renderPorFilial(){
   const base = state.lanc.filter(l=>!state.filterDepto || l.depto===state.filterDepto);
@@ -877,10 +890,11 @@ function renderPorFilial(){
     return [esc(f), r.headcount, r.admitidos, r.demitidos,
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
-      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%'];
+      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
+      r.faltasPct==null?'—':r.faltasPct.toFixed(1)+'%'];
   }).sort((a,b)=>b[1]-a[1]);
   document.getElementById('tbl-filial').innerHTML =
-    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
+    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
 }
 function renderPorDepto(){
   const base = state.lanc.filter(l=>!state.filterFilial || l.filial===state.filterFilial);
@@ -890,10 +904,11 @@ function renderPorDepto(){
     return {row:[esc(d), r.headcount, r.admitidos, r.demitidos,
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
-      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%'], t:r.turnover||0};
+      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
+      r.faltasPct==null?'—':r.faltasPct.toFixed(1)+'%'], t:r.turnover||0};
   }).sort((a,b)=>b.t-a.t).map(x=>x.row);
   document.getElementById('tbl-depto').innerHTML =
-    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
+    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
 }
 
 /* ================= MODAL ================= */
