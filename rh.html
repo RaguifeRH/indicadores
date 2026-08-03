@@ -180,17 +180,22 @@
 
       <!-- IMPORTAR -->
       <div class="page" id="page-importar">
-        <h1 class="page-title">Importar planilha</h1>
-        <div class="page-desc">Suba o arquivo de Gestão de Pessoas do sistema. O painel lê a aba <strong>DADOS</strong> e grava headcount, admissões, desligamentos, turnover e absenteísmo por filial + departamento + mês. Reenviar o arquivo sobrescreve os meses que vierem nele.</div>
+        <h1 class="page-title">Importar Relação de Funcionários</h1>
+        <div class="page-desc">Suba o relatório "Relação de Funcionários" do seu sistema. O painel calcula headcount, admissões, desligamentos e turnover por filial + departamento + mês a partir das datas de admissão/demissão. Só conta quem é <strong>Tipo Func. = Normal</strong> (CLT efetivo). Reenviar o arquivo sobrescreve os meses recalculados.</div>
         <div class="panel">
-          <h2>1 · Arquivo</h2>
+          <h2>1 · Arquivo e período</h2>
           <div class="form-grid">
             <div>
               <label>Planilha (.xlsx)</label>
               <input type="file" id="imp-file" accept=".xlsx" onchange="processarPlanilha(event)">
             </div>
+            <div>
+              <label>Calcular a partir de (mês)</label>
+              <input type="month" id="imp-mes-inicio">
+            </div>
           </div>
           <div class="note" id="imp-status" style="display:none"></div>
+          <div class="note">No mês atual, quem está de licença ou afastado é excluído do headcount (só Ativo e Férias contam). Nos meses passados, isso não dá pra reconstituir — conta quem já tinha sido admitido e ainda não tinha data de demissão naquele mês.</div>
         </div>
 
         <div class="panel" id="imp-preview" style="display:none">
@@ -263,6 +268,9 @@ const NAV_DEF = [
   {id:'config',       label:'Metas & Config',  ic:'⚙', roles:['admin']},
 ];
 const DEFAULT_CFG = {metaTurnover:5, metaAbsenteismo:3};
+// status "ainda empregado" que NÃO contam no headcount do mês atual (licença/afastamento)
+const STATUS_EXCLUI_HEADCOUNT = ['Licença sem Vencimento','Licença Maternidade','Afastado pela Previdência','Afastado por Acidente de Trabalho','Aguardando cálculo','Aposentado por Invalidez'];
+const TIPO_CONSIDERADO = 'Normal'; // CLT efetivo
 
 let state = { lanc:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFilial:'', filterDepto:'' };
 let currentUser = null;
@@ -387,6 +395,7 @@ function enterApp(){
 
   document.getElementById('logo-small').innerHTML = logoSVG(34);
   document.getElementById('f-de').value = addMonths(monthISO(), -2);
+  document.getElementById('imp-mes-inicio').value = addMonths(monthISO(), -11);
   document.getElementById('f-ate').value = monthISO();
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
@@ -424,6 +433,16 @@ function statusImport(msg, isErr){
   el.style.background = isErr? '#f7e3df' : '';
   el.style.color = isErr? 'var(--erro)' : '';
 }
+function parseDataBR(s){
+  if(!s) return null;
+  const str = String(s).trim();
+  const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  const d = parseInt(m[1],10), mo = parseInt(m[2],10), y = parseInt(m[3],10);
+  if(!d||!mo||!y) return null;
+  return y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+function fimDoMesRH(m){ const [y,mo]=m.split('-').map(Number); const d=new Date(y,mo,0); return m+'-'+String(d.getDate()).padStart(2,'0'); }
 async function processarPlanilha(ev){
   const file = ev.target.files[0];
   if(!file) return;
@@ -433,38 +452,83 @@ async function processarPlanilha(ev){
   try{
     await carregarSheetJS();
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array', cellDates:true});
-    const ws = wb.Sheets['DADOS'];
-    if(!ws){ statusImport('Não encontrei a aba "DADOS" nesse arquivo.', true); return; }
-    // cabeçalho está na linha 6 da planilha (índice 5, começando em 0)
-    const raw = XLSX.utils.sheet_to_json(ws, {range:5, defval:null});
-    const rows = [];
-    raw.forEach(r=>{
-      const filial = (r['FILIAL']||'').toString().trim();
-      const depto = (r['DEPARTAMENTO']||'').toString().trim();
-      const compRaw = r['COMPETÊNCIA'];
-      if(!filial || !depto || !compRaw) return;
-      let comp;
-      if(compRaw instanceof Date) comp = compRaw.getFullYear()+'-'+String(compRaw.getMonth()+1).padStart(2,'0');
-      else { const d = new Date(compRaw); if(isNaN(d)) return; comp = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
-      const ativos = Number(r['ATIVOS'])||0;
-      const admitidos = Number(r['ADMITIDOS'])||0;
-      const demitidos = Number(r['DEMITIDOS'])||0;
-      const turnoverFrac = Number(r['TURNOVER']);
-      const absFrac = Number(r['ABSENTEÍSMO']);
-      const turnover = isFinite(turnoverFrac) ? turnoverFrac*100 : (ativos ? (admitidos+demitidos)/2/ativos*100 : 0);
-      const absenteismo = isFinite(absFrac) ? absFrac*100 : 0;
-      rows.push({id: chaveLanc(comp,filial,depto), competencia:comp, filial, depto, ativos, admitidos, demitidos, turnover, absenteismo});
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    if(!ws){ statusImport('Não consegui abrir a planilha.', true); return; }
+    // acha a linha de cabeçalho procurando "Chapa" na primeira coluna
+    const grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
+    let hdrIdx = -1;
+    for(let i=0;i<Math.min(grid.length,15);i++){ if((grid[i]||[]).some(c=>String(c||'').trim()==='Chapa')){ hdrIdx=i; break; } }
+    if(hdrIdx<0){ statusImport('Não encontrei a coluna "Chapa" — confira se é o relatório certo.', true); return; }
+    const hdr = grid[hdrIdx].map(h=>String(h||'').trim());
+    const col = name => hdr.indexOf(name);
+    const cFilial = col('Filial (Nome Fantasia)'), cDepto = col('Depto. (Nome Fantasia)'),
+          cAdm = col('Dt. Admissão'), cDem = col('Dt. Demissão'), cStatus = col('Status Func.'), cTipo = col('Tipo Func.'),
+          cChapa = col('Chapa');
+    if([cFilial,cDepto,cAdm,cDem,cStatus,cTipo,cChapa].some(i=>i<0)){ statusImport('Faltam colunas esperadas nessa planilha.', true); return; }
+
+    // ---- 1) monta a lista de "vínculos" (um por período de emprego) ----
+    const spells = [];
+    for(let i=hdrIdx+1;i<grid.length;i++){
+      const row = grid[i]; if(!row) continue;
+      const chapa = row[cChapa];
+      if(!chapa || String(chapa).trim()==='Chapa') continue; // linha vazia ou cabeçalho repetido
+      const filial = String(row[cFilial]||'').trim();
+      const depto = String(row[cDepto]||'').trim();
+      if(!filial || !depto) continue;
+      const adm = parseDataBR(row[cAdm]);
+      if(!adm) continue;
+      const dem = parseDataBR(row[cDem]);
+      const status = String(row[cStatus]||'').trim();
+      const tipo = String(row[cTipo]||'').trim();
+      spells.push({filial, depto, adm, dem, status, tipo});
+    }
+    if(!spells.length){ statusImport('Nenhum vínculo válido encontrado.', true); return; }
+
+    // ---- 2) meses a calcular ----
+    const mesIni = document.getElementById('imp-mes-inicio').value || addMonths(monthISO(), -11);
+    const mesFim = monthISO();
+    const meses = []; let m = mesIni;
+    while(m<=mesFim && meses.length<400){ meses.push(m); m = addMonths(m,1); }
+
+    // ---- 3) pares filial+depto que existem entre os vínculos considerados (CLT efetivo) ----
+    const pares = new Map(); // "filial||depto" -> {filial,depto}
+    spells.filter(s=>s.tipo===TIPO_CONSIDERADO).forEach(s=>{
+      const k = s.filial+'||'+s.depto;
+      if(!pares.has(k)) pares.set(k, {filial:s.filial, depto:s.depto});
     });
-    if(!rows.length){ statusImport('Nenhuma linha válida encontrada na aba DADOS.', true); return; }
+
+    // ---- 4) agrega por mês x filial x depto ----
+    const rows = [];
+    for(const {filial, depto} of pares.values()){
+      const sp = spells.filter(s=>s.tipo===TIPO_CONSIDERADO && s.filial===filial && s.depto===depto);
+      for(const comp of meses){
+        const fim = fimDoMesRH(comp);
+        const ehMesAtual = comp === mesFim;
+        let ativos = 0, admitidos = 0, demitidos = 0;
+        sp.forEach(s=>{
+          if(s.adm <= fim && (!s.dem || s.dem > fim)){
+            // ainda empregado no fim desse mês
+            if(ehMesAtual && STATUS_EXCLUI_HEADCOUNT.includes(s.status)){ /* não conta */ }
+            else ativos++;
+          }
+          if(s.adm.slice(0,7)===comp) admitidos++;
+          if(s.dem && s.dem.slice(0,7)===comp) demitidos++;
+        });
+        if(ativos===0 && admitidos===0 && demitidos===0) continue;
+        const turnover = ativos ? ((admitidos+demitidos)/2/ativos*100) : 0;
+        rows.push({id: chaveLanc(comp,filial,depto), competencia:comp, filial, depto, ativos, admitidos, demitidos, turnover});
+      }
+    }
+    if(!rows.length){ statusImport('Nenhum registro para gravar nesse período — tente um mês inicial mais antigo.', true); return; }
     importRows = rows;
-    const meses = [...new Set(rows.map(r=>r.competencia))].sort();
+    const mesesUsados = [...new Set(rows.map(r=>r.competencia))].sort();
     const filiais = [...new Set(rows.map(r=>r.filial))].sort();
     document.getElementById('imp-resumo').textContent =
-      `${rows.length} registros · ${meses.length} mês(es), de ${fmtMesComp(meses[0])} a ${fmtMesComp(meses[meses.length-1])} · filiais: ${filiais.join(', ')}`;
-    const prevRows = rows.slice(0,8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), r.ativos, r.admitidos, r.demitidos, r.turnover.toFixed(1)+'%', r.absenteismo.toFixed(1)+'%']);
-    document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover','Absent.'], prevRows) +
-      (rows.length>8 ? `<div class="note">mostrando 8 de ${rows.length} linhas</div>` : '');
+      `${rows.length} registros · ${mesesUsados.length} mês(es), de ${fmtMesComp(mesesUsados[0])} a ${fmtMesComp(mesesUsados[mesesUsados.length-1])} · filiais: ${filiais.join(', ')}`;
+    const prevRows = rows.slice(-8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), r.ativos, r.admitidos, r.demitidos, r.turnover.toFixed(1)+'%']);
+    document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover'], prevRows) +
+      (rows.length>8 ? `<div class="note">mostrando 8 de ${rows.length} linhas (as mais recentes)</div>` : '');
     document.getElementById('imp-preview').style.display='block';
     statusImport(`Arquivo lido ✓ — confira abaixo e clique em "Gravar no banco".`);
   }catch(e){ console.error(e); statusImport('Falha ao ler o arquivo: '+(e.message||e), true); }
@@ -482,8 +546,8 @@ async function gravarImportacao(){
         batch.set(doc(db,'rh_lancamentos', r.id), {
           competencia:r.competencia, filial:r.filial, depto:r.depto,
           ativos:r.ativos, admitidos:r.admitidos, demitidos:r.demitidos,
-          turnover:r.turnover, absenteismo:r.absenteismo, atualizadoEm: todayISO(),
-        });
+          turnover:r.turnover, atualizadoEm: todayISO(),
+        }, {merge:true});
       });
       await batch.commit();
       statusImport(`Gravando... ${Math.min(i+chunkSize, importRows.length)}/${importRows.length}`);
