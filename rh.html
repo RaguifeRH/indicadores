@@ -199,15 +199,19 @@
         </div>
 
         <div class="panel" id="imp-panel-atestado" style="display:none">
-          <h2>2 · Lista de Atestados (absenteísmo) — opcional</h2>
+          <h2>2 · Relatório de Ponto (absenteísmo) — opcional</h2>
           <div class="form-grid">
             <div>
-              <label>Lista de Atestado Médico (.txt)</label>
-              <input type="file" id="imp-file-atestado" accept=".txt,.csv" onchange="processarAtestados(event)">
+              <label>Relatório Gerencial de Faltas/Atrasos/Abonos (.pdf)</label>
+              <input type="file" id="imp-file-ponto" accept=".pdf" onchange="processarPonto(event)">
+            </div>
+            <div>
+              <label>Competência deste relatório (mês)</label>
+              <input type="month" id="imp-mes-ponto">
             </div>
           </div>
           <div class="note" id="imp-status-atestado" style="display:none"></div>
-          <div class="note">Cruza pelo nome com a Relação de Funcionários que acabou de subir (a matrícula desse relatório é de outro sistema — não precisa reenviar a Relação a cada vez que atualizar só os atestados, desde que não recarregue a página). Absenteísmo = dias de atestado no mês ÷ (headcount × dias úteis do mês). Só considera a seção "Atestado Médico" do arquivo — a seção de afastamentos longos não entra aqui.</div>
+          <div class="note">Calcula duas taxas por departamento a partir das horas previstas: <strong>com abono médico</strong> (conta atestado como falta) e <strong>sem abono médico</strong> (não conta). Abonos legais nunca contam como falta. O relatório não separa por filial — uso o prefixo do código do departamento para isso: 002.01 → RAGUIFE - MATRIZ, 002.12 → FILIAL BOM DESPACHO, 029.01 → NOVA ASSESSORIA, 016.01 → M B PRONI DO AMARAL CONSTRUÇÕES E ACABAMENTOS (mesmos nomes da Relação de Funcionários). Departamentos fora dessas faixas ficam sem filial definida.</div>
         </div>
 
         <div class="panel" id="imp-preview" style="display:none">
@@ -420,6 +424,7 @@ function enterApp(){
   document.getElementById('logo-small').innerHTML = logoSVG(34);
   document.getElementById('f-de').value = addMonths(monthISO(), -2);
   document.getElementById('imp-mes-inicio').value = addMonths(monthISO(), -11);
+  document.getElementById('imp-mes-ponto').value = monthISO();
   document.getElementById('f-ate').value = monthISO();
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
@@ -439,7 +444,10 @@ function showPage(id){
 }
 
 /* ================= IMPORTAR PLANILHA ================= */
-function chaveLanc(comp, filial, depto){ return (comp||'')+'__'+(filial||'').trim().toUpperCase()+'__'+(depto||'').trim().toUpperCase(); }
+function chaveLanc(comp, filial, depto){
+  const norm = s => stripAcc(String(s||'')).trim().toUpperCase().replace(/\s+/g,' ');
+  return (comp||'')+'__'+norm(filial)+'__'+norm(depto);
+}
 let importRows = null; // linhas já normalizadas, prontas para gravar
 let importSpellsEfetivos = null; // vínculos de efetivos da última Relação de Funcionários processada (p/ cruzar atestados por matrícula)
 
@@ -502,14 +510,13 @@ async function processarPlanilha(ev){
     const hdr = grid[hdrIdx].map(norm);
     const find = pred => hdr.findIndex(pred);
     const cChapa = find(x=>x.includes('chapa')),
-          cNome = find(x=>x==='nome'||x.includes('nome')),
           cFilial = find(x=>x.includes('filial')),
           cCargo = find(x=>x.includes('cargo')),
           cDepto = find(x=>x.includes('depto')||x.includes('depart')),
           cAdm = find(x=>x.includes('admiss')),
           cDem = find(x=>x.includes('demiss')),
           cStatus = find(x=>x.includes('status'));
-    if([cChapa,cNome,cFilial,cCargo,cDepto,cAdm,cDem,cStatus].some(i=>i<0)){ statusImport('Faltam colunas esperadas nessa planilha (Chapa, Nome, Filial, Cargo, Departamento, Admissão, Demissão, Status).', true); return; }
+    if([cChapa,cFilial,cCargo,cDepto,cAdm,cDem,cStatus].some(i=>i<0)){ statusImport('Faltam colunas esperadas nessa planilha (Chapa, Filial, Cargo, Departamento, Admissão, Demissão, Status).', true); return; }
 
     // ---- 1) monta a lista de "vínculos" (um por período de emprego), só Efetivos (pelo Cargo) ----
     const spells = [];
@@ -526,9 +533,7 @@ async function processarPlanilha(ev){
       if(!adm) continue;
       const dem = parseDataFlexivel(row[cDem]);
       const status = String(row[cStatus]||'').trim();
-      const nomeNorm = normNome(row[cNome]);
-      if(!nomeNorm) continue;
-      spells.push({chapa:String(chapa).trim(), nomeNorm, filial, depto, adm, dem, status});
+      spells.push({chapa:String(chapa).trim(), filial, depto, adm, dem, status});
     }
     if(!spells.length){ statusImport('Nenhum vínculo de efetivo encontrado.', true); return; }
     importSpellsEfetivos = spells;
@@ -570,16 +575,20 @@ async function processarPlanilha(ev){
     statusImport(`Arquivo lido ✓ — confira abaixo e clique em "Gravar no banco".`);
   }catch(e){ console.error(e); statusImport('Falha ao ler o arquivo: '+(e.message||e), true); }
 }
-function businessDaysMes(comp){
-  const [y,mo] = comp.split('-').map(Number);
-  const dim = new Date(y,mo,0).getDate();
-  let n=0;
-  for(let d=1; d<=dim; d++){ const wd = new Date(y,mo-1,d).getDay(); if(wd!==0 && wd!==6) n++; }
-  return n;
+const FILIAL_POR_PREFIXO = {
+  '002.01': 'RAGUIFE - MATRIZ',
+  '002.12': 'FILIAL BOM DESPACHO',
+  '029.01': 'NOVA ASSESSORIA',
+  '016.01': 'M B PRONI DO AMARAL CONSTRUCOES E ACABAMENTOS',
+};
+function filialPorCodigo(codigo){
+  const pref = String(codigo||'').slice(0,6);
+  return FILIAL_POR_PREFIXO[pref] || null;
 }
-async function lerTextoLatin1(file){
-  const buf = await file.arrayBuffer();
-  return new TextDecoder('windows-1252').decode(buf);
+function parseNumBR(s){
+  if(s==null) return 0;
+  const n = parseFloat(String(s).trim().replace(/\./g,'').replace(',','.'));
+  return isFinite(n) ? n : 0;
 }
 function statusImportAtestado(msg, isErr){
   const el = document.getElementById('imp-status-atestado');
@@ -587,73 +596,106 @@ function statusImportAtestado(msg, isErr){
   el.style.background = isErr? '#f7e3df' : '';
   el.style.color = isErr? 'var(--erro)' : '';
 }
-async function processarAtestados(ev){
+async function carregarPdfJs(){
+  if(window.pdfjsLib) return;
+  await new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('Não foi possível carregar o leitor de PDF'));
+    document.head.appendChild(s);
+  });
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+async function pdfParaLinhas(file){
+  await carregarPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const linhas = [];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const porY = [];
+    content.items.forEach(it=>{
+      const y = Math.round(it.transform[5]);
+      let grupo = porY.find(g=>Math.abs(g.y-y)<=2);
+      if(!grupo){ grupo={y, itens:[]}; porY.push(grupo); }
+      grupo.itens.push(it);
+    });
+    porY.sort((a,b)=>b.y-a.y);
+    porY.forEach(g=>{
+      g.itens.sort((a,b)=>a.transform[4]-b.transform[4]);
+      linhas.push(g.itens.map(it=>it.str).join(' ').replace(/\s+/g,' ').trim());
+    });
+  }
+  return linhas.filter(l=>l!=='');
+}
+// Lê os totais por departamento do relatório de Faltas/Atrasos/Abonos (MixPonto).
+// Ignora a coluna RESUMO impressa no total do departamento (ela soma as % individuais em vez de
+// recalcular sobre o total — um erro do próprio relatório) e recalcula a taxa certa a partir das horas.
+function processarLinhasPonto(linhas){
+  const deptRe = /^DEPARTAMENTO:\s*([\d.]+)\s*-\s*(.+)$/;
+  const totalRe = /^TOTAL DO DEPARTAMENTO:\s*(.+)$/;
+  let atual = null;
+  const deptos = [];
+  linhas.forEach(l=>{
+    let m = l.match(deptRe);
+    if(m){ atual = {codigo:m[1].trim(), nome:m[2].trim()}; return; }
+    m = l.match(totalRe);
+    if(m && atual){
+      const nums = m[1].trim().split(/\s+/).map(parseNumBR);
+      if(nums.length>=15){
+        const horasprev=nums[0], medicos=nums[5], pliber=nums[7], atrasos=nums[9], faltas=nums[11];
+        deptos.push({codigo:atual.codigo, nome:atual.nome, horasprev, medicos, pliber, atrasos, faltas});
+      }
+      atual = null;
+    }
+  });
+  return deptos;
+}
+async function processarPonto(ev){
   const file = ev.target.files[0];
   if(!file) return;
-  if(!importSpellsEfetivos || !importSpellsEfetivos.length){
-    statusImportAtestado('Suba a Relação de Funcionários primeiro (nesta mesma sessão) — é ela que dá o departamento de cada pessoa.', true);
+  if(!importRows || !importRows.length){
+    statusImportAtestado('Suba a Relação de Funcionários primeiro (nesta mesma sessão) — é dela que vem o headcount usado no dashboard.', true);
     return;
   }
-  statusImportAtestado('Lendo arquivo...');
+  const comp = document.getElementById('imp-mes-ponto').value;
+  if(!comp){ statusImportAtestado('Escolha a competência desse relatório de ponto.', true); return; }
+  statusImportAtestado('Lendo PDF...');
   try{
-    const txt = await lerTextoLatin1(file);
-    const linhas = txt.split(/\r\n|\n/).filter(l=>l.trim()!=='');
-    if(!linhas.length){ statusImportAtestado('Arquivo vazio.', true); return; }
-    const hdr = linhas[0].split(';').map(h=>normStatus(h));
-    const cChapa = hdr.findIndex(h=>h.includes('matricula'));
-    const cNome = hdr.findIndex(h=>h==='nome'||h.includes('nome'));
-    const cDataIni = hdr.findIndex(h=>h.includes('data inicial'));
-    const cDiasPeriodo = hdr.findIndex(h=>h.includes('dias no periodo'));
-    if([cChapa,cNome,cDataIni,cDiasPeriodo].some(i=>i<0)){ statusImportAtestado('Não reconheci as colunas — confira se é a Lista de Atestado Médico.', true); return; }
+    const linhas = await pdfParaLinhas(file);
+    const deptos = processarLinhasPonto(linhas);
+    if(!deptos.length){ statusImportAtestado('Não encontrei nenhum "TOTAL DO DEPARTAMENTO" nesse PDF — confira se é o relatório certo.', true); return; }
 
-    // mapa nome -> filial/depto (vínculo de efetivo mais recente). Cruza por NOME porque a matrícula
-    // desse relatório é de outro sistema (ponto), com numeração diferente da Relação de Funcionários.
-    const porNome = new Map();
-    importSpellsEfetivos.forEach(s=>{
-      const atual = porNome.get(s.nomeNorm);
-      if(!atual || s.adm > atual.adm) porNome.set(s.nomeNorm, s);
-    });
-
-    // soma dias de atestado por mês + filial + depto, parando na 2ª tabela (Afastamentos)
-    const dias = new Map(); // "mes||filial||depto" -> dias
-    let semMatch = 0, linhasLidas = 0;
-    for(let i=1;i<linhas.length;i++){
-      const cols = linhas[i].split(';');
-      const primeira = normStatus(cols[0]);
-      if(primeira==='matricula') break; // início da 2ª tabela (Afastamentos) — para por aqui
-      const chapa = (cols[cChapa]||'').trim();
-      if(!chapa) continue;
-      const dataIni = parseDataFlexivel(cols[cDataIni]);
-      if(!dataIni) continue;
-      const qtd = Number((cols[cDiasPeriodo]||'0').replace(',','.')) || 0;
-      linhasLidas++;
-      const spell = porNome.get(normNome(cols[cNome]));
-      if(!spell){ semMatch++; continue; }
-      const mes = dataIni.slice(0,7);
-      const k = mes+'||'+spell.filial+'||'+spell.depto;
-      dias.set(k, (dias.get(k)||0) + qtd);
-    }
-    if(!linhasLidas){ statusImportAtestado('Nenhum registro de atestado encontrado.', true); return; }
-
-    // aplica sobre as linhas já calculadas do roster (mesma mes+filial+depto)
-    let aplicados = 0, foraDaJanela = 0;
-    for(const [k, diasPerdidos] of dias.entries()){
-      const [mes, filial, depto] = k.split('||');
-      const id = chaveLanc(mes, filial, depto);
-      const row = importRows && importRows.find(r=>r.id===id);
+    let aplicados = 0, semFilial = 0, foraDaJanela = 0;
+    deptos.forEach(d=>{
+      if(!d.horasprev) return;
+      const semAbono = (d.pliber + d.atrasos + d.faltas) / d.horasprev * 100;
+      const comAbono = (d.pliber + d.medicos + d.atrasos + d.faltas) / d.horasprev * 100;
+      const filial = filialPorCodigo(d.codigo);
+      if(!filial){ semFilial++; return; }
+      const id = chaveLanc(comp, filial, d.nome);
+      const row = importRows.find(r=>r.id===id);
       if(row){
-        row.absenteismo = row.ativos ? (diasPerdidos/(row.ativos*businessDaysMes(mes))*100) : 0;
+        row.absenteismoComAbono = comAbono;
+        row.absenteismoSemAbono = semAbono;
         aplicados++;
       } else {
+        // mês/filial/depto fora do que o roster calculou — cria um registro só com absenteísmo
+        importRows.push({
+          id, competencia:comp, filial, depto:d.nome,
+          ativos:0, admitidos:0, demitidos:0, turnover:0,
+          absenteismoComAbono:comAbono, absenteismoSemAbono:semAbono,
+        });
         foraDaJanela++;
       }
-    }
+    });
     renderPreviewImportacao();
-    let msg = `${linhasLidas} atestados lidos · absenteísmo calculado para ${aplicados} mês(es)/departamento(s)`;
-    if(semMatch) msg += ` · ${semMatch} registro(s) sem nome correspondente no cadastro`;
-    if(foraDaJanela) msg += ` · ${foraDaJanela} fora do período calculado (amplie "Calcular a partir de" e reprocesse os dois arquivos)`;
+    let msg = `${deptos.length} departamentos lidos · absenteísmo aplicado em ${aplicados}`;
+    if(semFilial) msg += ` · ${semFilial} sem filial mapeada (código fora das faixas conhecidas)`;
+    if(foraDaJanela) msg += ` · ${foraDaJanela} sem headcount calculado nesse mês (registro criado só com absenteísmo)`;
     statusImportAtestado(msg+' ✓');
-  }catch(e){ console.error(e); statusImportAtestado('Falha ao ler o arquivo: '+(e.message||e), true); }
+  }catch(e){ console.error(e); statusImportAtestado('Falha ao ler o PDF: '+(e.message||e), true); }
 }
 function renderPreviewImportacao(){
   if(!importRows) return;
@@ -661,8 +703,10 @@ function renderPreviewImportacao(){
   const filiais = [...new Set(importRows.map(r=>r.filial))].sort();
   document.getElementById('imp-resumo').textContent =
     `${importRows.length} registros · ${mesesUsados.length} mês(es), de ${fmtMesComp(mesesUsados[0])} a ${fmtMesComp(mesesUsados[mesesUsados.length-1])} · filiais: ${filiais.join(', ')}`;
-  const prevRows = importRows.slice(-8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), r.ativos, r.admitidos, r.demitidos, r.turnover.toFixed(1)+'%', r.absenteismo!=null? r.absenteismo.toFixed(1)+'%' : '—']);
-  document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover','Absenteísmo'], prevRows) +
+  const prevRows = importRows.slice(-8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), r.ativos, r.admitidos, r.demitidos, r.turnover.toFixed(1)+'%',
+    r.absenteismoComAbono!=null? r.absenteismoComAbono.toFixed(1)+'%' : '—',
+    r.absenteismoSemAbono!=null? r.absenteismoSemAbono.toFixed(1)+'%' : '—']);
+  document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover','Absent. c/ abono','Absent. s/ abono'], prevRows) +
     (importRows.length>8 ? `<div class="note">mostrando 8 de ${importRows.length} linhas (as mais recentes)</div>` : '');
 }
 async function gravarImportacao(){
@@ -680,7 +724,8 @@ async function gravarImportacao(){
           ativos:r.ativos, admitidos:r.admitidos, demitidos:r.demitidos,
           turnover:r.turnover, atualizadoEm: todayISO(),
         };
-        if(r.absenteismo!=null) dados.absenteismo = r.absenteismo;
+        if(r.absenteismoComAbono!=null) dados.absenteismoComAbono = r.absenteismoComAbono;
+        if(r.absenteismoSemAbono!=null) dados.absenteismoSemAbono = r.absenteismoSemAbono;
         batch.set(doc(db,'rh_lancamentos', r.id), dados, {merge:true});
       });
       await batch.commit();
@@ -699,7 +744,7 @@ function limparImportacao(){
   document.getElementById('imp-panel-atestado').style.display='none';
   document.getElementById('imp-status-atestado').style.display='none';
   document.getElementById('imp-file').value = '';
-  document.getElementById('imp-file-atestado').value = '';
+  document.getElementById('imp-file-ponto').value = '';
 }
 
 /* ================= CONFIG ================= */
@@ -734,10 +779,11 @@ function popularDeptoFiltro(){
 function renderLancamentos(){
   const rows = [...state.lanc].sort((a,b)=>(b.competencia||'').localeCompare(a.competencia||'')).slice(0,40).map(l=>[
     fmtMesComp(l.competencia), esc(l.filial), esc(l.depto), l.ativos,
-    l.admitidos, l.demitidos, (l.turnover||0).toFixed(1)+'%', (l.absenteismo||0).toFixed(1)+'%'
+    l.admitidos, l.demitidos, (l.turnover||0).toFixed(1)+'%',
+    (l.absenteismoComAbono||0).toFixed(1)+'%', (l.absenteismoSemAbono||0).toFixed(1)+'%'
   ]);
   document.getElementById('tbl-lancamentos').innerHTML =
-    tableHTML(['Mês','Filial','Departamento','Ativos','Admitidos','Demitidos','Turnover','Absenteísmo'], rows);
+    tableHTML(['Mês','Filial','Departamento','Ativos','Admitidos','Demitidos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
 }
 
 /* ================= RENDER: DASHBOARD ================= */
@@ -757,11 +803,13 @@ function agregarPeriodo(rows, de, ate){
   const somaAtivosPorMes = meses.map(m=> f.filter(l=>l.competencia===m).reduce((s,l)=>s+(l.ativos||0),0));
   const mediaAtivos = somaAtivosPorMes.length ? somaAtivosPorMes.reduce((a,b)=>a+b,0)/somaAtivosPorMes.length : 0;
   const turnover = mediaAtivos ? (somaMovs/mediaAtivos*100) : null;
-  // absenteísmo do período: média ponderada pelos ativos de cada linha
-  const somaAbsPond = f.reduce((s,l)=>s+((l.absenteismo||0)*(l.ativos||0)),0);
+  // absenteísmo do período: média ponderada pelos ativos de cada linha (duas taxas)
   const somaAtivosLinhas = f.reduce((s,l)=>s+(l.ativos||0),0);
-  const absenteismo = somaAtivosLinhas ? (somaAbsPond/somaAtivosLinhas) : null;
-  return {headcount, admitidos, demitidos, turnover, absenteismo, nMeses:meses.length};
+  const somaAbsComPond = f.reduce((s,l)=>s+((l.absenteismoComAbono||0)*(l.ativos||0)),0);
+  const somaAbsSemPond = f.reduce((s,l)=>s+((l.absenteismoSemAbono||0)*(l.ativos||0)),0);
+  const absenteismoComAbono = somaAtivosLinhas ? (somaAbsComPond/somaAtivosLinhas) : null;
+  const absenteismoSemAbono = somaAtivosLinhas ? (somaAbsSemPond/somaAtivosLinhas) : null;
+  return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, nMeses:meses.length};
 }
 function renderDashboard(){
   const base = filtroBase(state.lanc);
@@ -785,11 +833,17 @@ function renderDashboard(){
     atual.turnover==null ? true : atual.turnover<=cfg.metaTurnover, atual.turnover||0, cfg.metaTurnover*1.6,
     (atual.turnover!=null && anterior.turnover!=null)? cmpLine(atual.turnover, anterior.turnover, false, v=>v.toFixed(1)+'%') : semAnterior));
 
-  cards.push(kpiCard('Absenteísmo do período',
-    atual.absenteismo==null ? '—' : atual.absenteismo.toFixed(2)+'%',
-    atual.absenteismo==null ? 'Sem lançamentos no período' : `Meta: até ${cfg.metaAbsenteismo}% · média ponderada por headcount`,
-    atual.absenteismo==null ? true : atual.absenteismo<=cfg.metaAbsenteismo, atual.absenteismo||0, cfg.metaAbsenteismo*1.6,
-    (atual.absenteismo!=null && anterior.absenteismo!=null)? cmpLine(atual.absenteismo, anterior.absenteismo, false, v=>v.toFixed(1)+'%') : semAnterior));
+  cards.push(kpiCard('Absenteísmo c/ abono médico',
+    atual.absenteismoComAbono==null ? '—' : atual.absenteismoComAbono.toFixed(2)+'%',
+    atual.absenteismoComAbono==null ? 'Sem lançamentos no período' : `Meta: até ${cfg.metaAbsenteismo}% · conta atestado como falta`,
+    atual.absenteismoComAbono==null ? true : atual.absenteismoComAbono<=cfg.metaAbsenteismo, atual.absenteismoComAbono||0, cfg.metaAbsenteismo*1.6,
+    (atual.absenteismoComAbono!=null && anterior.absenteismoComAbono!=null)? cmpLine(atual.absenteismoComAbono, anterior.absenteismoComAbono, false, v=>v.toFixed(1)+'%') : semAnterior));
+
+  cards.push(kpiCard('Absenteísmo s/ abono médico',
+    atual.absenteismoSemAbono==null ? '—' : atual.absenteismoSemAbono.toFixed(2)+'%',
+    atual.absenteismoSemAbono==null ? 'Sem lançamentos no período' : `Não conta atestado médico como falta`,
+    atual.absenteismoSemAbono==null ? true : atual.absenteismoSemAbono<=cfg.metaAbsenteismo, atual.absenteismoSemAbono||0, cfg.metaAbsenteismo*1.6,
+    (atual.absenteismoSemAbono!=null && anterior.absenteismoSemAbono!=null)? cmpLine(atual.absenteismoSemAbono, anterior.absenteismoSemAbono, false, v=>v.toFixed(1)+'%') : semAnterior));
 
   cards.push(kpiCard('Admissões no período', atual.admitidos+'', `${atual.nMeses||0} mês(es) considerado(s)`, true, 0, 0,
     anterior.nMeses? cmpLine(atual.admitidos, anterior.admitidos, true, v=>Math.round(v)+'') : semAnterior));
@@ -808,10 +862,12 @@ function renderHistorico(base){
   const rows = meses.map(m=>{
     const r = agregarPeriodo(base, m, m);
     return [ fmtMesComp(m), r.headcount, r.admitidos, r.demitidos,
-      r.turnover==null?'—':r.turnover.toFixed(1)+'%', r.absenteismo==null?'—':r.absenteismo.toFixed(1)+'%' ];
+      r.turnover==null?'—':r.turnover.toFixed(1)+'%',
+      r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
+      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%' ];
   });
   document.getElementById('tbl-historico').innerHTML =
-    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absenteísmo'], rows);
+    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
 }
 function renderPorFilial(){
   const base = state.lanc.filter(l=>!state.filterDepto || l.depto===state.filterDepto);
@@ -819,10 +875,12 @@ function renderPorFilial(){
   const rows = filiais.map(f=>{
     const r = agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte);
     return [esc(f), r.headcount, r.admitidos, r.demitidos,
-      r.turnover==null?'—':r.turnover.toFixed(1)+'%', r.absenteismo==null?'—':r.absenteismo.toFixed(1)+'%'];
+      r.turnover==null?'—':r.turnover.toFixed(1)+'%',
+      r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
+      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%'];
   }).sort((a,b)=>b[1]-a[1]);
   document.getElementById('tbl-filial').innerHTML =
-    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absenteísmo'], rows);
+    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
 }
 function renderPorDepto(){
   const base = state.lanc.filter(l=>!state.filterFilial || l.filial===state.filterFilial);
@@ -830,10 +888,12 @@ function renderPorDepto(){
   const rows = deptos.map(d=>{
     const r = agregarPeriodo(base.filter(l=>l.depto===d), state.filterDe, state.filterAte);
     return {row:[esc(d), r.headcount, r.admitidos, r.demitidos,
-      r.turnover==null?'—':r.turnover.toFixed(1)+'%', r.absenteismo==null?'—':r.absenteismo.toFixed(1)+'%'], t:r.turnover||0};
+      r.turnover==null?'—':r.turnover.toFixed(1)+'%',
+      r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
+      r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%'], t:r.turnover||0};
   }).sort((a,b)=>b.t-a.t).map(x=>x.row);
   document.getElementById('tbl-depto').innerHTML =
-    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absenteísmo'], rows);
+    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono'], rows);
 }
 
 /* ================= MODAL ================= */
@@ -901,7 +961,7 @@ function montarAtalhos(){
 /* ================= INIT ================= */
 Object.assign(window, {
   logout, showPage,
-  processarPlanilha, processarAtestados, gravarImportacao, limparImportacao,
+  processarPlanilha, processarPonto, gravarImportacao, limparImportacao,
   salvarConfig,
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
