@@ -383,6 +383,8 @@ const PAINEIS = [
    desc:'Desperdício, compras, custos, checklists de limpeza, pesquisa e histórico'},
   {id:'ambulatorio', ic:'⚕',  file:'ambulatorio.html', label:'Ambulatório',
    desc:'Absenteísmo, exames periódicos, agenda médica, DSP e pesquisas'},
+  {id:'dp',          ic:'🧾', file:'dp.html',          label:'Departamento Pessoal',
+   desc:'Headcount, turnover e absenteísmo por filial e departamento'},
 ];
 
 let currentUser = null;
@@ -657,7 +659,7 @@ async function resetSenhaUsuario(email){
   catch(e){ toast(authErrPT(e), true); }
 }
 function tags(u){
-  if(u.admin) return '<span class="modtag adm">Os dois painéis</span>';
+  if(u.admin) return '<span class="modtag adm">Todos os painéis</span>';
   const on = PAINEIS.filter(p=>u.modulos && u.modulos[p.id]);
   return on.length? on.map(p=>`<span class="modtag">${p.ic} ${p.label}</span>`).join('')
                   : '<span style="color:var(--cinza)">nenhum</span>';
