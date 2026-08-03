@@ -242,6 +242,11 @@
           </div>
           <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar metas</button></div>
         </div>
+        <div class="panel" style="border-color:#ecd3cf">
+          <h2 style="color:var(--erro)">Zona de risco</h2>
+          <div class="desc">Apaga todos os lançamentos (headcount, turnover, absenteísmo) do banco. Use antes de reimportar do zero, se mudou a fórmula de cálculo e quer evitar registros antigos misturados com os novos. Não afeta as metas.</div>
+          <div class="btn-row"><button class="btn btn-danger" onclick="apagarTudo()">Apagar todos os lançamentos</button></div>
+        </div>
       </div>
 
     </main>
@@ -760,6 +765,22 @@ async function salvarConfig(){
   try{ await setDoc(doc(db,'config','rh_metas'), state.cfg); toast('Configuração salva ✓'); renderDashboard(); }
   catch(e){ toast('Falha ao salvar.', true); }
 }
+async function apagarTudo(){
+  const n = state.lanc.length;
+  if(!n){ toast('Já não há lançamentos para apagar.'); return; }
+  confirmModal(`Isso apaga <strong>${n} lançamentos</strong> (headcount, turnover, absenteísmo) do banco — não dá pra desfazer. As metas continuam intactas. Confirma?`, async ()=>{
+    try{
+      const ids = state.lanc.map(l=>l.id);
+      const chunkSize = 400;
+      for(let i=0;i<ids.length;i+=chunkSize){
+        const batch = writeBatch(db);
+        ids.slice(i,i+chunkSize).forEach(id=> batch.delete(doc(db,'rh_lancamentos', id)));
+        await batch.commit();
+      }
+      toast('Todos os lançamentos foram apagados ✓');
+    }catch(e){ console.error(e); toast('Falha ao apagar.', true); }
+  });
+}
 
 /* ================= FILIAL / DEPTO (filtros do dashboard) ================= */
 function renderFiliaisDeptos(){
@@ -977,7 +998,7 @@ function montarAtalhos(){
 Object.assign(window, {
   logout, showPage,
   processarPlanilha, processarPonto, gravarImportacao, limparImportacao,
-  salvarConfig,
+  salvarConfig, apagarTudo,
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
 });
