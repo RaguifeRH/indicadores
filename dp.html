@@ -20,7 +20,6 @@
   button{font-family:inherit;}
   a{color:var(--verde);}
 
-  /* APP SHELL */
   #app{display:none;}
   .topbar{background:var(--verde);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 20px;position:sticky;top:0;z-index:30;}
   .topbar .brandline{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
@@ -40,7 +39,7 @@
   .navbtn.active{background:var(--verde);color:#fff;font-weight:600;}
   .navbtn .ic{width:20px;text-align:center;flex:none;}
   main{flex:1;padding:26px 26px 80px;min-width:0;}
-  .page{display:none;max-width:1100px;margin:0 auto;}
+  .page{display:none;max-width:1280px;margin:0 auto;}
   .page.active{display:block;animation:fade .22s ease;}
   @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
   .page-title{font-size:22px;color:var(--verde);margin-bottom:2px;}
@@ -55,31 +54,25 @@
     .topbar .app-sub{display:none;}
   }
 
-  /* COMPONENTS */
   .panel{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
   .panel h2{font-size:16px;color:var(--verde);margin-bottom:3px;}
   .panel .desc{color:var(--cinza);font-size:12.5px;margin-bottom:16px;}
   .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px;margin-bottom:20px;}
   .kpi{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:16px;position:relative;}
   .kpi .eyebrow{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--cinza);font-weight:700;margin-bottom:7px;}
-  .kpi .val{font-family:'Poppins',sans-serif;font-size:26px;font-weight:700;color:#1d2b1a;letter-spacing:-0.02em;}
+  .kpi .val{font-family:'Poppins',sans-serif;font-size:24px;font-weight:700;color:#1d2b1a;letter-spacing:-0.02em;}
   .kpi .meta{font-size:11.5px;color:var(--cinza);margin-top:3px;}
-  .kpi .bar{margin-top:11px;height:6px;border-radius:4px;background:#edf0e6;overflow:hidden;}
-  .kpi .bar span{display:block;height:100%;border-radius:4px;}
   .kpi .cmp{font-size:11px;font-weight:600;margin-top:7px;display:inline-flex;align-items:center;gap:4px;}
   .cmp-up{color:var(--ok);} .cmp-down{color:var(--erro);} .cmp-flat{color:var(--cinza);}
   .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.02em;display:inline-block;}
   .pill.abs{position:absolute;top:14px;right:14px;}
   .p-ok{background:#e5f1db;color:var(--ok);}
   .p-bad{background:#f7e3df;color:var(--erro);}
-  .p-warn{background:#f9efd9;color:#996c14;}
   .p-neutral{background:#eef0ea;color:var(--cinza);}
 
   label{display:block;font-size:12px;font-weight:600;color:#40503b;margin-bottom:5px;}
   input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--linha);border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;background:#fbfcf9;color:#22301f;}
   input:focus,select:focus,textarea:focus{outline:2px solid var(--folha);outline-offset:1px;border-color:var(--folha);}
-  input:disabled{background:#eef0ea;color:#5a684f;}
-  textarea{resize:vertical;min-height:60px;}
   .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;}
   .btn{font-family:'Poppins',sans-serif;font-weight:600;font-size:13.5px;border:none;border-radius:10px;padding:11px 20px;cursor:pointer;transition:transform .1s;}
   .btn:active{transform:scale(.97);}
@@ -90,13 +83,13 @@
   .btn-leaf:hover{background:#647f2b;}
   .btn-ghost{background:transparent;color:var(--verde);border:1px solid var(--linha);}
   .btn-ghost:hover{background:var(--folha-suave);}
-  .btn-mini{padding:5px 10px;font-size:11px;border-radius:7px;}
+  .btn-mini{padding:5px 9px;font-size:11px;border-radius:7px;}
   .btn-danger{background:transparent;color:var(--erro);border:1px solid #ecd3cf;}
   .btn-row{margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
-  th{text-align:left;color:var(--cinza);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--linha);}
-  td{padding:9px 10px;border-bottom:1px solid #eef0e8;}
+  th{text-align:left;color:var(--cinza);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--linha);white-space:nowrap;}
+  td{padding:7px 8px;border-bottom:1px solid #eef0e8;white-space:nowrap;}
   tr:last-child td{border-bottom:none;}
   td.num{font-variant-numeric:tabular-nums;font-weight:500;}
   .table-wrap{overflow-x:auto;margin-top:6px;}
@@ -108,7 +101,11 @@
   .presets .btn{padding:8px 12px;font-size:11.5px;}
   .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
 
-  /* MODAL / TOAST */
+  /* GRADE ESTILO PLANILHA */
+  .grid-table input{width:92px;padding:6px 7px;font-size:12.5px;border-radius:6px;text-align:right;}
+  .grid-table input.gi-filial, .grid-table input.gi-depto{width:130px;text-align:left;}
+  .grid-table td.gi-total{font-weight:700;color:var(--verde);text-align:right;font-variant-numeric:tabular-nums;}
+
   #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
   #modal-bg.open{display:flex;}
   .modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;}
@@ -120,7 +117,6 @@
 </head>
 <body>
 
-<!-- ===================== APP ===================== -->
 <div id="app">
   <div class="topbar">
     <div class="brandline">
@@ -147,7 +143,7 @@
       <!-- DASHBOARD -->
       <div class="page" id="page-dashboard">
         <h1 class="page-title">Dashboard</h1>
-        <div class="page-desc">Visão geral da empresa no período selecionado — use os filtros para abrir por filial ou departamento</div>
+        <div class="page-desc">Custo de pessoal (folha e encargos) da empresa no período — filtro opcional por filial ou departamento</div>
         <div class="filter-bar">
           <div class="fld"><label>De (mês)</label><input type="month" id="f-de"></div>
           <div class="fld"><label>Até (mês)</label><input type="month" id="f-ate"></div>
@@ -162,59 +158,78 @@
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
         <div class="panel">
-          <h2>Histórico comparativo mensal</h2>
-          <div class="desc">Headcount, admissões, desligamentos, turnover e absenteísmo mês a mês (últimos 12 meses com registro, no filtro atual)</div>
+          <h2>Histórico mensal</h2>
+          <div class="desc">Custo total mês a mês (últimos 12 meses com registro, no filtro atual)</div>
           <div class="table-wrap" id="tbl-historico"></div>
         </div>
         <div class="panel">
+          <h2>Por categoria</h2>
+          <div class="desc">Como o custo do período se divide entre as 13 categorias</div>
+          <div class="table-wrap" id="tbl-categoria"></div>
+        </div>
+        <div class="panel">
           <h2>Por filial</h2>
-          <div class="desc">Headcount ao fim do período e indicadores acumulados</div>
           <div class="table-wrap" id="tbl-filial"></div>
         </div>
         <div class="panel">
           <h2>Por departamento</h2>
-          <div class="desc">Ordenado do maior para o menor turnover no período</div>
+          <div class="desc">Ordenado do maior para o menor custo no período</div>
           <div class="table-wrap" id="tbl-depto"></div>
         </div>
       </div>
 
-      <!-- LANÇAMENTOS -->
-      <div class="page" id="page-lancamentos">
+      <!-- LANÇAMENTO (GRADE) -->
+      <div class="page" id="page-lancamento">
         <h1 class="page-title">Lançamento mensal</h1>
-        <div class="page-desc">Um registro por filial + departamento + mês. Turnover é calculado automaticamente: (admitidos + demitidos) ÷ 2 ÷ ativos</div>
+        <div class="page-desc">Uma linha por filial + departamento, igual a uma planilha — edita direto na grade e salva tudo de uma vez</div>
         <div class="panel">
-          <h2>Novo lançamento</h2>
-          <div class="form-grid">
+          <div class="form-grid" style="margin-bottom:0">
             <div><label>Competência (mês)</label><input type="month" id="ln-comp"></div>
-            <div><label>Filial</label><input type="text" id="ln-filial" list="dl-filiais" placeholder="ex: MATRIZ"></div>
-            <div><label>Departamento</label><input type="text" id="ln-depto" list="dl-deptos" placeholder="ex: MANUTENÇÃO"></div>
-            <div><label>Ativos (headcount)</label><input type="number" id="ln-ativos" min="0"></div>
-            <div><label>Admitidos no mês</label><input type="number" id="ln-admitidos" min="0" value="0"></div>
-            <div><label>Demitidos no mês</label><input type="number" id="ln-demitidos" min="0" value="0"></div>
-            <div><label>Absenteísmo do mês (%)</label><input type="number" id="ln-absenteismo" min="0" step="0.01" placeholder="ex: 3.2"></div>
           </div>
-          <datalist id="dl-filiais"></datalist>
-          <datalist id="dl-deptos"></datalist>
-          <div class="btn-row"><button class="btn btn-primary" onclick="salvarLancamento()">Salvar lançamento</button></div>
-          <div class="note">Já existe um lançamento para essa filial + departamento + mês? Salvar de novo substitui o anterior.</div>
+          <div class="btn-row">
+            <button class="btn btn-leaf" onclick="carregarMes()">Carregar mês</button>
+            <button class="btn btn-ghost" onclick="copiarMesAnterior()">Copiar valores do mês anterior</button>
+            <button class="btn btn-ghost" onclick="adicionarLinha()">+ Nova linha</button>
+          </div>
+          <datalist id="dl-filiais-dp"></datalist>
+          <datalist id="dl-deptos-dp"></datalist>
+          <div class="table-wrap" id="grid-wrap" style="margin-top:16px"></div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarGrade()">Salvar tudo</button></div>
+          <div class="note">Total é calculado automaticamente (soma das 13 categorias) — não precisa digitar. Salvar de novo para o mesmo filial + departamento substitui os valores anteriores.</div>
         </div>
+      </div>
+
+      <!-- IMPORTAR HISTÓRICO -->
+      <div class="page" id="page-importar">
+        <h1 class="page-title">Importar histórico</h1>
+        <div class="page-desc">Carga única de uma planilha de custos já consolidada (mesmas colunas da aba CUSTO do FOPAG). Depois disso, o lançamento mensal é feito na grade.</div>
         <div class="panel">
-          <h2>Lançamentos recentes</h2>
-          <div class="table-wrap" id="tbl-lancamentos"></div>
+          <h2>Planilha de custos (.xlsx)</h2>
+          <div class="form-grid">
+            <div><label>Arquivo</label><input type="file" id="imp-file" accept=".xlsx" onchange="processarPlanilhaCusto(event)"></div>
+          </div>
+          <div class="note" id="imp-status" style="display:none"></div>
+          <div class="note">Espera encontrar as colunas: Competência, Filial, Departamento, e as 13 categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed).</div>
+        </div>
+        <div class="panel" id="imp-preview" style="display:none">
+          <h2>Conferir antes de gravar</h2>
+          <div class="desc" id="imp-resumo"></div>
+          <div class="table-wrap" id="imp-tbl-preview"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="imp-btn-gravar" onclick="gravarImportacao()">Gravar no banco</button>
+            <button class="btn btn-ghost" onclick="limparImportacao()">Cancelar</button>
+          </div>
         </div>
       </div>
 
       <!-- CONFIG -->
       <div class="page" id="page-config">
-        <h1 class="page-title">Metas &amp; Configurações</h1>
-        <div class="page-desc">Metas dos indicadores do Departamento Pessoal</div>
-        <div class="panel">
-          <h2>Metas dos indicadores</h2>
-          <div class="form-grid">
-            <div><label>Meta turnover (máx. % ao mês)</label><input type="number" step="0.1" id="cfg-turnover"></div>
-            <div><label>Meta absenteísmo (máx. %)</label><input type="number" step="0.1" id="cfg-absenteismo"></div>
-          </div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar metas</button></div>
+        <h1 class="page-title">Configurações</h1>
+        <div class="page-desc">Manutenção dos dados do módulo</div>
+        <div class="panel" style="border-color:#ecd3cf">
+          <h2 style="color:var(--erro)">Zona de risco</h2>
+          <div class="desc">Apaga todos os lançamentos de custo do banco. Use antes de reimportar do zero.</div>
+          <div class="btn-row"><button class="btn btn-danger" onclick="apagarTudo()">Apagar todos os lançamentos</button></div>
         </div>
       </div>
 
@@ -222,7 +237,6 @@
   </div>
 </div>
 
-<!-- MODAL / TOAST -->
 <div id="modal-bg"><div class="modal" id="modal-box"></div></div>
 <div id="toast"></div>
 
@@ -233,11 +247,10 @@ import {
   EmailAuthProvider, reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
-  getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs,
-  deleteDoc, onSnapshot, query, where
+  getFirestore, collection, doc, setDoc, getDoc, getDocs,
+  onSnapshot, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-/* Mesmo projeto Firebase dos demais módulos — mesmos usuários fazem login */
 const firebaseConfig = {
   apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
   authDomain: "controlepix-cc524.firebaseapp.com",
@@ -253,13 +266,28 @@ const db = getFirestore(fbApp);
 /* ================= CONSTANTES ================= */
 const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
-  {id:'dashboard',    label:'Dashboard',       ic:'▦', roles:['admin','operador']},
-  {id:'lancamentos',  label:'Lançamentos',     ic:'📝', roles:['admin','operador']},
-  {id:'config',       label:'Metas & Config',  ic:'⚙', roles:['admin']},
+  {id:'dashboard',   label:'Dashboard',        ic:'▦', roles:['admin','operador']},
+  {id:'lancamento',  label:'Lançamento',       ic:'📊', roles:['admin','operador']},
+  {id:'importar',    label:'Importar histórico', ic:'📤', roles:['admin']},
+  {id:'config',      label:'Configurações',    ic:'⚙', roles:['admin']},
 ];
-const DEFAULT_CFG = {metaTurnover:5, metaAbsenteismo:3};
+const CUSTO_CATS = [
+  {key:'folha',              label:'Folha'},
+  {key:'inss',               label:'INSS'},
+  {key:'sesiSenai',          label:'SESI/SENAI'},
+  {key:'fgts',               label:'FGTS'},
+  {key:'alimentacao',        label:'Alimentação'},
+  {key:'notaFiscal',         label:'Nota Fiscal'},
+  {key:'jovemAprendiz',      label:'Jovem Aprendiz'},
+  {key:'planoSaude',         label:'Plano Saúde'},
+  {key:'planoOdontologico',  label:'Plano Odont.'},
+  {key:'seguroVida',         label:'Seguro Vida'},
+  {key:'diariasMedias',      label:'Diárias/Médias'},
+  {key:'premio',             label:'Prêmio'},
+  {key:'multimed',           label:'Multimed'},
+];
 
-let state = { lanc:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFilial:'', filterDepto:'' };
+let state = { custos:[], filterDe:'', filterAte:'', filterFilial:'', filterDepto:'' };
 let currentUser = null;
 let unsubs = [];
 
@@ -268,6 +296,8 @@ function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.get
 function monthISO(){ return todayISO().slice(0,7); }
 function fmtMesComp(c){ if(!c) return '—'; const [y,m]=String(c).split('-'); const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return (nomes[parseInt(m,10)-1]||m)+'/'+y; }
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function stripAcc(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
 function toast(msg, isErr){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
@@ -283,11 +313,8 @@ function authErrPT(e){
   if(c.includes('requires-recent-login')) return 'Por segurança, saia e entre de novo antes de alterar a senha.';
   return 'Erro: '+(e?.message||e);
 }
-// intervalo [de,ate] em competências 'YYYY-MM', inclusive
-function inRangeMes(m){ if(!m) return false; if(state.filterDe && m<state.filterDe) return false; if(state.filterAte && m>state.filterAte) return false; return true; }
 function addMonths(m, n){ let [y,mo]=m.split('-').map(Number); mo+=n; while(mo>12){mo-=12;y++;} while(mo<1){mo+=12;y--;} return y+'-'+String(mo).padStart(2,'0'); }
 function monthsBetween(de, ate){ let n=0,m=de; while(m<=ate && n<600){ n++; m=addMonths(m,1);} return n; }
-// período imediatamente anterior, com a mesma quantidade de meses
 function prevRangeMes(de, ate){
   if(!de || !ate) return {de:'', ate:''};
   const n = monthsBetween(de, ate);
@@ -295,7 +322,6 @@ function prevRangeMes(de, ate){
   const novoDe = addMonths(novoAte, -(n-1));
   return {de:novoDe, ate:novoAte};
 }
-function inRangePrev(m, pr){ return m && m>=pr.de && m<=pr.ate; }
 function cmpLine(curr, prev, higherIsBetter, fmt){
   if(prev==null) return '<div class="cmp cmp-flat">— sem período anterior</div>';
   const diff = curr - prev;
@@ -305,17 +331,18 @@ function cmpLine(curr, prev, higherIsBetter, fmt){
   const arrow = up? '▲':'▼';
   return `<div class="cmp ${cls}">${arrow} ${fmt(Math.abs(diff))} vs. anterior (${fmt(prev)})</div>`;
 }
-function kpiCard(title, value, metaText, ok, val, max, cmpHTML){
-  const pct = max? Math.max(0, Math.min(100, (val/max)*100)) : 0;
-  const color = ok? 'var(--ok)' : 'var(--erro)';
-  const pill = ok? '<span class="pill p-ok abs">Na meta</span>' : '<span class="pill p-bad abs">Fora da meta</span>';
-  return `<div class="kpi">${pill}
+function kpiCard(title, value, metaText, cmpHTML){
+  return `<div class="kpi">
     <div class="eyebrow">${title}</div>
     <div class="val">${value}</div>
     <div class="meta">${metaText}</div>
-    ${cmpHTML||''}
-    <div class="bar"><span style="width:${pct}%;background:${color}"></span></div></div>`;
+    ${cmpHTML||''}</div>`;
 }
+function chaveCusto(comp, filial, depto){
+  const norm = s => stripAcc(String(s||'')).trim().toUpperCase().replace(/\s+/g,' ');
+  return (comp||'')+'__'+norm(filial)+'__'+norm(depto);
+}
+function totalLinha(obj){ return CUSTO_CATS.reduce((s,c)=>s+(Number(obj[c.key])||0),0); }
 function logoSVG(size){
   return `<svg width="${size}" height="${size*0.78}" viewBox="0 0 100 78" xmlns="http://www.w3.org/2000/svg">
     <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#8CB43E" stroke-width="7"/>
@@ -328,9 +355,7 @@ function logoSVG(size){
 }
 
 /* ================= ACESSO ================= */
-/* O login acontece em index.html. Aqui só conferimos a permissão do módulo. */
 async function logout(){ await signOut(auth); location.replace('index.html'); }
-
 onAuthStateChanged(auth, async (user)=>{
   if(!user || user.isAnonymous){ location.replace('index.html'); return; }
   try{
@@ -341,7 +366,6 @@ onAuthStateChanged(auth, async (user)=>{
     if(!d.admin && !(d.modulos && d.modulos.dp)){ location.replace('index.html?erro=semacesso'); return; }
     const role = d.admin ? 'admin' : 'operador';
     currentUser = {uid:user.uid, ...d, role};
-    await loadConfig();
     enterApp();
     subscribeData();
   }catch(e){
@@ -350,22 +374,14 @@ onAuthStateChanged(auth, async (user)=>{
 });
 
 /* ================= DADOS ================= */
-async function loadConfig(){
-  try{
-    const m = await getDoc(doc(db,'config','dp_metas'));
-    state.cfg = m.exists()? {...DEFAULT_CFG, ...m.data()} : {...DEFAULT_CFG};
-  }catch(e){ state.cfg = {...DEFAULT_CFG}; }
-}
-function sub(colName, target, after){
-  const u = onSnapshot(collection(db,colName), snap=>{
-    state[target] = snap.docs.map(d=>({id:d.id, ...d.data()}));
-    after && after();
-  }, e=>console.error(colName, e));
-  unsubs.push(u);
-}
 function subscribeData(){
   unsubs.forEach(u=>u()); unsubs=[];
-  sub('dp_lancamentos','lanc', ()=>{ renderFiliaisDeptos(); renderLancamentos(); renderDashboard(); });
+  const u = onSnapshot(collection(db,'dp_custos'), snap=>{
+    state.custos = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderFiliaisDeptos();
+    renderDashboard();
+  }, e=>console.error(e));
+  unsubs.push(u);
 }
 
 /* ================= NAV / SHELL ================= */
@@ -379,17 +395,13 @@ function enterApp(){
   document.getElementById('sidenav').innerHTML =
     '<div class="navlbl">Menu</div>' +
     nav.map(n=>`<button class="navbtn" data-id="${n.id}" onclick="showPage('${n.id}')"><span class="ic">${n.ic}</span>${n.label}</button>`).join('');
-
   document.getElementById('logo-small').innerHTML = logoSVG(34);
-  document.getElementById('ln-comp').value = monthISO();
+
   document.getElementById('f-de').value = addMonths(monthISO(), -2);
   document.getElementById('f-ate').value = monthISO();
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
-
-  document.getElementById('cfg-turnover').value = state.cfg.metaTurnover;
-  document.getElementById('cfg-absenteismo').value = state.cfg.metaAbsenteismo;
-
+  document.getElementById('ln-comp').value = monthISO();
   document.getElementById('f-filial').addEventListener('change', ()=>{ popularDeptoFiltro(); });
 
   showPage(nav[0].id);
@@ -398,53 +410,15 @@ function showPage(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
   if(id==='dashboard') renderDashboard();
-  if(id==='lancamentos') renderLancamentos();
-}
-
-/* ================= SAVE: LANÇAMENTO ================= */
-function chaveLanc(comp, filial, depto){ return (comp||'')+'__'+(filial||'').trim().toUpperCase()+'__'+(depto||'').trim().toUpperCase(); }
-async function salvarLancamento(){
-  const comp = document.getElementById('ln-comp').value;
-  const filial = document.getElementById('ln-filial').value.trim();
-  const depto = document.getElementById('ln-depto').value.trim();
-  const ativos = Number(document.getElementById('ln-ativos').value);
-  if(!comp || !filial || !depto){ toast('Preencha competência, filial e departamento.', true); return; }
-  if(!ativos && ativos!==0){ toast('Informe o número de ativos.', true); return; }
-  const admitidos = Number(document.getElementById('ln-admitidos').value)||0;
-  const demitidos = Number(document.getElementById('ln-demitidos').value)||0;
-  const absenteismo = Number(document.getElementById('ln-absenteismo').value)||0;
-  const turnover = ativos ? ((admitidos+demitidos)/2/ativos*100) : 0;
-  const id = chaveLanc(comp, filial, depto);
-  try{
-    await setDoc(doc(db,'dp_lancamentos', id), {
-      competencia: comp, filial, depto, ativos, admitidos, demitidos, absenteismo, turnover,
-      atualizadoEm: todayISO(),
-    });
-    toast('Lançamento salvo ✓');
-    document.getElementById('ln-admitidos').value = 0;
-    document.getElementById('ln-demitidos').value = 0;
-    document.getElementById('ln-absenteismo').value = '';
-  }catch(e){ toast('Falha ao salvar.', true); }
-}
-async function delLanc(id){ confirmModal('Remover este lançamento?', async()=>{ try{ await deleteDoc(doc(db,'dp_lancamentos',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
-
-/* ================= CONFIG ================= */
-async function salvarConfig(){
-  state.cfg = {
-    metaTurnover: Number(document.getElementById('cfg-turnover').value)||DEFAULT_CFG.metaTurnover,
-    metaAbsenteismo: Number(document.getElementById('cfg-absenteismo').value)||DEFAULT_CFG.metaAbsenteismo,
-  };
-  try{ await setDoc(doc(db,'config','dp_metas'), state.cfg); toast('Configuração salva ✓'); renderDashboard(); }
-  catch(e){ toast('Falha ao salvar.', true); }
+  if(id==='lancamento' && !document.getElementById('grid-wrap').innerHTML) renderGrid([]);
 }
 
 /* ================= FILIAL / DEPTO (filtros e sugestões) ================= */
 function renderFiliaisDeptos(){
-  const filiais = [...new Set(state.lanc.map(l=>l.filial).filter(Boolean))].sort();
-  const deptos = [...new Set(state.lanc.map(l=>l.depto).filter(Boolean))].sort();
-  document.getElementById('dl-filiais').innerHTML = filiais.map(f=>`<option value="${esc(f)}">`).join('');
-  document.getElementById('dl-deptos').innerHTML = deptos.map(d=>`<option value="${esc(d)}">`).join('');
-
+  const filiais = [...new Set(state.custos.map(l=>l.filial).filter(Boolean))].sort();
+  const deptos = [...new Set(state.custos.map(l=>l.depto).filter(Boolean))].sort();
+  document.getElementById('dl-filiais-dp').innerHTML = filiais.map(f=>`<option value="${esc(f)}">`).join('');
+  document.getElementById('dl-deptos-dp').innerHTML = deptos.map(d=>`<option value="${esc(d)}">`).join('');
   const selF = document.getElementById('f-filial');
   const curF = selF.value;
   selF.innerHTML = '<option value="">Todas</option>' + filiais.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
@@ -455,82 +429,254 @@ function popularDeptoFiltro(){
   const filial = document.getElementById('f-filial').value;
   const selD = document.getElementById('f-depto');
   const curD = selD.value;
-  const deptos = [...new Set(state.lanc.filter(l=>!filial || l.filial===filial).map(l=>l.depto).filter(Boolean))].sort();
+  const deptos = [...new Set(state.custos.filter(l=>!filial || l.filial===filial).map(l=>l.depto).filter(Boolean))].sort();
   selD.innerHTML = '<option value="">Todos</option>' + deptos.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
   selD.value = deptos.includes(curD) ? curD : '';
 }
 
-/* ================= RENDER: LANÇAMENTOS ================= */
-function renderLancamentos(){
-  const rows = [...state.lanc].sort((a,b)=>(b.competencia||'').localeCompare(a.competencia||'')).slice(0,40).map(l=>[
-    fmtMesComp(l.competencia), esc(l.filial), esc(l.depto), l.ativos,
-    l.admitidos, l.demitidos, (l.turnover||0).toFixed(1)+'%', (l.absenteismo||0).toFixed(1)+'%',
-    `<button class="btn btn-danger btn-mini" onclick="delLanc('${l.id}')">×</button>`
-  ]);
-  document.getElementById('tbl-lancamentos').innerHTML =
-    tableHTML(['Mês','Filial','Departamento','Ativos','Admitidos','Demitidos','Turnover','Absenteísmo',''], rows);
+/* ================= GRADE (LANÇAMENTO MENSAL) ================= */
+function linhaHTML(r, i){
+  return `<tr data-i="${i}">
+    <td><input class="gi-filial" list="dl-filiais-dp" value="${esc(r.filial||'')}"></td>
+    <td><input class="gi-depto" list="dl-deptos-dp" value="${esc(r.depto||'')}"></td>
+    ${CUSTO_CATS.map(c=>`<td><input type="number" step="0.01" class="gi-cat" data-cat="${c.key}" value="${r[c.key]||0}" oninput="calcLinha(${i})"></td>`).join('')}
+    <td class="gi-total">${fmtMoeda(totalLinha(r))}</td>
+    <td><button class="btn btn-danger btn-mini" onclick="removerLinha(${i})">×</button></td>
+  </tr>`;
+}
+function renderGrid(rows){
+  let html = '<table class="grid-table"><thead><tr><th>Filial</th><th>Departamento</th>' +
+    CUSTO_CATS.map(c=>`<th>${c.label}</th>`).join('') + '<th>Total</th><th></th></tr></thead><tbody>';
+  rows.forEach((r,i)=>{ html += linhaHTML(r,i); });
+  html += '</tbody></table>';
+  document.getElementById('grid-wrap').innerHTML = html || '<div class="empty">Nenhuma linha — clique em "+ Nova linha" ou "Carregar mês"</div>';
+}
+function lerLinhasDaGrade(){
+  const trs = document.querySelectorAll('#grid-wrap tbody tr');
+  return [...trs].map(tr=>{
+    const obj = {
+      filial: tr.querySelector('.gi-filial').value.trim(),
+      depto: tr.querySelector('.gi-depto').value.trim(),
+    };
+    tr.querySelectorAll('.gi-cat').forEach(inp=>{ obj[inp.dataset.cat] = Number(inp.value)||0; });
+    return obj;
+  });
+}
+function calcLinha(i){
+  const tr = document.querySelector(`#grid-wrap tr[data-i="${i}"]`);
+  if(!tr) return;
+  const obj = {};
+  tr.querySelectorAll('.gi-cat').forEach(inp=>{ obj[inp.dataset.cat] = Number(inp.value)||0; });
+  tr.querySelector('.gi-total').textContent = fmtMoeda(totalLinha(obj));
+}
+function adicionarLinha(){
+  const rows = lerLinhasDaGrade();
+  rows.push({filial:'', depto:''});
+  renderGrid(rows);
+}
+function removerLinha(i){
+  const rows = lerLinhasDaGrade();
+  rows.splice(i,1);
+  renderGrid(rows);
+}
+function carregarMes(){
+  const comp = document.getElementById('ln-comp').value;
+  if(!comp){ toast('Escolha a competência.', true); return; }
+  const rows = state.custos.filter(l=>l.competencia===comp)
+    .sort((a,b)=> (a.filial+a.depto).localeCompare(b.filial+b.depto))
+    .map(l=>({filial:l.filial, depto:l.depto, ...Object.fromEntries(CUSTO_CATS.map(c=>[c.key, l[c.key]||0]))}));
+  renderGrid(rows);
+  toast(rows.length? `${rows.length} linha(s) carregada(s) ✓` : 'Nenhum lançamento nesse mês ainda — use "+ Nova linha" ou copie o mês anterior');
+}
+function copiarMesAnterior(){
+  const comp = document.getElementById('ln-comp').value;
+  if(!comp){ toast('Escolha a competência.', true); return; }
+  const anterior = addMonths(comp, -1);
+  const rows = state.custos.filter(l=>l.competencia===anterior)
+    .sort((a,b)=> (a.filial+a.depto).localeCompare(b.filial+b.depto))
+    .map(l=>({filial:l.filial, depto:l.depto, ...Object.fromEntries(CUSTO_CATS.map(c=>[c.key, l[c.key]||0]))}));
+  if(!rows.length){ toast(`Não há lançamentos em ${fmtMesComp(anterior)} para copiar.`, true); return; }
+  renderGrid(rows);
+  toast(`${rows.length} linha(s) copiada(s) de ${fmtMesComp(anterior)} — ajuste os valores e salve`);
+}
+async function salvarGrade(){
+  const comp = document.getElementById('ln-comp').value;
+  if(!comp){ toast('Escolha a competência.', true); return; }
+  const rows = lerLinhasDaGrade().filter(r=>r.filial && r.depto);
+  if(!rows.length){ toast('Nenhuma linha válida (preencha filial e departamento).', true); return; }
+  try{
+    const batch = writeBatch(db);
+    rows.forEach(r=>{
+      const id = chaveCusto(comp, r.filial, r.depto);
+      const dados = {competencia:comp, filial:r.filial, depto:r.depto, atualizadoEm: todayISO()};
+      CUSTO_CATS.forEach(c=> dados[c.key] = r[c.key]||0);
+      dados.total = totalLinha(r);
+      batch.set(doc(db,'dp_custos', id), dados, {merge:true});
+    });
+    await batch.commit();
+    toast(`${rows.length} lançamento(s) salvo(s) ✓`);
+  }catch(e){ console.error(e); toast('Falha ao salvar.', true); }
+}
+
+/* ================= IMPORTAR HISTÓRICO ================= */
+let importRows = null;
+function carregarSheetJS(){
+  if(window.XLSX) return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('Não foi possível carregar o leitor de planilha'));
+    document.head.appendChild(s);
+  });
+}
+function statusImport(msg, isErr){
+  const el = document.getElementById('imp-status');
+  el.style.display='block'; el.textContent = msg;
+  el.style.background = isErr? '#f7e3df' : '';
+  el.style.color = isErr? 'var(--erro)' : '';
+}
+async function processarPlanilhaCusto(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  document.getElementById('imp-preview').style.display='none';
+  importRows = null;
+  statusImport('Lendo arquivo...');
+  try{
+    await carregarSheetJS();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const wsName = wb.SheetNames.includes('CUSTO') ? 'CUSTO' : wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    const STOP = new Set(['de','e','do','da']);
+    const tokenize = s => stripAcc(String(s||'')).toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(t=>t && !STOP.has(t));
+    const norm = s => stripAcc(String(s||'')).toLowerCase().trim();
+    const hdrRaw = (grid[0]||[]).map(norm);
+    const hdrTokens = hdrRaw.map(h=>new Set(tokenize(h)));
+    const find = pred => hdrRaw.findIndex(pred);
+    const cComp = find(x=>x.includes('competenc')),
+          cFilial = find(x=>x.includes('filial')),
+          cDepto = find(x=>x.includes('depart')||x.includes('depto')),
+          cCats = CUSTO_CATS.map(c=>{
+            const lt = tokenize(c.label);
+            if(!lt.length) return -1;
+            return hdrTokens.findIndex(ht=> lt.every(t=> [...ht].some(h=> h.startsWith(t) || t.startsWith(h)) ));
+          });
+    if([cComp,cFilial,cDepto].some(i=>i<0) || cCats.some(i=>i<0)){
+      statusImport('Não reconheci todas as colunas esperadas nessa planilha.', true); return;
+    }
+    const rows = [];
+    for(let i=1;i<grid.length;i++){
+      const row = grid[i]; if(!row) continue;
+      const filial = String(row[cFilial]||'').trim();
+      const depto = String(row[cDepto]||'').trim();
+      const compRaw = row[cComp];
+      if(!filial || !depto || !compRaw) continue;
+      let comp;
+      if(compRaw instanceof Date) comp = compRaw.getFullYear()+'-'+String(compRaw.getMonth()+1).padStart(2,'0');
+      else { const dd = new Date(compRaw); if(isNaN(dd)) continue; comp = dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0'); }
+      const obj = {competencia:comp, filial, depto};
+      CUSTO_CATS.forEach((c,k)=>{ obj[c.key] = Number(row[cCats[k]])||0; });
+      obj.id = chaveCusto(comp, filial, depto);
+      obj.total = totalLinha(obj);
+      rows.push(obj);
+    }
+    if(!rows.length){ statusImport('Nenhuma linha válida encontrada.', true); return; }
+    importRows = rows;
+    const meses = [...new Set(rows.map(r=>r.competencia))].sort();
+    const filiais = [...new Set(rows.map(r=>r.filial))].sort();
+    document.getElementById('imp-resumo').textContent =
+      `${rows.length} registros · ${meses.length} mês(es), de ${fmtMesComp(meses[0])} a ${fmtMesComp(meses[meses.length-1])} · filiais: ${filiais.join(', ')}`;
+    const prevRows = rows.slice(-8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), fmtMoeda(r.total)]);
+    document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Total'], prevRows) +
+      (rows.length>8 ? `<div class="note">mostrando 8 de ${rows.length} linhas (as mais recentes)</div>` : '');
+    document.getElementById('imp-preview').style.display='block';
+    statusImport('Arquivo lido ✓ — confira abaixo e clique em "Gravar no banco".');
+  }catch(e){ console.error(e); statusImport('Falha ao ler o arquivo: '+(e.message||e), true); }
+}
+async function gravarImportacao(){
+  if(!importRows || !importRows.length) return;
+  const btn = document.getElementById('imp-btn-gravar');
+  btn.disabled = true; btn.textContent = 'Gravando...';
+  try{
+    const chunkSize = 400;
+    for(let i=0;i<importRows.length;i+=chunkSize){
+      const chunk = importRows.slice(i, i+chunkSize);
+      const batch = writeBatch(db);
+      chunk.forEach(r=>{
+        const dados = {competencia:r.competencia, filial:r.filial, depto:r.depto, total:r.total, atualizadoEm: todayISO()};
+        CUSTO_CATS.forEach(c=> dados[c.key]=r[c.key]||0);
+        batch.set(doc(db,'dp_custos', r.id), dados, {merge:true});
+      });
+      await batch.commit();
+      statusImport(`Gravando... ${Math.min(i+chunkSize, importRows.length)}/${importRows.length}`);
+    }
+    toast('Importação concluída ✓');
+    statusImport(`${importRows.length} registros gravados ✓`);
+    limparImportacao();
+  }catch(e){ console.error(e); statusImport('Falha ao gravar: '+(e.message||e), true); toast('Falha ao gravar.', true); }
+  finally{ btn.disabled = false; btn.textContent = 'Gravar no banco'; }
+}
+function limparImportacao(){
+  importRows = null;
+  document.getElementById('imp-preview').style.display='none';
+  document.getElementById('imp-file').value = '';
+}
+
+/* ================= ZONA DE RISCO ================= */
+async function apagarTudo(){
+  const n = state.custos.length;
+  if(!n){ toast('Já não há lançamentos para apagar.'); return; }
+  confirmModal(`Isso apaga <strong>${n} lançamentos</strong> de custo do banco — não dá pra desfazer. Confirma?`, async ()=>{
+    try{
+      const ids = state.custos.map(l=>l.id);
+      const chunkSize = 400;
+      for(let i=0;i<ids.length;i+=chunkSize){
+        const batch = writeBatch(db);
+        ids.slice(i,i+chunkSize).forEach(id=> batch.delete(doc(db,'dp_custos', id)));
+        await batch.commit();
+      }
+      toast('Todos os lançamentos foram apagados ✓');
+    }catch(e){ console.error(e); toast('Falha ao apagar.', true); }
+  });
 }
 
 /* ================= RENDER: DASHBOARD ================= */
 function filtroBase(rows){
   return rows.filter(l => (!state.filterFilial || l.filial===state.filterFilial) && (!state.filterDepto || l.depto===state.filterDepto));
 }
-// agrega uma lista de lançamentos (já filtrada por filial/depto) num intervalo de meses
 function agregarPeriodo(rows, de, ate){
   const f = rows.filter(l=>l.competencia>=de && l.competencia<=ate);
-  const meses = [...new Set(f.map(l=>l.competencia))].sort();
-  const ultimoMes = meses[meses.length-1];
-  const headcount = ultimoMes ? f.filter(l=>l.competencia===ultimoMes).reduce((s,l)=>s+(l.ativos||0),0) : 0;
-  const admitidos = f.reduce((s,l)=>s+(l.admitidos||0),0);
-  const demitidos = f.reduce((s,l)=>s+(l.demitidos||0),0);
-  // turnover do período: soma das médias mensais (adm+dem)/2 por linha, sobre a média de ativos no período
-  const somaMovs = f.reduce((s,l)=>s+((l.admitidos||0)+(l.demitidos||0))/2,0);
-  const somaAtivosPorMes = meses.map(m=> f.filter(l=>l.competencia===m).reduce((s,l)=>s+(l.ativos||0),0));
-  const mediaAtivos = somaAtivosPorMes.length ? somaAtivosPorMes.reduce((a,b)=>a+b,0)/somaAtivosPorMes.length : 0;
-  const turnover = mediaAtivos ? (somaMovs/mediaAtivos*100) : null;
-  // absenteísmo do período: média ponderada pelos ativos de cada linha
-  const somaAbsPond = f.reduce((s,l)=>s+((l.absenteismo||0)*(l.ativos||0)),0);
-  const somaAtivosLinhas = f.reduce((s,l)=>s+(l.ativos||0),0);
-  const absenteismo = somaAtivosLinhas ? (somaAbsPond/somaAtivosLinhas) : null;
-  return {headcount, admitidos, demitidos, turnover, absenteismo, nMeses:meses.length};
+  const total = f.reduce((s,l)=>s+(l.total||0),0);
+  const meses = [...new Set(f.map(l=>l.competencia))];
+  const porCategoria = {};
+  CUSTO_CATS.forEach(c=> porCategoria[c.key] = f.reduce((s,l)=>s+(l[c.key]||0),0));
+  return {total, nMeses:meses.length, porCategoria, linhas:f};
 }
 function renderDashboard(){
-  const base = filtroBase(state.lanc);
+  const base = filtroBase(state.custos);
   const de = state.filterDe, ate = state.filterAte;
   const pr = prevRangeMes(de, ate);
   const semAnterior = '<div class="cmp cmp-flat">— sem período anterior</div>';
   const atual = agregarPeriodo(base, de, ate);
   const anterior = agregarPeriodo(base, pr.de, pr.ate);
-  const cfg = state.cfg;
+
   const cards = [];
-
-  cards.push(kpiCard('Headcount (ativos)',
-    atual.headcount+'',
-    `Fim do período · filtro: ${state.filterFilial||'todas as filiais'} / ${state.filterDepto||'todos deptos'}`,
-    true, 0, 0,
-    anterior.nMeses? cmpLine(atual.headcount, anterior.headcount, true, v=>Math.round(v)+'') : semAnterior));
-
-  cards.push(kpiCard('Turnover do período',
-    atual.turnover==null ? '—' : atual.turnover.toFixed(2)+'%',
-    atual.turnover==null ? 'Sem ativos no período' : `Meta: até ${cfg.metaTurnover}% · ${atual.admitidos} admissões / ${atual.demitidos} desligamentos`,
-    atual.turnover==null ? true : atual.turnover<=cfg.metaTurnover, atual.turnover||0, cfg.metaTurnover*1.6,
-    (atual.turnover!=null && anterior.turnover!=null)? cmpLine(atual.turnover, anterior.turnover, false, v=>v.toFixed(1)+'%') : semAnterior));
-
-  cards.push(kpiCard('Absenteísmo do período',
-    atual.absenteismo==null ? '—' : atual.absenteismo.toFixed(2)+'%',
-    atual.absenteismo==null ? 'Sem lançamentos no período' : `Meta: até ${cfg.metaAbsenteismo}% · média ponderada por headcount`,
-    atual.absenteismo==null ? true : atual.absenteismo<=cfg.metaAbsenteismo, atual.absenteismo||0, cfg.metaAbsenteismo*1.6,
-    (atual.absenteismo!=null && anterior.absenteismo!=null)? cmpLine(atual.absenteismo, anterior.absenteismo, false, v=>v.toFixed(1)+'%') : semAnterior));
-
-  cards.push(kpiCard('Admissões no período', atual.admitidos+'', `${atual.nMeses||0} mês(es) considerado(s)`, true, 0, 0,
-    anterior.nMeses? cmpLine(atual.admitidos, anterior.admitidos, true, v=>Math.round(v)+'') : semAnterior));
-
-  cards.push(kpiCard('Desligamentos no período', atual.demitidos+'', `${atual.nMeses||0} mês(es) considerado(s)`, true, 0, 0,
-    anterior.nMeses? cmpLine(atual.demitidos, anterior.demitidos, false, v=>Math.round(v)+'') : semAnterior));
-
+  cards.push(kpiCard('Custo total do período', fmtMoeda(atual.total),
+    `Filtro: ${state.filterFilial||'todas as filiais'} / ${state.filterDepto||'todos deptos'} · ${atual.nMeses} mês(es)`,
+    anterior.nMeses? cmpLine(atual.total, anterior.total, false, v=>fmtMoeda(v)) : semAnterior));
+  cards.push(kpiCard('Custo médio mensal', fmtMoeda(atual.nMeses? atual.total/atual.nMeses : 0),
+    'Custo total ÷ meses no período', ''));
+  const maiorCat = Object.entries(atual.porCategoria).sort((a,b)=>b[1]-a[1])[0];
+  const catLabel = maiorCat ? (CUSTO_CATS.find(c=>c.key===maiorCat[0])?.label||maiorCat[0]) : '—';
+  cards.push(kpiCard('Maior categoria', catLabel,
+    maiorCat? fmtMoeda(maiorCat[1])+' no período' : 'Sem lançamentos', ''));
+  const nLinhas = new Set(atual.linhas.map(l=>l.filial+'||'+l.depto)).size;
+  cards.push(kpiCard('Departamentos com custo', nLinhas+'', `${atual.nMeses} mês(es) considerado(s)`, ''));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
   renderHistorico(base);
+  renderPorCategoria(atual);
   renderPorFilial();
   renderPorDepto();
 }
@@ -538,33 +684,33 @@ function renderHistorico(base){
   const meses = [...new Set(base.map(l=>l.competencia))].filter(Boolean).sort().slice(-12).reverse();
   const rows = meses.map(m=>{
     const r = agregarPeriodo(base, m, m);
-    return [ fmtMesComp(m), r.headcount, r.admitidos, r.demitidos,
-      r.turnover==null?'—':r.turnover.toFixed(1)+'%', r.absenteismo==null?'—':r.absenteismo.toFixed(1)+'%' ];
+    return [ fmtMesComp(m), fmtMoeda(r.total) ];
   });
-  document.getElementById('tbl-historico').innerHTML =
-    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absenteísmo'], rows);
+  document.getElementById('tbl-historico').innerHTML = tableHTML(['Mês','Custo total'], rows);
+}
+function renderPorCategoria(atual){
+  const rows = CUSTO_CATS.map(c=>[c.label, fmtMoeda(atual.porCategoria[c.key]||0),
+    atual.total? ((atual.porCategoria[c.key]||0)/atual.total*100).toFixed(1)+'%' : '0%'])
+    .sort((a,b)=> parseFloat(b[2]) - parseFloat(a[2]));
+  document.getElementById('tbl-categoria').innerHTML = tableHTML(['Categoria','Valor','% do total'], rows);
 }
 function renderPorFilial(){
-  const base = state.lanc.filter(l=>!state.filterDepto || l.depto===state.filterDepto);
+  const base = state.custos.filter(l=>!state.filterDepto || l.depto===state.filterDepto);
   const filiais = [...new Set(base.map(l=>l.filial).filter(Boolean))].sort();
   const rows = filiais.map(f=>{
     const r = agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte);
-    return [esc(f), r.headcount, r.admitidos, r.demitidos,
-      r.turnover==null?'—':r.turnover.toFixed(1)+'%', r.absenteismo==null?'—':r.absenteismo.toFixed(1)+'%'];
-  }).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('tbl-filial').innerHTML =
-    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absenteísmo'], rows);
+    return {row:[esc(f), fmtMoeda(r.total)], t:r.total};
+  }).sort((a,b)=>b.t-a.t).map(x=>x.row);
+  document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'], rows);
 }
 function renderPorDepto(){
-  const base = state.lanc.filter(l=>!state.filterFilial || l.filial===state.filterFilial);
+  const base = state.custos.filter(l=>!state.filterFilial || l.filial===state.filterFilial);
   const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
   const rows = deptos.map(d=>{
     const r = agregarPeriodo(base.filter(l=>l.depto===d), state.filterDe, state.filterAte);
-    return {row:[esc(d), r.headcount, r.admitidos, r.demitidos,
-      r.turnover==null?'—':r.turnover.toFixed(1)+'%', r.absenteismo==null?'—':r.absenteismo.toFixed(1)+'%'], t:r.turnover||0};
+    return {row:[esc(d), fmtMoeda(r.total)], t:r.total};
   }).sort((a,b)=>b.t-a.t).map(x=>x.row);
-  document.getElementById('tbl-depto').innerHTML =
-    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absenteísmo'], rows);
+  document.getElementById('tbl-depto').innerHTML = tableHTML(['Departamento','Custo no período'], rows);
 }
 
 /* ================= MODAL ================= */
@@ -623,8 +769,10 @@ function montarAtalhos(){
   if(!chip || document.getElementById('btn-inicio')) return;
   const podeFac = currentUser.admin || (currentUser.modulos && currentUser.modulos.facilities);
   const podeAmb = currentUser.admin || (currentUser.modulos && currentUser.modulos.ambulatorio);
+  const podeRH  = currentUser.admin || (currentUser.modulos && currentUser.modulos.rh);
   const html = `<button class="btn-top" id="btn-inicio" onclick="location.href='index.html'">Início</button>` +
     (podeAmb ? `<button class="btn-top" onclick="location.href='ambulatorio.html'">⚕ Ambulatório</button>` : '') +
+    (podeRH  ? `<button class="btn-top" onclick="location.href='rh.html'">👥 RH</button>` : '') +
     (podeFac ? `<button class="btn-top" onclick="location.href='facilities.html'">🍽 Facilities</button>` : '');
   chip.insertAdjacentHTML('afterbegin', html);
 }
@@ -632,8 +780,9 @@ function montarAtalhos(){
 /* ================= INIT ================= */
 Object.assign(window, {
   logout, showPage,
-  salvarLancamento, delLanc,
-  salvarConfig,
+  carregarMes, copiarMesAnterior, adicionarLinha, removerLinha, calcLinha, salvarGrade,
+  processarPlanilhaCusto, gravarImportacao, limparImportacao,
+  apagarTudo,
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
 });

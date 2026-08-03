@@ -987,8 +987,10 @@ function montarAtalhos(){
   if(!chip || document.getElementById('btn-inicio')) return;
   const podeFac = currentUser.admin || (currentUser.modulos && currentUser.modulos.facilities);
   const podeAmb = currentUser.admin || (currentUser.modulos && currentUser.modulos.ambulatorio);
+  const podeDP  = currentUser.admin || (currentUser.modulos && currentUser.modulos.dp);
   const html = `<button class="btn-top" id="btn-inicio" onclick="location.href='index.html'">Início</button>` +
     (podeAmb ? `<button class="btn-top" onclick="location.href='ambulatorio.html'">⚕ Ambulatório</button>` : '') +
+    (podeDP  ? `<button class="btn-top" onclick="location.href='dp.html'">💰 DP</button>` : '') +
     (podeFac ? `<button class="btn-top" onclick="location.href='facilities.html'">🍽 Facilities</button>` : '');
   chip.insertAdjacentHTML('afterbegin', html);
 }
