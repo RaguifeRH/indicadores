@@ -101,10 +101,21 @@
   .presets .btn{padding:8px 12px;font-size:11.5px;}
   .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
 
-  /* GRADE ESTILO PLANILHA */
-  .grid-table input{width:92px;padding:6px 7px;font-size:12.5px;border-radius:6px;text-align:right;}
-  .grid-table input.gi-filial, .grid-table input.gi-depto{width:130px;text-align:left;}
-  .grid-table td.gi-total{font-weight:700;color:var(--verde);text-align:right;font-variant-numeric:tabular-nums;}
+  .chip-group{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--linha);background:#fbfcf9;font-size:12px;font-weight:600;color:#40503b;cursor:pointer;user-select:none;transition:background .1s,color .1s;}
+  .chip:hover{background:var(--folha-suave);}
+  .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
+  .dropdown-panel{position:absolute;z-index:20;background:#fff;border:1px solid var(--linha);border-radius:10px;margin-top:4px;max-height:260px;overflow-y:auto;width:100%;box-shadow:0 10px 28px rgba(0,0,0,.14);}
+  .dropdown-item{padding:8px 12px;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:9px;}
+  .dropdown-item:hover{background:var(--folha-suave);}
+  .dropdown-item input[type=checkbox]{width:auto;margin:0;accent-color:var(--verde);}
+  .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  .tag{background:var(--verde);color:#fff;border-radius:20px;padding:5px 6px 5px 12px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+  .tag button{background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:12px;line-height:1;width:18px;height:18px;border-radius:50%;padding:0;}
+  .tag button:hover{background:rgba(255,255,255,.35);}
+  .status-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;display:inline-block;}
+  .status-novo{background:#e5f1db;color:var(--ok);}
+  .status-atualizado{background:#fdecd2;color:#996c14;}
 
   #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
   #modal-bg.open{display:flex;}
@@ -147,14 +158,24 @@
         <div class="filter-bar">
           <div class="fld"><label>De (mês)</label><input type="month" id="f-de"></div>
           <div class="fld"><label>Até (mês)</label><input type="month" id="f-ate"></div>
-          <div class="fld"><label>Filial</label><select id="f-filial"><option value="">Todas</option></select></div>
-          <div class="fld"><label>Departamento</label><select id="f-depto"><option value="">Todos</option></select></div>
           <div class="presets">
             <button class="btn btn-ghost" onclick="setPreset('mes')">Este mês</button>
             <button class="btn btn-ghost" onclick="setPreset('trim')">Últ. 3 meses</button>
             <button class="btn btn-ghost" onclick="setPreset('ano')">Este ano</button>
           </div>
           <button class="btn btn-leaf" onclick="applyFilter()">Aplicar</button>
+        </div>
+        <div class="filter-bar" style="flex-direction:column;align-items:stretch;gap:14px">
+          <div>
+            <label>Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar mais de uma)</span></label>
+            <div class="chip-group" id="f-filial-boxes"></div>
+          </div>
+          <div style="position:relative;max-width:420px">
+            <label>Departamento <span style="font-weight:400;color:var(--cinza)">(busque e marque quantos quiser)</span></label>
+            <input type="text" id="f-depto-search" placeholder="Buscar departamento..." autocomplete="off">
+            <div id="f-depto-dropdown" class="dropdown-panel" style="display:none"></div>
+            <div class="tag-row" id="f-depto-tags"></div>
+          </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
         <div class="panel">
@@ -164,7 +185,7 @@
         </div>
         <div class="panel">
           <h2>Por categoria</h2>
-          <div class="desc">Como o custo do período se divide entre as 13 categorias</div>
+          <div class="desc">Como o custo do período se divide entre as categorias</div>
           <div class="table-wrap" id="tbl-categoria"></div>
         </div>
         <div class="panel">
@@ -178,49 +199,29 @@
         </div>
       </div>
 
-      <!-- LANÇAMENTO (GRADE) -->
-      <div class="page" id="page-lancamento">
-        <h1 class="page-title">Lançamento mensal</h1>
-        <div class="page-desc">Uma linha por filial + departamento, igual a uma planilha — edita direto na grade e salva tudo de uma vez</div>
-        <div class="panel">
-          <div class="form-grid" style="margin-bottom:0">
-            <div><label>Competência (mês)</label><input type="month" id="ln-comp"></div>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-leaf" onclick="carregarMes()">Carregar mês</button>
-            <button class="btn btn-ghost" onclick="copiarMesAnterior()">Copiar valores do mês anterior</button>
-            <button class="btn btn-ghost" onclick="adicionarLinha()">+ Nova linha</button>
-          </div>
-          <datalist id="dl-filiais-dp"></datalist>
-          <datalist id="dl-deptos-dp"></datalist>
-          <div class="table-wrap" id="grid-wrap" style="margin-top:16px"></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="salvarGrade()">Salvar tudo</button></div>
-          <div class="note">Total é calculado automaticamente (soma das 13 categorias) — não precisa digitar. Salvar de novo para o mesmo filial + departamento substitui os valores anteriores.</div>
-        </div>
-      </div>
-
-      <!-- IMPORTAR HISTÓRICO -->
+      <!-- SINCRONIZAR PLANILHA -->
       <div class="page" id="page-importar">
-        <h1 class="page-title">Importar histórico</h1>
-        <div class="page-desc">Carga única de uma planilha de custos já consolidada (mesmas colunas da aba CUSTO do FOPAG). Depois disso, o lançamento mensal é feito na grade.</div>
+        <h1 class="page-title">Sincronizar planilha</h1>
+        <div class="page-desc">Sobe a planilha de custos (mesma estrutura de sempre) e o sistema atualiza sozinho só o que mudou — não precisa digitar nada na mão.</div>
         <div class="panel">
           <h2>Planilha de custos (.xlsx)</h2>
           <div class="form-grid">
             <div><label>Arquivo</label><input type="file" id="imp-file" accept=".xlsx" onchange="processarPlanilhaCusto(event)"></div>
           </div>
           <div class="note" id="imp-status" style="display:none"></div>
-          <div class="note">Espera encontrar as colunas: Competência, Filial, Departamento, e as 13 categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed).</div>
+          <div class="note">Espera encontrar as colunas: Competência, Filial, Departamento, e as categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed, Horas Extras).</div>
         </div>
         <div class="panel" id="imp-preview" style="display:none">
           <h2>Conferir antes de gravar</h2>
           <div class="desc" id="imp-resumo"></div>
           <div class="table-wrap" id="imp-tbl-preview"></div>
           <div class="btn-row">
-            <button class="btn btn-primary" id="imp-btn-gravar" onclick="gravarImportacao()">Gravar no banco</button>
+            <button class="btn btn-primary" id="imp-btn-gravar" onclick="gravarImportacao()">Gravar mudanças</button>
             <button class="btn btn-ghost" onclick="limparImportacao()">Cancelar</button>
           </div>
         </div>
       </div>
+
 
       <!-- CONFIG -->
       <div class="page" id="page-config">
@@ -267,8 +268,7 @@ const db = getFirestore(fbApp);
 const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
   {id:'dashboard',   label:'Dashboard',        ic:'▦', roles:['admin','operador']},
-  {id:'lancamento',  label:'Lançamento',       ic:'📊', roles:['admin','operador']},
-  {id:'importar',    label:'Importar histórico', ic:'📤', roles:['admin']},
+  {id:'importar',    label:'Sincronizar planilha', ic:'🔄', roles:['admin']},
   {id:'config',      label:'Configurações',    ic:'⚙', roles:['admin']},
 ];
 const CUSTO_CATS = [
@@ -285,9 +285,10 @@ const CUSTO_CATS = [
   {key:'diariasMedias',      label:'Diárias/Médias'},
   {key:'premio',             label:'Prêmio'},
   {key:'multimed',           label:'Multimed'},
+  {key:'horasExtras',        label:'Horas Extras'},
 ];
 
-let state = { custos:[], filterDe:'', filterAte:'', filterFilial:'', filterDepto:'' };
+let state = { custos:[], filterDe:'', filterAte:'', filterFiliais:new Set(), filterDeptos:new Set() };
 let currentUser = null;
 let unsubs = [];
 
@@ -401,8 +402,26 @@ function enterApp(){
   document.getElementById('f-ate').value = monthISO();
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
-  document.getElementById('ln-comp').value = monthISO();
-  document.getElementById('f-filial').addEventListener('change', ()=>{ popularDeptoFiltro(); });
+
+  document.getElementById('f-filial-boxes').addEventListener('click', e=>{
+    const box = e.target.closest('.chip'); if(box) toggleChip(box);
+  });
+  const deptoSearch = document.getElementById('f-depto-search');
+  deptoSearch.addEventListener('focus', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
+  deptoSearch.addEventListener('input', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
+  document.getElementById('f-depto-dropdown').addEventListener('mousedown', e=>{
+    const item = e.target.closest('.dropdown-item'); if(!item || !item.dataset.value) return;
+    e.preventDefault(); toggleDepto(item.dataset.value);
+  });
+  document.getElementById('f-depto-tags').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-remove]'); if(!btn) return;
+    toggleDepto(btn.dataset.remove);
+  });
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('#f-depto-search') && !e.target.closest('#f-depto-dropdown')){
+      document.getElementById('f-depto-dropdown').style.display='none';
+    }
+  });
 
   showPage(nav[0].id);
 }
@@ -410,115 +429,57 @@ function showPage(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
   if(id==='dashboard') renderDashboard();
-  if(id==='lancamento' && !document.getElementById('grid-wrap').innerHTML) renderGrid([]);
 }
 
-/* ================= FILIAL / DEPTO (filtros e sugestões) ================= */
+/* ================= FILIAL / DEPTO (filtros do dashboard) ================= */
 function renderFiliaisDeptos(){
   const filiais = [...new Set(state.custos.map(l=>l.filial).filter(Boolean))].sort();
-  const deptos = [...new Set(state.custos.map(l=>l.depto).filter(Boolean))].sort();
-  document.getElementById('dl-filiais-dp').innerHTML = filiais.map(f=>`<option value="${esc(f)}">`).join('');
-  document.getElementById('dl-deptos-dp').innerHTML = deptos.map(d=>`<option value="${esc(d)}">`).join('');
-  const selF = document.getElementById('f-filial');
-  const curF = selF.value;
-  selF.innerHTML = '<option value="">Todas</option>' + filiais.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
-  selF.value = filiais.includes(curF) ? curF : '';
-  popularDeptoFiltro();
+  for(const f of [...state.filterFiliais]) if(!filiais.includes(f)) state.filterFiliais.delete(f);
+  document.getElementById('f-filial-boxes').innerHTML =
+    `<button type="button" class="chip ${state.filterFiliais.size===0?'on':''}" data-value="__all__">Todas</button>` +
+    filiais.map(f=>`<button type="button" class="chip ${state.filterFiliais.has(f)?'on':''}" data-value="${esc(f)}">${esc(f)}</button>`).join('');
+  renderDeptoBoxes();
 }
-function popularDeptoFiltro(){
-  const filial = document.getElementById('f-filial').value;
-  const selD = document.getElementById('f-depto');
-  const curD = selD.value;
-  const deptos = [...new Set(state.custos.filter(l=>!filial || l.filial===filial).map(l=>l.depto).filter(Boolean))].sort();
-  selD.innerHTML = '<option value="">Todos</option>' + deptos.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
-  selD.value = deptos.includes(curD) ? curD : '';
+function listaDeptosDisponiveis(){
+  const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  return [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
 }
-
-/* ================= GRADE (LANÇAMENTO MENSAL) ================= */
-function linhaHTML(r, i){
-  return `<tr data-i="${i}">
-    <td><input class="gi-filial" list="dl-filiais-dp" value="${esc(r.filial||'')}"></td>
-    <td><input class="gi-depto" list="dl-deptos-dp" value="${esc(r.depto||'')}"></td>
-    ${CUSTO_CATS.map(c=>`<td><input type="number" step="0.01" class="gi-cat" data-cat="${c.key}" value="${r[c.key]||0}" oninput="calcLinha(${i})"></td>`).join('')}
-    <td class="gi-total">${fmtMoeda(totalLinha(r))}</td>
-    <td><button class="btn btn-danger btn-mini" onclick="removerLinha(${i})">×</button></td>
-  </tr>`;
+function renderDeptoBoxes(){
+  const deptos = listaDeptosDisponiveis();
+  for(const d of [...state.filterDeptos]) if(!deptos.includes(d)) state.filterDeptos.delete(d);
+  renderDeptoTags();
+  renderDeptoDropdown(document.getElementById('f-depto-search').value);
 }
-function renderGrid(rows){
-  let html = '<table class="grid-table"><thead><tr><th>Filial</th><th>Departamento</th>' +
-    CUSTO_CATS.map(c=>`<th>${c.label}</th>`).join('') + '<th>Total</th><th></th></tr></thead><tbody>';
-  rows.forEach((r,i)=>{ html += linhaHTML(r,i); });
-  html += '</tbody></table>';
-  document.getElementById('grid-wrap').innerHTML = html || '<div class="empty">Nenhuma linha — clique em "+ Nova linha" ou "Carregar mês"</div>';
+function renderDeptoTags(){
+  document.getElementById('f-depto-tags').innerHTML = [...state.filterDeptos]
+    .map(d=>`<span class="tag">${esc(d)}<button type="button" data-remove="${esc(d)}">×</button></span>`).join('');
 }
-function lerLinhasDaGrade(){
-  const trs = document.querySelectorAll('#grid-wrap tbody tr');
-  return [...trs].map(tr=>{
-    const obj = {
-      filial: tr.querySelector('.gi-filial').value.trim(),
-      depto: tr.querySelector('.gi-depto').value.trim(),
-    };
-    tr.querySelectorAll('.gi-cat').forEach(inp=>{ obj[inp.dataset.cat] = Number(inp.value)||0; });
-    return obj;
-  });
+function renderDeptoDropdown(filtro){
+  const deptos = listaDeptosDisponiveis();
+  const f = stripAcc(filtro||'').toLowerCase().trim();
+  const list = f ? deptos.filter(d=>stripAcc(d).toLowerCase().includes(f)) : deptos;
+  const panel = document.getElementById('f-depto-dropdown');
+  panel.innerHTML = list.length
+    ? list.map(d=>`<div class="dropdown-item" data-value="${esc(d)}"><input type="checkbox" ${state.filterDeptos.has(d)?'checked':''} tabindex="-1"> ${esc(d)}</div>`).join('')
+    : '<div class="dropdown-item" style="color:var(--cinza);cursor:default">Nada encontrado</div>';
 }
-function calcLinha(i){
-  const tr = document.querySelector(`#grid-wrap tr[data-i="${i}"]`);
-  if(!tr) return;
-  const obj = {};
-  tr.querySelectorAll('.gi-cat').forEach(inp=>{ obj[inp.dataset.cat] = Number(inp.value)||0; });
-  tr.querySelector('.gi-total').textContent = fmtMoeda(totalLinha(obj));
+function toggleChip(box){
+  const v = box.dataset.value;
+  const setRef = state.filterFiliais;
+  if(v==='__all__') setRef.clear();
+  else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
+  renderDeptoBoxes();
+  document.querySelectorAll('#f-filial-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? state.filterFiliais.size===0 : state.filterFiliais.has(c.dataset.value)));
+  applyFilter();
 }
-function adicionarLinha(){
-  const rows = lerLinhasDaGrade();
-  rows.push({filial:'', depto:''});
-  renderGrid(rows);
-}
-function removerLinha(i){
-  const rows = lerLinhasDaGrade();
-  rows.splice(i,1);
-  renderGrid(rows);
-}
-function carregarMes(){
-  const comp = document.getElementById('ln-comp').value;
-  if(!comp){ toast('Escolha a competência.', true); return; }
-  const rows = state.custos.filter(l=>l.competencia===comp)
-    .sort((a,b)=> (a.filial+a.depto).localeCompare(b.filial+b.depto))
-    .map(l=>({filial:l.filial, depto:l.depto, ...Object.fromEntries(CUSTO_CATS.map(c=>[c.key, l[c.key]||0]))}));
-  renderGrid(rows);
-  toast(rows.length? `${rows.length} linha(s) carregada(s) ✓` : 'Nenhum lançamento nesse mês ainda — use "+ Nova linha" ou copie o mês anterior');
-}
-function copiarMesAnterior(){
-  const comp = document.getElementById('ln-comp').value;
-  if(!comp){ toast('Escolha a competência.', true); return; }
-  const anterior = addMonths(comp, -1);
-  const rows = state.custos.filter(l=>l.competencia===anterior)
-    .sort((a,b)=> (a.filial+a.depto).localeCompare(b.filial+b.depto))
-    .map(l=>({filial:l.filial, depto:l.depto, ...Object.fromEntries(CUSTO_CATS.map(c=>[c.key, l[c.key]||0]))}));
-  if(!rows.length){ toast(`Não há lançamentos em ${fmtMesComp(anterior)} para copiar.`, true); return; }
-  renderGrid(rows);
-  toast(`${rows.length} linha(s) copiada(s) de ${fmtMesComp(anterior)} — ajuste os valores e salve`);
-}
-async function salvarGrade(){
-  const comp = document.getElementById('ln-comp').value;
-  if(!comp){ toast('Escolha a competência.', true); return; }
-  const rows = lerLinhasDaGrade().filter(r=>r.filial && r.depto);
-  if(!rows.length){ toast('Nenhuma linha válida (preencha filial e departamento).', true); return; }
-  try{
-    const batch = writeBatch(db);
-    rows.forEach(r=>{
-      const id = chaveCusto(comp, r.filial, r.depto);
-      const dados = {competencia:comp, filial:r.filial, depto:r.depto, atualizadoEm: todayISO()};
-      CUSTO_CATS.forEach(c=> dados[c.key] = r[c.key]||0);
-      dados.total = totalLinha(r);
-      batch.set(doc(db,'dp_custos', id), dados, {merge:true});
-    });
-    await batch.commit();
-    toast(`${rows.length} lançamento(s) salvo(s) ✓`);
-  }catch(e){ console.error(e); toast('Falha ao salvar.', true); }
+function toggleDepto(v){
+  if(state.filterDeptos.has(v)) state.filterDeptos.delete(v); else state.filterDeptos.add(v);
+  renderDeptoTags();
+  renderDeptoDropdown(document.getElementById('f-depto-search').value);
+  applyFilter();
 }
 
-/* ================= IMPORTAR HISTÓRICO ================= */
+/* ================= SINCRONIZAR PLANILHA (com diff) ================= */
 let importRows = null;
 function carregarSheetJS(){
   if(window.XLSX) return Promise.resolve();
@@ -535,6 +496,11 @@ function statusImport(msg, isErr){
   el.style.background = isErr? '#f7e3df' : '';
   el.style.color = isErr? 'var(--erro)' : '';
 }
+// compara os 14 valores de custo com o que já está gravado (tolerância de 1 centavo)
+function linhaMudou(nova, antiga){
+  if(!antiga) return true;
+  return CUSTO_CATS.some(c => Math.abs((nova[c.key]||0) - (antiga[c.key]||0)) > 0.005);
+}
 async function processarPlanilhaCusto(ev){
   const file = ev.target.files[0];
   if(!file) return;
@@ -545,13 +511,20 @@ async function processarPlanilhaCusto(ev){
     await carregarSheetJS();
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, {type:'array', cellDates:true});
-    const wsName = wb.SheetNames.includes('CUSTO') ? 'CUSTO' : wb.SheetNames[0];
+    const wsName = wb.SheetNames.includes('DADOS') ? 'DADOS' : (wb.SheetNames.includes('CUSTO') ? 'CUSTO' : wb.SheetNames[0]);
     const ws = wb.Sheets[wsName];
     const grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
     const STOP = new Set(['de','e','do','da']);
     const tokenize = s => stripAcc(String(s||'')).toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(t=>t && !STOP.has(t));
     const norm = s => stripAcc(String(s||'')).toLowerCase().trim();
-    const hdrRaw = (grid[0]||[]).map(norm);
+    // acha a linha de cabeçalho procurando "competência" e "filial" na mesma linha (pode não ser a linha 1)
+    let hdrIdx = -1;
+    for(let i=0;i<Math.min(grid.length,12);i++){
+      const linha = (grid[i]||[]).map(norm);
+      if(linha.some(h=>h.includes('competenc')) && linha.some(h=>h.includes('filial'))){ hdrIdx=i; break; }
+    }
+    if(hdrIdx<0){ statusImport('Não encontrei a linha de cabeçalho (Competência + Filial) nessa planilha.', true); return; }
+    const hdrRaw = grid[hdrIdx].map(norm);
     const hdrTokens = hdrRaw.map(h=>new Set(tokenize(h)));
     const find = pred => hdrRaw.findIndex(pred);
     const cComp = find(x=>x.includes('competenc')),
@@ -565,8 +538,10 @@ async function processarPlanilhaCusto(ev){
     if([cComp,cFilial,cDepto].some(i=>i<0) || cCats.some(i=>i<0)){
       statusImport('Não reconheci todas as colunas esperadas nessa planilha.', true); return;
     }
+    const porId = new Map(state.custos.map(l=>[l.id, l]));
     const rows = [];
-    for(let i=1;i<grid.length;i++){
+    let inalterados = 0;
+    for(let i=hdrIdx+1;i<grid.length;i++){
       const row = grid[i]; if(!row) continue;
       const filial = String(row[cFilial]||'').trim();
       const depto = String(row[cDepto]||'').trim();
@@ -579,19 +554,28 @@ async function processarPlanilhaCusto(ev){
       CUSTO_CATS.forEach((c,k)=>{ obj[c.key] = Number(row[cCats[k]])||0; });
       obj.id = chaveCusto(comp, filial, depto);
       obj.total = totalLinha(obj);
+      const existente = porId.get(obj.id);
+      if(!linhaMudou(obj, existente)){ inalterados++; continue; }
+      obj.status = existente ? 'atualizado' : 'novo';
       rows.push(obj);
     }
-    if(!rows.length){ statusImport('Nenhuma linha válida encontrada.', true); return; }
+    if(!rows.length){
+      statusImport(`Planilha lida ✓ — nenhuma diferença encontrada (${inalterados} linha(s) já estavam iguais). Nada para gravar.`);
+      return;
+    }
     importRows = rows;
     const meses = [...new Set(rows.map(r=>r.competencia))].sort();
     const filiais = [...new Set(rows.map(r=>r.filial))].sort();
+    const nNovo = rows.filter(r=>r.status==='novo').length, nAtt = rows.filter(r=>r.status==='atualizado').length;
     document.getElementById('imp-resumo').textContent =
-      `${rows.length} registros · ${meses.length} mês(es), de ${fmtMesComp(meses[0])} a ${fmtMesComp(meses[meses.length-1])} · filiais: ${filiais.join(', ')}`;
-    const prevRows = rows.slice(-8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), fmtMoeda(r.total)]);
-    document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Total'], prevRows) +
-      (rows.length>8 ? `<div class="note">mostrando 8 de ${rows.length} linhas (as mais recentes)</div>` : '');
+      `${nNovo} novo(s) · ${nAtt} atualizado(s) · ${inalterados} sem mudança (ignorados) — meses: ${fmtMesComp(meses[0])} a ${fmtMesComp(meses[meses.length-1])} · filiais: ${filiais.join(', ')}`;
+    const prevRows = rows.slice(0,30).map(r=>[
+      `<span class="status-badge status-${r.status}">${r.status}</span>`,
+      fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), fmtMoeda(r.total)]);
+    document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Status','Mês','Filial','Departamento','Total'], prevRows) +
+      (rows.length>30 ? `<div class="note">mostrando 30 de ${rows.length} linhas com diferença</div>` : '');
     document.getElementById('imp-preview').style.display='block';
-    statusImport('Arquivo lido ✓ — confira abaixo e clique em "Gravar no banco".');
+    statusImport(`Arquivo lido ✓ — ${rows.length} linha(s) com diferença para gravar, ${inalterados} já estavam iguais.`);
   }catch(e){ console.error(e); statusImport('Falha ao ler o arquivo: '+(e.message||e), true); }
 }
 async function gravarImportacao(){
@@ -611,11 +595,11 @@ async function gravarImportacao(){
       await batch.commit();
       statusImport(`Gravando... ${Math.min(i+chunkSize, importRows.length)}/${importRows.length}`);
     }
-    toast('Importação concluída ✓');
+    toast('Sincronização concluída ✓');
     statusImport(`${importRows.length} registros gravados ✓`);
     limparImportacao();
   }catch(e){ console.error(e); statusImport('Falha ao gravar: '+(e.message||e), true); toast('Falha ao gravar.', true); }
-  finally{ btn.disabled = false; btn.textContent = 'Gravar no banco'; }
+  finally{ btn.disabled = false; btn.textContent = 'Gravar mudanças'; }
 }
 function limparImportacao(){
   importRows = null;
@@ -643,7 +627,7 @@ async function apagarTudo(){
 
 /* ================= RENDER: DASHBOARD ================= */
 function filtroBase(rows){
-  return rows.filter(l => (!state.filterFilial || l.filial===state.filterFilial) && (!state.filterDepto || l.depto===state.filterDepto));
+  return rows.filter(l => (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) && (!state.filterDeptos.size || state.filterDeptos.has(l.depto)));
 }
 function agregarPeriodo(rows, de, ate){
   const f = rows.filter(l=>l.competencia>=de && l.competencia<=ate);
@@ -662,8 +646,10 @@ function renderDashboard(){
   const anterior = agregarPeriodo(base, pr.de, pr.ate);
 
   const cards = [];
+  const descFiliais = state.filterFiliais.size ? [...state.filterFiliais].join(', ') : 'todas as filiais';
+  const descDeptos = state.filterDeptos.size ? [...state.filterDeptos].join(', ') : 'todos deptos';
   cards.push(kpiCard('Custo total do período', fmtMoeda(atual.total),
-    `Filtro: ${state.filterFilial||'todas as filiais'} / ${state.filterDepto||'todos deptos'} · ${atual.nMeses} mês(es)`,
+    `Filtro: ${descFiliais} / ${descDeptos} · ${atual.nMeses} mês(es)`,
     anterior.nMeses? cmpLine(atual.total, anterior.total, false, v=>fmtMoeda(v)) : semAnterior));
   cards.push(kpiCard('Custo médio mensal', fmtMoeda(atual.nMeses? atual.total/atual.nMeses : 0),
     'Custo total ÷ meses no período', ''));
@@ -695,7 +681,7 @@ function renderPorCategoria(atual){
   document.getElementById('tbl-categoria').innerHTML = tableHTML(['Categoria','Valor','% do total'], rows);
 }
 function renderPorFilial(){
-  const base = state.custos.filter(l=>!state.filterDepto || l.depto===state.filterDepto);
+  const base = state.custos.filter(l=>!state.filterDeptos.size || state.filterDeptos.has(l.depto));
   const filiais = [...new Set(base.map(l=>l.filial).filter(Boolean))].sort();
   const rows = filiais.map(f=>{
     const r = agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte);
@@ -704,7 +690,7 @@ function renderPorFilial(){
   document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'], rows);
 }
 function renderPorDepto(){
-  const base = state.custos.filter(l=>!state.filterFilial || l.filial===state.filterFilial);
+  const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
   const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
   const rows = deptos.map(d=>{
     const r = agregarPeriodo(base.filter(l=>l.depto===d), state.filterDe, state.filterAte);
@@ -749,8 +735,6 @@ async function salvarNovaSenha(){
 function applyFilter(){
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
-  state.filterFilial = document.getElementById('f-filial').value;
-  state.filterDepto = document.getElementById('f-depto').value;
   renderDashboard();
 }
 function setPreset(p){
@@ -780,7 +764,6 @@ function montarAtalhos(){
 /* ================= INIT ================= */
 Object.assign(window, {
   logout, showPage,
-  carregarMes, copiarMesAnterior, adicionarLinha, removerLinha, calcLinha, salvarGrade,
   processarPlanilhaCusto, gravarImportacao, limparImportacao,
   apagarTudo,
   applyFilter, setPreset,
