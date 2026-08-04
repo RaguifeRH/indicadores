@@ -108,6 +108,14 @@
   .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--linha);background:#fbfcf9;font-size:12px;font-weight:600;color:#40503b;cursor:pointer;user-select:none;transition:background .1s,color .1s;}
   .chip:hover{background:var(--folha-suave);}
   .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
+  .dropdown-panel{position:absolute;z-index:20;background:#fff;border:1px solid var(--linha);border-radius:10px;margin-top:4px;max-height:260px;overflow-y:auto;width:100%;box-shadow:0 10px 28px rgba(0,0,0,.14);}
+  .dropdown-item{padding:8px 12px;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:9px;}
+  .dropdown-item:hover{background:var(--folha-suave);}
+  .dropdown-item input[type=checkbox]{width:auto;margin:0;accent-color:var(--verde);}
+  .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  .tag{background:var(--verde);color:#fff;border-radius:20px;padding:5px 6px 5px 12px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+  .tag button{background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:12px;line-height:1;width:18px;height:18px;border-radius:50%;padding:0;}
+  .tag button:hover{background:rgba(255,255,255,.35);}
   .presets{display:flex;gap:6px;flex-wrap:wrap;}
   .presets .btn{padding:8px 12px;font-size:11.5px;}
   .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
@@ -167,9 +175,11 @@
             <label>Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar mais de uma)</span></label>
             <div class="chip-group" id="f-filial-boxes"></div>
           </div>
-          <div>
-            <label>Departamento <span style="font-weight:400;color:var(--cinza)">(clique para marcar mais de um)</span></label>
-            <div class="chip-group" id="f-depto-boxes"></div>
+          <div style="position:relative;max-width:420px">
+            <label>Departamento <span style="font-weight:400;color:var(--cinza)">(busque e marque quantos quiser)</span></label>
+            <input type="text" id="f-depto-search" placeholder="Buscar departamento..." autocomplete="off">
+            <div id="f-depto-dropdown" class="dropdown-panel" style="display:none"></div>
+            <div class="tag-row" id="f-depto-tags"></div>
           </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
@@ -452,8 +462,21 @@ function enterApp(){
   document.getElementById('f-filial-boxes').addEventListener('click', e=>{
     const box = e.target.closest('.chip'); if(box) toggleChip(box, 'filial');
   });
-  document.getElementById('f-depto-boxes').addEventListener('click', e=>{
-    const box = e.target.closest('.chip'); if(box) toggleChip(box, 'depto');
+  const deptoSearch = document.getElementById('f-depto-search');
+  deptoSearch.addEventListener('focus', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
+  deptoSearch.addEventListener('input', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
+  document.getElementById('f-depto-dropdown').addEventListener('mousedown', e=>{
+    const item = e.target.closest('.dropdown-item'); if(!item || !item.dataset.value) return;
+    e.preventDefault(); toggleDepto(item.dataset.value);
+  });
+  document.getElementById('f-depto-tags').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-remove]'); if(!btn) return;
+    toggleDepto(btn.dataset.remove);
+  });
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('#f-depto-search') && !e.target.closest('#f-depto-dropdown')){
+      document.getElementById('f-depto-dropdown').style.display='none';
+    }
   });
 
   showPage(nav[0].id);
@@ -813,21 +836,42 @@ function renderFiliaisDeptos(){
     filiais.map(f=>`<button type="button" class="chip ${state.filterFiliais.has(f)?'on':''}" data-value="${esc(f)}">${esc(f)}</button>`).join('');
   renderDeptoBoxes();
 }
-function renderDeptoBoxes(){
+function listaDeptosDisponiveis(){
   const base = state.lanc.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
-  const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
+  return [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
+}
+function renderDeptoBoxes(){
+  const deptos = listaDeptosDisponiveis();
   for(const d of [...state.filterDeptos]) if(!deptos.includes(d)) state.filterDeptos.delete(d);
-  document.getElementById('f-depto-boxes').innerHTML =
-    `<button type="button" class="chip ${state.filterDeptos.size===0?'on':''}" data-value="__all__">Todos</button>` +
-    deptos.map(d=>`<button type="button" class="chip ${state.filterDeptos.has(d)?'on':''}" data-value="${esc(d)}">${esc(d)}</button>`).join('');
+  renderDeptoTags();
+  renderDeptoDropdown(document.getElementById('f-depto-search').value);
+}
+function renderDeptoTags(){
+  document.getElementById('f-depto-tags').innerHTML = [...state.filterDeptos]
+    .map(d=>`<span class="tag">${esc(d)}<button type="button" data-remove="${esc(d)}">×</button></span>`).join('');
+}
+function renderDeptoDropdown(filtro){
+  const deptos = listaDeptosDisponiveis();
+  const f = stripAcc(filtro||'').toLowerCase().trim();
+  const list = f ? deptos.filter(d=>stripAcc(d).toLowerCase().includes(f)) : deptos;
+  const panel = document.getElementById('f-depto-dropdown');
+  panel.innerHTML = list.length
+    ? list.map(d=>`<div class="dropdown-item" data-value="${esc(d)}"><input type="checkbox" ${state.filterDeptos.has(d)?'checked':''} tabindex="-1"> ${esc(d)}</div>`).join('')
+    : '<div class="dropdown-item" style="color:var(--cinza);cursor:default">Nada encontrado</div>';
 }
 function toggleChip(box, tipo){
   const v = box.dataset.value;
-  const setRef = tipo==='filial' ? state.filterFiliais : state.filterDeptos;
+  const setRef = state.filterFiliais;
   if(v==='__all__') setRef.clear();
   else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
-  if(tipo==='filial') renderDeptoBoxes(); else document.querySelectorAll('#f-depto-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? setRef.size===0 : setRef.has(c.dataset.value)));
+  renderDeptoBoxes();
   document.querySelectorAll('#f-filial-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? state.filterFiliais.size===0 : state.filterFiliais.has(c.dataset.value)));
+  applyFilter();
+}
+function toggleDepto(v){
+  if(state.filterDeptos.has(v)) state.filterDeptos.delete(v); else state.filterDeptos.add(v);
+  renderDeptoTags();
+  renderDeptoDropdown(document.getElementById('f-depto-search').value);
   applyFilter();
 }
 
