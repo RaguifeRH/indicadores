@@ -200,7 +200,7 @@
         </div>
         <div class="panel">
           <h2>Histórico mensal</h2>
-          <div class="desc">Custo total mês a mês (últimos 12 meses com registro, no filtro atual)</div>
+          <div class="desc">Custo total mês a mês (últimos 12 meses com registro, no filtro atual) · a coluna Folha ÷ Faturamento é sempre da empresa toda, mesmo com filtro de filial</div>
           <div class="table-wrap" id="tbl-historico"></div>
         </div>
         <div class="panel beneficios">
@@ -221,6 +221,32 @@
           <h2>Por departamento</h2>
           <div class="desc">Ordenado do maior para o menor custo no período</div>
           <div class="table-wrap" id="tbl-depto"></div>
+        </div>
+      </div>
+
+      <!-- FATURAMENTO -->
+      <div class="page" id="page-faturamento">
+        <h1 class="page-title">Faturamento mensal</h1>
+        <div class="page-desc">Um valor por mês, da empresa toda (não abre por filial) — usado para calcular folha ÷ faturamento no Dashboard</div>
+        <div class="panel">
+          <h2>Lançar / corrigir um mês</h2>
+          <div class="form-grid">
+            <div><label>Competência (mês)</label><input type="month" id="fat-comp"></div>
+            <div><label>Faturamento (R$)</label><input type="number" step="0.01" id="fat-valor" placeholder="ex: 28500000"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarFaturamento()">Salvar</button></div>
+        </div>
+        <div class="panel">
+          <h2>Importar histórico</h2>
+          <div class="desc">Planilha com duas colunas: Competência e Faturamento — mesmo formato da aba que vocês já usavam</div>
+          <div class="form-grid">
+            <div><label>Arquivo (.xlsx)</label><input type="file" id="fat-file" accept=".xlsx" onchange="processarPlanilhaFaturamento(event)"></div>
+          </div>
+          <div class="note" id="fat-imp-status" style="display:none"></div>
+        </div>
+        <div class="panel">
+          <h2>Meses lançados</h2>
+          <div class="table-wrap" id="tbl-faturamento"></div>
         </div>
       </div>
 
@@ -257,6 +283,13 @@
       <div class="page" id="page-config">
         <h1 class="page-title">Configurações</h1>
         <div class="page-desc">Manutenção dos dados do módulo</div>
+        <div class="panel">
+          <h2>Meta</h2>
+          <div class="form-grid">
+            <div><label>Meta folha ÷ faturamento (máx. %)</label><input type="number" step="0.1" id="cfg-meta-ff"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar meta</button></div>
+        </div>
         <div class="panel" style="border-color:#ecd3cf">
           <h2 style="color:var(--erro)">Zona de risco</h2>
           <div class="desc">Apaga todos os lançamentos de custo do banco. Use antes de reimportar do zero.</div>
@@ -278,7 +311,7 @@ import {
   EmailAuthProvider, reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
-  getFirestore, collection, doc, setDoc, getDoc, getDocs,
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc,
   onSnapshot, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -298,6 +331,7 @@ const db = getFirestore(fbApp);
 const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
   {id:'dashboard',   label:'Dashboard',        ic:'▦', roles:['admin','operador']},
+  {id:'faturamento', label:'Faturamento',      ic:'💵', roles:['admin']},
   {id:'importar',    label:'Sincronizar planilha', ic:'🔄', roles:['admin']},
   {id:'config',      label:'Configurações',    ic:'⚙', roles:['admin']},
 ];
@@ -324,7 +358,9 @@ const GRUPOS = [
   {key:'beneficios', label:'Benefícios',           desc:'Alimentação, plano de saúde, plano odontológico, seguro de vida'},
 ];
 
-let state = { custos:[], filterDe:'', filterAte:'', filterFiliais:new Set(), filterDeptos:new Set() };
+const DEFAULT_CFG = {metaFolhaFaturamento: 20};
+
+let state = { custos:[], faturamento:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFiliais:new Set(), filterDeptos:new Set() };
 let currentUser = null;
 let unsubs = [];
 
@@ -368,8 +404,10 @@ function cmpLine(curr, prev, higherIsBetter, fmt){
   const arrow = up? '▲':'▼';
   return `<div class="cmp ${cls}">${arrow} ${fmt(Math.abs(diff))} vs. anterior (${fmt(prev)})</div>`;
 }
-function kpiCard(title, value, metaText, cmpHTML){
-  return `<div class="kpi">
+function kpiCard(title, value, metaText, cmpHTML, pillOk){
+  const pill = pillOk===true ? '<span class="pill p-ok abs">Na meta</span>'
+             : pillOk===false ? '<span class="pill p-bad abs">Fora da meta</span>' : '';
+  return `<div class="kpi">${pill}
     <div class="eyebrow">${title}</div>
     <div class="val">${value}</div>
     <div class="meta">${metaText}</div>
@@ -403,6 +441,7 @@ onAuthStateChanged(auth, async (user)=>{
     if(!d.admin && !(d.modulos && d.modulos.dp)){ location.replace('index.html?erro=semacesso'); return; }
     const role = d.admin ? 'admin' : 'operador';
     currentUser = {uid:user.uid, ...d, role};
+    await loadConfig();
     enterApp();
     subscribeData();
   }catch(e){
@@ -411,14 +450,26 @@ onAuthStateChanged(auth, async (user)=>{
 });
 
 /* ================= DADOS ================= */
+async function loadConfig(){
+  try{
+    const m = await getDoc(doc(db,'config','dp_metas'));
+    state.cfg = m.exists()? {...DEFAULT_CFG, ...m.data()} : {...DEFAULT_CFG};
+  }catch(e){ state.cfg = {...DEFAULT_CFG}; }
+}
 function subscribeData(){
   unsubs.forEach(u=>u()); unsubs=[];
-  const u = onSnapshot(collection(db,'dp_custos'), snap=>{
+  const u1 = onSnapshot(collection(db,'dp_custos'), snap=>{
     state.custos = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderFiliaisDeptos();
     renderDashboard();
   }, e=>console.error(e));
-  unsubs.push(u);
+  unsubs.push(u1);
+  const u2 = onSnapshot(collection(db,'dp_faturamento'), snap=>{
+    state.faturamento = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderFaturamentoTabela();
+    renderDashboard();
+  }, e=>console.error(e));
+  unsubs.push(u2);
 }
 
 /* ================= NAV / SHELL ================= */
@@ -438,6 +489,8 @@ function enterApp(){
   document.getElementById('f-ate').value = monthISO();
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
+  document.getElementById('fat-comp').value = monthISO();
+  document.getElementById('cfg-meta-ff').value = state.cfg.metaFolhaFaturamento;
 
   document.getElementById('f-filial-boxes').addEventListener('click', e=>{
     const box = e.target.closest('.chip'); if(box) toggleChip(box);
@@ -465,6 +518,7 @@ function showPage(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
   if(id==='dashboard') renderDashboard();
+  if(id==='faturamento') renderFaturamentoTabela();
 }
 
 /* ================= FILIAL / DEPTO (filtros do dashboard) ================= */
@@ -664,6 +718,76 @@ async function baixarPlanilha(){
   }catch(e){ console.error(e); toast('Falha ao gerar a planilha.', true); }
 }
 
+/* ================= CONFIG ================= */
+async function salvarConfig(){
+  state.cfg = { metaFolhaFaturamento: Number(document.getElementById('cfg-meta-ff').value)||DEFAULT_CFG.metaFolhaFaturamento };
+  try{ await setDoc(doc(db,'config','dp_metas'), state.cfg); toast('Meta salva ✓'); renderDashboard(); }
+  catch(e){ toast('Falha ao salvar.', true); }
+}
+
+/* ================= FATURAMENTO ================= */
+async function salvarFaturamento(){
+  const comp = document.getElementById('fat-comp').value;
+  const valor = Number(document.getElementById('fat-valor').value);
+  if(!comp || !valor){ toast('Preencha o mês e o valor.', true); return; }
+  try{
+    await setDoc(doc(db,'dp_faturamento', comp), {competencia:comp, valor, atualizadoEm: todayISO()}, {merge:true});
+    toast('Faturamento salvo ✓');
+    document.getElementById('fat-valor').value = '';
+  }catch(e){ console.error(e); toast('Falha ao salvar.', true); }
+}
+async function delFaturamento(id){
+  confirmModal('Remover o faturamento desse mês?', async()=>{
+    try{ await deleteDoc(doc(db,'dp_faturamento', id)); toast('Removido ✓'); }
+    catch(e){ toast('Falha ao remover.', true); }
+  });
+}
+function renderFaturamentoTabela(){
+  const rows = [...state.faturamento].sort((a,b)=>(b.competencia||'').localeCompare(a.competencia||''))
+    .map(f=>[fmtMesComp(f.competencia), fmtMoeda(f.valor), `<button class="btn btn-danger btn-mini" onclick="delFaturamento('${f.id}')">×</button>`]);
+  document.getElementById('tbl-faturamento').innerHTML = tableHTML(['Mês','Faturamento',''], rows);
+}
+function statusFatImport(msg, isErr){
+  const el = document.getElementById('fat-imp-status');
+  el.style.display='block'; el.textContent = msg;
+  el.style.background = isErr? '#f7e3df' : '';
+  el.style.color = isErr? 'var(--erro)' : '';
+}
+async function processarPlanilhaFaturamento(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  statusFatImport('Lendo arquivo...');
+  try{
+    await carregarSheetJS();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const ws = wb.Sheets[wb.SheetNames.includes('FATURAMENTO')? 'FATURAMENTO' : wb.SheetNames[0]];
+    const grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    const norm = s => stripAcc(String(s||'')).toLowerCase().trim();
+    const hdr = (grid[0]||[]).map(norm);
+    const cComp = hdr.findIndex(h=>h.includes('competenc'));
+    const cVal = hdr.findIndex(h=>h.includes('faturamento'));
+    if(cComp<0 || cVal<0){ statusFatImport('Não encontrei as colunas Competência/Faturamento.', true); return; }
+    const batch = writeBatch(db);
+    let n = 0;
+    for(let i=1;i<grid.length;i++){
+      const row = grid[i]; if(!row) continue;
+      const compRaw = row[cComp], valor = Number(row[cVal]);
+      if(!compRaw || !valor) continue;
+      let comp;
+      if(compRaw instanceof Date) comp = compRaw.getFullYear()+'-'+String(compRaw.getMonth()+1).padStart(2,'0');
+      else { const dd = new Date(compRaw); if(isNaN(dd)) continue; comp = dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0'); }
+      batch.set(doc(db,'dp_faturamento', comp), {competencia:comp, valor, atualizadoEm: todayISO()}, {merge:true});
+      n++;
+    }
+    if(!n){ statusFatImport('Nenhuma linha válida encontrada.', true); return; }
+    await batch.commit();
+    statusFatImport(`${n} mês(es) gravado(s) ✓`);
+    toast('Faturamento importado ✓');
+    document.getElementById('fat-file').value = '';
+  }catch(e){ console.error(e); statusFatImport('Falha ao ler o arquivo: '+(e.message||e), true); }
+}
+
 /* ================= ZONA DE RISCO ================= */
 async function apagarTudo(){
   const n = state.custos.length;
@@ -696,6 +820,9 @@ function agregarPeriodo(rows, de, ate){
   GRUPOS.forEach(g=> porGrupo[g.key] = CUSTO_CATS.filter(c=>c.grupo===g.key).reduce((s,c)=>s+(porCategoria[c.key]||0),0));
   return {total, nMeses:meses.length, porCategoria, porGrupo, linhas:f};
 }
+function somaFaturamento(de, ate){
+  return state.faturamento.filter(f=>f.competencia>=de && f.competencia<=ate).reduce((s,f)=>s+(f.valor||0),0);
+}
 function renderDashboard(){
   const base = filtroBase(state.custos);
   const de = state.filterDe, ate = state.filterAte;
@@ -703,6 +830,13 @@ function renderDashboard(){
   const semAnterior = '<div class="cmp cmp-flat">— sem período anterior</div>';
   const atual = agregarPeriodo(base, de, ate);
   const anterior = agregarPeriodo(base, pr.de, pr.ate);
+  // folha ÷ faturamento é sempre da empresa toda — não respeita filtro de filial/depto
+  const custoEmpresaAtual = agregarPeriodo(state.custos, de, ate).total;
+  const custoEmpresaAnterior = agregarPeriodo(state.custos, pr.de, pr.ate).total;
+  const fatAtual = somaFaturamento(de, ate);
+  const fatAnterior = somaFaturamento(pr.de, pr.ate);
+  const razaoAtual = fatAtual ? (custoEmpresaAtual/fatAtual*100) : null;
+  const razaoAnterior = fatAnterior ? (custoEmpresaAnterior/fatAnterior*100) : null;
 
   const cards = [];
   const descFiliais = state.filterFiliais.size ? [...state.filterFiliais].join(', ') : 'todas as filiais';
@@ -715,6 +849,10 @@ function renderDashboard(){
   cards.push(kpiCard('Benefícios no período', fmtMoeda(atual.porGrupo.beneficios||0),
     atual.total? ((atual.porGrupo.beneficios||0)/atual.total*100).toFixed(1)+'% do custo total' : 'Sem lançamentos',
     anterior.nMeses? cmpLine(atual.porGrupo.beneficios||0, anterior.porGrupo.beneficios||0, false, v=>fmtMoeda(v)) : semAnterior));
+  cards.push(kpiCard('Folha ÷ Faturamento', razaoAtual==null? '—' : razaoAtual.toFixed(1)+'%',
+    razaoAtual==null? 'Sem faturamento lançado nesse período' : `Meta: até ${state.cfg.metaFolhaFaturamento}% · sempre empresa toda, ignora filtro de filial`,
+    (razaoAtual!=null && razaoAnterior!=null)? cmpLine(razaoAtual, razaoAnterior, false, v=>v.toFixed(1)+'%') : semAnterior,
+    razaoAtual==null? undefined : razaoAtual<=state.cfg.metaFolhaFaturamento));
   const nLinhas = new Set(atual.linhas.map(l=>l.filial+'||'+l.depto)).size;
   cards.push(kpiCard('Departamentos com custo', nLinhas+'', `${atual.nMeses} mês(es) considerado(s)`, ''));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
@@ -755,9 +893,12 @@ function renderHistorico(base){
   const meses = [...new Set(base.map(l=>l.competencia))].filter(Boolean).sort().slice(-12).reverse();
   const rows = meses.map(m=>{
     const r = agregarPeriodo(base, m, m);
-    return [ fmtMesComp(m), fmtMoeda(r.total) ];
+    const custoEmpresa = agregarPeriodo(state.custos, m, m).total;
+    const fat = somaFaturamento(m, m);
+    const razao = fat? (custoEmpresa/fat*100) : null;
+    return [ fmtMesComp(m), fmtMoeda(r.total), razao==null? '—' : razao.toFixed(1)+'%' ];
   });
-  document.getElementById('tbl-historico').innerHTML = tableHTML(['Mês','Custo total'], rows);
+  document.getElementById('tbl-historico').innerHTML = tableHTML(['Mês','Custo total','Folha ÷ Faturamento'], rows);
 }
 function renderPorFilial(){
   const base = state.custos.filter(l=>!state.filterDeptos.size || state.filterDeptos.has(l.depto));
@@ -844,7 +985,8 @@ function montarAtalhos(){
 Object.assign(window, {
   logout, showPage,
   processarPlanilhaCusto, gravarImportacao, limparImportacao, baixarPlanilha,
-  apagarTudo,
+  salvarFaturamento, delFaturamento, processarPlanilhaFaturamento,
+  salvarConfig, apagarTudo,
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
 });
