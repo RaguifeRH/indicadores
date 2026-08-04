@@ -104,6 +104,10 @@
 
   .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:13px 15px;}
   .filter-bar .fld{min-width:140px;}
+  .chip-group{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--linha);background:#fbfcf9;font-size:12px;font-weight:600;color:#40503b;cursor:pointer;user-select:none;transition:background .1s,color .1s;}
+  .chip:hover{background:var(--folha-suave);}
+  .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
   .presets{display:flex;gap:6px;flex-wrap:wrap;}
   .presets .btn{padding:8px 12px;font-size:11.5px;}
   .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
@@ -151,14 +155,22 @@
         <div class="filter-bar">
           <div class="fld"><label>De (mês)</label><input type="month" id="f-de"></div>
           <div class="fld"><label>Até (mês)</label><input type="month" id="f-ate"></div>
-          <div class="fld"><label>Filial</label><select id="f-filial"><option value="">Todas</option></select></div>
-          <div class="fld"><label>Departamento</label><select id="f-depto"><option value="">Todos</option></select></div>
           <div class="presets">
             <button class="btn btn-ghost" onclick="setPreset('mes')">Este mês</button>
             <button class="btn btn-ghost" onclick="setPreset('trim')">Últ. 3 meses</button>
             <button class="btn btn-ghost" onclick="setPreset('ano')">Este ano</button>
           </div>
           <button class="btn btn-leaf" onclick="applyFilter()">Aplicar</button>
+        </div>
+        <div class="filter-bar" style="flex-direction:column;align-items:stretch;gap:14px">
+          <div>
+            <label>Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar mais de uma)</span></label>
+            <div class="chip-group" id="f-filial-boxes"></div>
+          </div>
+          <div>
+            <label>Departamento <span style="font-weight:400;color:var(--cinza)">(clique para marcar mais de um)</span></label>
+            <div class="chip-group" id="f-depto-boxes"></div>
+          </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
         <div class="panel">
@@ -305,7 +317,7 @@ function categoriaCargo(cargo){
   return 'Efetivo';
 }
 
-let state = { lanc:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFilial:'', filterDepto:'' };
+let state = { lanc:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFiliais:new Set(), filterDeptos:new Set() };
 let currentUser = null;
 let unsubs = [];
 
@@ -437,7 +449,12 @@ function enterApp(){
   document.getElementById('cfg-turnover').value = state.cfg.metaTurnover;
   document.getElementById('cfg-absenteismo').value = state.cfg.metaAbsenteismo;
 
-  document.getElementById('f-filial').addEventListener('change', ()=>{ popularDeptoFiltro(); });
+  document.getElementById('f-filial-boxes').addEventListener('click', e=>{
+    const box = e.target.closest('.chip'); if(box) toggleChip(box, 'filial');
+  });
+  document.getElementById('f-depto-boxes').addEventListener('click', e=>{
+    const box = e.target.closest('.chip'); if(box) toggleChip(box, 'depto');
+  });
 
   showPage(nav[0].id);
 }
@@ -677,6 +694,7 @@ async function processarPonto(ev){
       if(!d.horasprev) return;
       const semAbono = (d.legais + d.faltas) / d.horasprev * 100;
       const comAbono = (d.legais + d.medicos + d.faltas) / d.horasprev * 100;
+      const medico = d.medicos / d.horasprev * 100;
       const faltasQtd = d.faltasOcorr||0;
       const filial = filialPorCodigo(d.codigo);
       if(!filial){ semFilial++; return; }
@@ -685,6 +703,7 @@ async function processarPonto(ev){
       if(row){
         row.absenteismoComAbono = comAbono;
         row.absenteismoSemAbono = semAbono;
+        row.absenteismoMedico = medico;
         row.faltasQtd = faltasQtd;
         aplicados++;
       } else {
@@ -692,7 +711,7 @@ async function processarPonto(ev){
         importRows.push({
           id, competencia:comp, filial, depto:d.nome,
           ativos:0, admitidos:0, demitidos:0, turnover:0,
-          absenteismoComAbono:comAbono, absenteismoSemAbono:semAbono, faltasQtd,
+          absenteismoComAbono:comAbono, absenteismoSemAbono:semAbono, absenteismoMedico:medico, faltasQtd,
         });
         foraDaJanela++;
       }
@@ -713,8 +732,9 @@ function renderPreviewImportacao(){
   const prevRows = importRows.slice(-8).map(r=>[fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), r.ativos, r.admitidos, r.demitidos, r.turnover.toFixed(1)+'%',
     r.absenteismoComAbono!=null? r.absenteismoComAbono.toFixed(1)+'%' : '—',
     r.absenteismoSemAbono!=null? r.absenteismoSemAbono.toFixed(1)+'%' : '—',
+    r.absenteismoMedico!=null? r.absenteismoMedico.toFixed(1)+'%' : '—',
     r.faltasQtd!=null? r.faltasQtd+'' : '—']);
-  document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], prevRows) +
+  document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Mês','Filial','Departamento','Ativos','Adm.','Dem.','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], prevRows) +
     (importRows.length>8 ? `<div class="note">mostrando 8 de ${importRows.length} linhas (as mais recentes)</div>` : '');
 }
 async function gravarImportacao(){
@@ -734,6 +754,7 @@ async function gravarImportacao(){
         };
         if(r.absenteismoComAbono!=null) dados.absenteismoComAbono = r.absenteismoComAbono;
         if(r.absenteismoSemAbono!=null) dados.absenteismoSemAbono = r.absenteismoSemAbono;
+        if(r.absenteismoMedico!=null) dados.absenteismoMedico = r.absenteismoMedico;
         if(r.faltasQtd!=null) dados.faltasQtd = r.faltasQtd;
         batch.set(doc(db,'rh_lancamentos', r.id), dados, {merge:true});
       });
@@ -785,19 +806,29 @@ async function apagarTudo(){
 /* ================= FILIAL / DEPTO (filtros do dashboard) ================= */
 function renderFiliaisDeptos(){
   const filiais = [...new Set(state.lanc.map(l=>l.filial).filter(Boolean))].sort();
-  const selF = document.getElementById('f-filial');
-  const curF = selF.value;
-  selF.innerHTML = '<option value="">Todas</option>' + filiais.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
-  selF.value = filiais.includes(curF) ? curF : '';
-  popularDeptoFiltro();
+  // tira dos filtros selecionados qualquer valor que não exista mais nos dados
+  for(const f of [...state.filterFiliais]) if(!filiais.includes(f)) state.filterFiliais.delete(f);
+  document.getElementById('f-filial-boxes').innerHTML =
+    `<button type="button" class="chip ${state.filterFiliais.size===0?'on':''}" data-value="__all__">Todas</button>` +
+    filiais.map(f=>`<button type="button" class="chip ${state.filterFiliais.has(f)?'on':''}" data-value="${esc(f)}">${esc(f)}</button>`).join('');
+  renderDeptoBoxes();
 }
-function popularDeptoFiltro(){
-  const filial = document.getElementById('f-filial').value;
-  const selD = document.getElementById('f-depto');
-  const curD = selD.value;
-  const deptos = [...new Set(state.lanc.filter(l=>!filial || l.filial===filial).map(l=>l.depto).filter(Boolean))].sort();
-  selD.innerHTML = '<option value="">Todos</option>' + deptos.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
-  selD.value = deptos.includes(curD) ? curD : '';
+function renderDeptoBoxes(){
+  const base = state.lanc.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
+  for(const d of [...state.filterDeptos]) if(!deptos.includes(d)) state.filterDeptos.delete(d);
+  document.getElementById('f-depto-boxes').innerHTML =
+    `<button type="button" class="chip ${state.filterDeptos.size===0?'on':''}" data-value="__all__">Todos</button>` +
+    deptos.map(d=>`<button type="button" class="chip ${state.filterDeptos.has(d)?'on':''}" data-value="${esc(d)}">${esc(d)}</button>`).join('');
+}
+function toggleChip(box, tipo){
+  const v = box.dataset.value;
+  const setRef = tipo==='filial' ? state.filterFiliais : state.filterDeptos;
+  if(v==='__all__') setRef.clear();
+  else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
+  if(tipo==='filial') renderDeptoBoxes(); else document.querySelectorAll('#f-depto-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? setRef.size===0 : setRef.has(c.dataset.value)));
+  document.querySelectorAll('#f-filial-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? state.filterFiliais.size===0 : state.filterFiliais.has(c.dataset.value)));
+  applyFilter();
 }
 
 /* ================= RENDER: LANÇAMENTOS ================= */
@@ -805,15 +836,15 @@ function renderLancamentos(){
   const rows = [...state.lanc].sort((a,b)=>(b.competencia||'').localeCompare(a.competencia||'')).slice(0,40).map(l=>[
     fmtMesComp(l.competencia), esc(l.filial), esc(l.depto), l.ativos,
     l.admitidos, l.demitidos, (l.turnover||0).toFixed(1)+'%',
-    (l.absenteismoComAbono||0).toFixed(1)+'%', (l.absenteismoSemAbono||0).toFixed(1)+'%', l.faltasQtd||0
+    (l.absenteismoComAbono||0).toFixed(1)+'%', (l.absenteismoSemAbono||0).toFixed(1)+'%', (l.absenteismoMedico||0).toFixed(1)+'%', l.faltasQtd||0
   ]);
   document.getElementById('tbl-lancamentos').innerHTML =
-    tableHTML(['Mês','Filial','Departamento','Ativos','Admitidos','Demitidos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
+    tableHTML(['Mês','Filial','Departamento','Ativos','Admitidos','Demitidos','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 
 /* ================= RENDER: DASHBOARD ================= */
 function filtroBase(rows){
-  return rows.filter(l => (!state.filterFilial || l.filial===state.filterFilial) && (!state.filterDepto || l.depto===state.filterDepto));
+  return rows.filter(l => (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) && (!state.filterDeptos.size || state.filterDeptos.has(l.depto)));
 }
 // agrega uma lista de lançamentos (já filtrada por filial/depto) num intervalo de meses
 function agregarPeriodo(rows, de, ate){
@@ -828,14 +859,16 @@ function agregarPeriodo(rows, de, ate){
   const somaAtivosPorMes = meses.map(m=> f.filter(l=>l.competencia===m).reduce((s,l)=>s+(l.ativos||0),0));
   const mediaAtivos = somaAtivosPorMes.length ? somaAtivosPorMes.reduce((a,b)=>a+b,0)/somaAtivosPorMes.length : 0;
   const turnover = mediaAtivos ? (somaMovs/mediaAtivos*100) : null;
-  // absenteísmo do período: média ponderada pelos ativos de cada linha (duas taxas) + faltas somadas
+  // absenteísmo do período: média ponderada pelos ativos de cada linha (três taxas) + faltas somadas
   const somaAtivosLinhas = f.reduce((s,l)=>s+(l.ativos||0),0);
   const somaAbsComPond = f.reduce((s,l)=>s+((l.absenteismoComAbono||0)*(l.ativos||0)),0);
   const somaAbsSemPond = f.reduce((s,l)=>s+((l.absenteismoSemAbono||0)*(l.ativos||0)),0);
+  const somaAbsMedicoPond = f.reduce((s,l)=>s+((l.absenteismoMedico||0)*(l.ativos||0)),0);
   const absenteismoComAbono = somaAtivosLinhas ? (somaAbsComPond/somaAtivosLinhas) : null;
   const absenteismoSemAbono = somaAtivosLinhas ? (somaAbsSemPond/somaAtivosLinhas) : null;
+  const absenteismoMedico = somaAtivosLinhas ? (somaAbsMedicoPond/somaAtivosLinhas) : null;
   const faltasQtd = f.length ? f.reduce((s,l)=>s+(l.faltasQtd||0),0) : null;
-  return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, faltasQtd, nMeses:meses.length};
+  return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, absenteismoMedico, faltasQtd, nMeses:meses.length};
 }
 function renderDashboard(){
   const base = filtroBase(state.lanc);
@@ -846,10 +879,12 @@ function renderDashboard(){
   const anterior = agregarPeriodo(base, pr.de, pr.ate);
   const cfg = state.cfg;
   const cards = [];
+  const descFiliais = state.filterFiliais.size ? [...state.filterFiliais].join(', ') : 'todas as filiais';
+  const descDeptos = state.filterDeptos.size ? [...state.filterDeptos].join(', ') : 'todos deptos';
 
   cards.push(kpiCard('Headcount (ativos)',
     atual.headcount+'',
-    `Fim do período · filtro: ${state.filterFilial||'todas as filiais'} / ${state.filterDepto||'todos deptos'}`,
+    `Fim do período · filtro: ${descFiliais} / ${descDeptos}`,
     true, 0, 0,
     anterior.nMeses? cmpLine(atual.headcount, anterior.headcount, true, v=>Math.round(v)+'') : semAnterior));
 
@@ -870,6 +905,12 @@ function renderDashboard(){
     atual.absenteismoSemAbono==null ? 'Sem lançamentos no período' : `Não conta atestado médico como falta`,
     atual.absenteismoSemAbono==null ? true : atual.absenteismoSemAbono<=cfg.metaAbsenteismo, atual.absenteismoSemAbono||0, cfg.metaAbsenteismo*1.6,
     (atual.absenteismoSemAbono!=null && anterior.absenteismoSemAbono!=null)? cmpLine(atual.absenteismoSemAbono, anterior.absenteismoSemAbono, false, v=>v.toFixed(1)+'%') : semAnterior));
+
+  cards.push(kpiCard('Absenteísmo médico',
+    atual.absenteismoMedico==null ? '—' : atual.absenteismoMedico.toFixed(2)+'%',
+    atual.absenteismoMedico==null ? 'Sem lançamentos no período' : `Só atestado médico — sem legais, sem faltas`,
+    atual.absenteismoMedico==null ? true : atual.absenteismoMedico<=cfg.metaAbsenteismo, atual.absenteismoMedico||0, cfg.metaAbsenteismo*1.6,
+    (atual.absenteismoMedico!=null && anterior.absenteismoMedico!=null)? cmpLine(atual.absenteismoMedico, anterior.absenteismoMedico, false, v=>v.toFixed(1)+'%') : semAnterior));
 
   cards.push(kpiCard('Faltas',
     atual.faltasQtd==null ? '—' : atual.faltasQtd+'',
@@ -897,13 +938,14 @@ function renderHistorico(base){
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
       r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
+      r.absenteismoMedico==null?'—':r.absenteismoMedico.toFixed(1)+'%',
       r.faltasQtd==null?'—':r.faltasQtd+'' ];
   });
   document.getElementById('tbl-historico').innerHTML =
-    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
+    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 function renderPorFilial(){
-  const base = state.lanc.filter(l=>!state.filterDepto || l.depto===state.filterDepto);
+  const base = state.lanc.filter(l=>!state.filterDeptos.size || state.filterDeptos.has(l.depto));
   const filiais = [...new Set(base.map(l=>l.filial).filter(Boolean))].sort();
   const rows = filiais.map(f=>{
     const r = agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte);
@@ -911,13 +953,14 @@ function renderPorFilial(){
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
       r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
+      r.absenteismoMedico==null?'—':r.absenteismoMedico.toFixed(1)+'%',
       r.faltasQtd==null?'—':r.faltasQtd+''];
   }).sort((a,b)=>b[1]-a[1]);
   document.getElementById('tbl-filial').innerHTML =
-    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
+    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 function renderPorDepto(){
-  const base = state.lanc.filter(l=>!state.filterFilial || l.filial===state.filterFilial);
+  const base = state.lanc.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
   const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
   const rows = deptos.map(d=>{
     const r = agregarPeriodo(base.filter(l=>l.depto===d), state.filterDe, state.filterAte);
@@ -925,10 +968,11 @@ function renderPorDepto(){
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
       r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
+      r.absenteismoMedico==null?'—':r.absenteismoMedico.toFixed(1)+'%',
       r.faltasQtd==null?'—':r.faltasQtd+''], t:r.turnover||0};
   }).sort((a,b)=>b.t-a.t).map(x=>x.row);
   document.getElementById('tbl-depto').innerHTML =
-    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Faltas'], rows);
+    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 
 /* ================= MODAL ================= */
@@ -967,8 +1011,6 @@ async function salvarNovaSenha(){
 function applyFilter(){
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
-  state.filterFilial = document.getElementById('f-filial').value;
-  state.filterDepto = document.getElementById('f-depto').value;
   renderDashboard();
 }
 function setPreset(p){
