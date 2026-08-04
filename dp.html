@@ -265,7 +265,7 @@
             <div><label>Arquivo</label><input type="file" id="imp-file" accept=".xlsx" onchange="processarPlanilhaCusto(event)"></div>
           </div>
           <div class="note" id="imp-status" style="display:none"></div>
-          <div class="note">Espera encontrar as colunas: Competência, Filial, Departamento, e as categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed, Horas Extras).</div>
+          <div class="note">Espera encontrar as colunas: Competência, Filial, Departamento, e as categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed). As colunas <strong>Horas Extras</strong> e <strong>Ocorrências de Ponto</strong> são opcionais — se existirem, são guardadas como informação à parte e não entram na soma do custo (horas extras já estão embutidas no valor da Folha).</div>
         </div>
         <div class="panel" id="imp-preview" style="display:none">
           <h2>Conferir antes de gravar</h2>
@@ -349,13 +349,18 @@ const CUSTO_CATS = [
   {key:'diariasMedias',      label:'Diárias/Médias',     grupo:'folha'},
   {key:'premio',             label:'Prêmio',             grupo:'folha'},
   {key:'multimed',           label:'Multimed',           grupo:'encargos'},
-  {key:'horasExtras',        label:'Horas Extras',       grupo:'folha'},
+];
+// campos informativos por filial/depto que NÃO entram na soma do custo (já estão embutidos na Folha
+// ou não são valores monetários) — ficam guardados à parte, com seus próprios cards no dashboard
+const CAMPOS_EXTRA = [
+  {key:'horasExtras',       label:'Horas Extras',          tipo:'moeda'},
+  {key:'ocorrenciasPonto',  label:'Ocorrências de Ponto',  tipo:'numero'},
 ];
 // mesma divisão em 3 grupos que a planilha original já usa (folha/encargos somam ao total geral)
 const GRUPOS = [
-  {key:'folha',      label:'Folha e Complementos', desc:'Folha, nota fiscal, jovem aprendiz, diárias/médias, horas extras, prêmio'},
-  {key:'encargos',   label:'Encargos',             desc:'INSS, SESI/SENAI, FGTS, Multimed'},
-  {key:'beneficios', label:'Benefícios',           desc:'Alimentação, plano de saúde, plano odontológico, seguro de vida'},
+  {key:'folha',      label:'Folha e Complementos',   desc:'Folha, nota fiscal, jovem aprendiz, diárias/médias, prêmio'},
+  {key:'encargos',   label:'Encargos e Obrigações',  desc:'INSS, SESI/SENAI, FGTS, Multimed'},
+  {key:'beneficios', label:'Benefícios',             desc:'Alimentação, plano de saúde, plano odontológico, seguro de vida'},
 ];
 
 const DEFAULT_CFG = {metaFolhaFaturamento: 20};
@@ -589,7 +594,9 @@ function statusImport(msg, isErr){
 // compara os 14 valores de custo com o que já está gravado (tolerância de 1 centavo)
 function linhaMudou(nova, antiga){
   if(!antiga) return true;
-  return CUSTO_CATS.some(c => Math.abs((nova[c.key]||0) - (antiga[c.key]||0)) > 0.005);
+  if(CUSTO_CATS.some(c => Math.abs((nova[c.key]||0) - (antiga[c.key]||0)) > 0.005)) return true;
+  if(CAMPOS_EXTRA.some(c => Math.abs((nova[c.key]||0) - (antiga[c.key]||0)) > 0.005)) return true;
+  return false;
 }
 async function processarPlanilhaCusto(ev){
   const file = ev.target.files[0];
@@ -628,6 +635,12 @@ async function processarPlanilhaCusto(ev){
     if([cComp,cFilial,cDepto].some(i=>i<0) || cCats.some(i=>i<0)){
       statusImport('Não reconheci todas as colunas esperadas nessa planilha.', true); return;
     }
+    // colunas informativas — opcionais, não travam a importação se não existirem
+    const cExtras = CAMPOS_EXTRA.map(c=>{
+      const lt = tokenize(c.label);
+      return hdrTokens.findIndex(ht=> lt.every(t=> [...ht].some(h=> h.startsWith(t) || t.startsWith(h)) ));
+    });
+    const faltando = CAMPOS_EXTRA.filter((c,k)=>cExtras[k]<0).map(c=>c.label);
     const porId = new Map(state.custos.map(l=>[l.id, l]));
     const rows = [];
     let inalterados = 0;
@@ -642,6 +655,7 @@ async function processarPlanilhaCusto(ev){
       else { const dd = new Date(compRaw); if(isNaN(dd)) continue; comp = dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0'); }
       const obj = {competencia:comp, filial, depto};
       CUSTO_CATS.forEach((c,k)=>{ obj[c.key] = Number(row[cCats[k]])||0; });
+      CAMPOS_EXTRA.forEach((c,k)=>{ obj[c.key] = cExtras[k]>=0 ? (Number(row[cExtras[k]])||0) : 0; });
       obj.id = chaveCusto(comp, filial, depto);
       obj.total = totalLinha(obj);
       const existente = porId.get(obj.id);
@@ -658,7 +672,8 @@ async function processarPlanilhaCusto(ev){
     const filiais = [...new Set(rows.map(r=>r.filial))].sort();
     const nNovo = rows.filter(r=>r.status==='novo').length, nAtt = rows.filter(r=>r.status==='atualizado').length;
     document.getElementById('imp-resumo').textContent =
-      `${nNovo} novo(s) · ${nAtt} atualizado(s) · ${inalterados} sem mudança (ignorados) — meses: ${fmtMesComp(meses[0])} a ${fmtMesComp(meses[meses.length-1])} · filiais: ${filiais.join(', ')}`;
+      `${nNovo} novo(s) · ${nAtt} atualizado(s) · ${inalterados} sem mudança (ignorados) — meses: ${fmtMesComp(meses[0])} a ${fmtMesComp(meses[meses.length-1])} · filiais: ${filiais.join(', ')}`
+      + (faltando.length? ` · colunas não encontradas (gravadas como 0): ${faltando.join(', ')}` : '');
     const prevRows = rows.slice(0,30).map(r=>[
       `<span class="status-badge status-${r.status}">${r.status}</span>`,
       fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), fmtMoeda(r.total)]);
@@ -680,6 +695,7 @@ async function gravarImportacao(){
       chunk.forEach(r=>{
         const dados = {competencia:r.competencia, filial:r.filial, depto:r.depto, total:r.total, atualizadoEm: todayISO()};
         CUSTO_CATS.forEach(c=> dados[c.key]=r[c.key]||0);
+        CAMPOS_EXTRA.forEach(c=> dados[c.key]=r[c.key]||0);
         batch.set(doc(db,'dp_custos', r.id), dados, {merge:true});
       });
       await batch.commit();
@@ -707,6 +723,7 @@ async function baixarPlanilha(){
         // dia 15 (meio do mês) evita qualquer problema de fuso-horário ao reabrir a planilha depois
         const obj = {'Competência': (y&&m)? new Date(y, m-1, 15) : l.competencia, 'Filial': l.filial, 'Departamento': l.depto};
         CUSTO_CATS.forEach(c=> obj[c.label] = l[c.key]||0);
+        CAMPOS_EXTRA.forEach(c=> obj[c.label] = l[c.key]||0);
         obj['Total'] = l.total||0;
         return obj;
       });
@@ -818,7 +835,9 @@ function agregarPeriodo(rows, de, ate){
   CUSTO_CATS.forEach(c=> porCategoria[c.key] = f.reduce((s,l)=>s+(l[c.key]||0),0));
   const porGrupo = {};
   GRUPOS.forEach(g=> porGrupo[g.key] = CUSTO_CATS.filter(c=>c.grupo===g.key).reduce((s,c)=>s+(porCategoria[c.key]||0),0));
-  return {total, nMeses:meses.length, porCategoria, porGrupo, linhas:f};
+  const extras = {};
+  CAMPOS_EXTRA.forEach(c=> extras[c.key] = f.reduce((s,l)=>s+(l[c.key]||0),0));
+  return {total, nMeses:meses.length, porCategoria, porGrupo, extras, linhas:f};
 }
 function somaFaturamento(de, ate){
   return state.faturamento.filter(f=>f.competencia>=de && f.competencia<=ate).reduce((s,f)=>s+(f.valor||0),0);
@@ -855,6 +874,12 @@ function renderDashboard(){
     razaoAtual==null? undefined : razaoAtual<=state.cfg.metaFolhaFaturamento));
   const nLinhas = new Set(atual.linhas.map(l=>l.filial+'||'+l.depto)).size;
   cards.push(kpiCard('Departamentos com custo', nLinhas+'', `${atual.nMeses} mês(es) considerado(s)`, ''));
+  cards.push(kpiCard('Horas Extras (informativo)', fmtMoeda(atual.extras.horasExtras||0),
+    'Já embutido na Folha — não soma no custo total',
+    anterior.nMeses? cmpLine(atual.extras.horasExtras||0, anterior.extras.horasExtras||0, false, v=>fmtMoeda(v)) : semAnterior));
+  cards.push(kpiCard('Ocorrências de Ponto', (atual.extras.ocorrenciasPonto||0)+'',
+    `Filtro: ${descFiliais} / ${descDeptos}`,
+    anterior.nMeses? cmpLine(atual.extras.ocorrenciasPonto||0, anterior.extras.ocorrenciasPonto||0, false, v=>Math.round(v)+'') : semAnterior));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
   renderGrupos(atual);
