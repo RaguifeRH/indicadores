@@ -200,6 +200,15 @@
         </div>
       </div>
 
+      <!-- COMPARATIVO HEADCOUNT -->
+      <div class="page" id="page-headcount">
+        <h1 class="page-title">Comparativo de Headcount</h1>
+        <div class="page-desc">Quantos ativos cada filial + departamento fechou em cada mês do período selecionado no Dashboard (mesmos filtros de filial/departamento)</div>
+        <div class="panel">
+          <div class="table-wrap" id="tbl-headcount-pivot"></div>
+        </div>
+      </div>
+
       <!-- IMPORTAR -->
       <div class="page" id="page-importar">
         <h1 class="page-title">Importar Relação de Funcionários</h1>
@@ -307,6 +316,7 @@ const db = getFirestore(fbApp);
 const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
   {id:'dashboard',    label:'Dashboard',       ic:'▦', roles:['admin','operador']},
+  {id:'headcount',    label:'Comparativo Headcount', ic:'📅', roles:['admin','operador']},
   {id:'importar',     label:'Importar',        ic:'📤', roles:['admin']},
   {id:'config',       label:'Metas & Config',  ic:'⚙', roles:['admin']},
 ];
@@ -485,6 +495,7 @@ function showPage(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
   if(id==='dashboard') renderDashboard();
+  if(id==='headcount') renderHeadcountPivot();
   if(id==='importar') renderLancamentos();
 }
 
@@ -914,6 +925,35 @@ function agregarPeriodo(rows, de, ate){
   const faltasQtd = f.length ? f.reduce((s,l)=>s+(l.faltasQtd||0),0) : null;
   return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, absenteismoMedico, faltasQtd, nMeses:meses.length};
 }
+// Comparativo de headcount: filial+depto nas linhas, um mês por coluna, ativos ao fim de cada mês
+function renderHeadcountPivot(){
+  const base = filtroBase(state.lanc);
+  const de = state.filterDe, ate = state.filterAte;
+  if(!de || !ate){ document.getElementById('tbl-headcount-pivot').innerHTML = '<div class="empty">Escolha um período no Dashboard</div>'; return; }
+  const meses = []; let m = de;
+  while(m<=ate && meses.length<60){ meses.push(m); m = addMonths(m,1); }
+
+  const porMes = base.filter(l=>meses.includes(l.competencia));
+  const combos = [...new Set(porMes.map(l=>l.filial+'||'+l.depto))]
+    .map(k=>{ const [filial,depto]=k.split('||'); return {filial,depto}; })
+    .sort((a,b)=> (a.filial+a.depto).localeCompare(b.filial+b.depto));
+
+  if(!combos.length){ document.getElementById('tbl-headcount-pivot').innerHTML = '<div class="empty">Sem registros no período/filtro atual</div>'; return; }
+
+  const headers = ['Filial','Departamento', ...meses.map(fmtMesComp)];
+  const rows = combos.map(({filial,depto})=>{
+    const linha = meses.map(mes=>{
+      const rec = porMes.find(l=>l.filial===filial && l.depto===depto && l.competencia===mes);
+      return rec && rec.ativos!=null ? rec.ativos : '—';
+    });
+    return [esc(filial), esc(depto), ...linha];
+  });
+  // linha de total por mês
+  const totais = meses.map(mes=> porMes.filter(l=>l.competencia===mes).reduce((s,l)=>s+(l.ativos||0),0));
+  rows.push(['<strong>Total</strong>','', ...totais.map(t=>`<strong>${t}</strong>`)]);
+
+  document.getElementById('tbl-headcount-pivot').innerHTML = tableHTML(headers, rows);
+}
 function renderDashboard(){
   const base = filtroBase(state.lanc);
   const de = state.filterDe, ate = state.filterAte;
@@ -1056,6 +1096,7 @@ function applyFilter(){
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
   renderDashboard();
+  if(document.getElementById('page-headcount').classList.contains('active')) renderHeadcountPivot();
 }
 function setPreset(p){
   let de, ate = monthISO();
