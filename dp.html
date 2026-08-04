@@ -116,6 +116,21 @@
   .status-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;display:inline-block;}
   .status-novo{background:#e5f1db;color:var(--ok);}
   .status-atualizado{background:#fdecd2;color:#996c14;}
+  .cat-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef0e8;}
+  .cat-row:last-child{border-bottom:none;}
+  .cat-row .cat-label{width:150px;flex:none;font-size:12.5px;font-weight:600;color:#2f3d2b;}
+  .cat-row .cat-bar-wrap{flex:1;height:9px;background:#edf0e6;border-radius:5px;overflow:hidden;}
+  .cat-row .cat-bar{display:block;height:100%;border-radius:5px;background:var(--folha);}
+  .cat-row .cat-val{width:110px;flex:none;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:600;}
+  .cat-row .cat-pct{width:52px;flex:none;text-align:right;font-size:11px;color:var(--cinza);}
+  .grupo-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:13px;margin-bottom:8px;}
+  .grupo-card{border:1px solid var(--linha);border-radius:var(--radius);padding:16px;background:var(--branco);}
+  .grupo-card.beneficios{border-color:#c9dba3;background:linear-gradient(180deg,#f4f8ec,#ffffff);}
+  .grupo-card .g-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--cinza);margin-bottom:6px;}
+  .grupo-card .g-val{font-family:'Poppins',sans-serif;font-size:21px;font-weight:700;color:#1d2b1a;}
+  .grupo-card .g-pct{font-size:11.5px;color:var(--folha);font-weight:700;margin-top:2px;}
+  .grupo-card .g-desc{font-size:11px;color:var(--cinza);margin-top:6px;line-height:1.4;}
+  .panel.beneficios{border-color:#c9dba3;}
 
   #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
   #modal-bg.open{display:flex;}
@@ -179,14 +194,24 @@
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
         <div class="panel">
+          <h2>Composição do custo</h2>
+          <div class="desc">Os três grandes grupos — mesma divisão da sua planilha original</div>
+          <div class="grupo-cards" id="grupo-cards"></div>
+        </div>
+        <div class="panel">
           <h2>Histórico mensal</h2>
           <div class="desc">Custo total mês a mês (últimos 12 meses com registro, no filtro atual)</div>
           <div class="table-wrap" id="tbl-historico"></div>
         </div>
+        <div class="panel beneficios">
+          <h2>Benefícios</h2>
+          <div class="desc">Alimentação, plano de saúde, plano odontológico e seguro de vida — o que mais pesa dentro do grupo</div>
+          <div id="beneficios-breakdown"></div>
+        </div>
         <div class="panel">
           <h2>Por categoria</h2>
-          <div class="desc">Como o custo do período se divide entre as categorias</div>
-          <div class="table-wrap" id="tbl-categoria"></div>
+          <div class="desc">Como o custo do período se divide entre todas as categorias</div>
+          <div id="categoria-breakdown"></div>
         </div>
         <div class="panel">
           <h2>Por filial</h2>
@@ -204,7 +229,12 @@
         <h1 class="page-title">Sincronizar planilha</h1>
         <div class="page-desc">Sobe a planilha de custos (mesma estrutura de sempre) e o sistema atualiza sozinho só o que mudou — não precisa digitar nada na mão.</div>
         <div class="panel">
-          <h2>Planilha de custos (.xlsx)</h2>
+          <h2>1 · Baixar o que já está gravado</h2>
+          <div class="desc">Gera uma planilha com tudo que está no banco hoje, no mesmo formato que a sincronização espera. Abre no Excel, acrescenta as linhas do(s) mês(es) novo(s) no final, salva, e sobe de novo abaixo.</div>
+          <div class="btn-row" style="margin-top:0"><button class="btn btn-leaf" onclick="baixarPlanilha()">Baixar planilha atual (.xlsx)</button></div>
+        </div>
+        <div class="panel">
+          <h2>2 · Subir a planilha atualizada (.xlsx)</h2>
           <div class="form-grid">
             <div><label>Arquivo</label><input type="file" id="imp-file" accept=".xlsx" onchange="processarPlanilhaCusto(event)"></div>
           </div>
@@ -272,20 +302,26 @@ const NAV_DEF = [
   {id:'config',      label:'Configurações',    ic:'⚙', roles:['admin']},
 ];
 const CUSTO_CATS = [
-  {key:'folha',              label:'Folha'},
-  {key:'inss',               label:'INSS'},
-  {key:'sesiSenai',          label:'SESI/SENAI'},
-  {key:'fgts',               label:'FGTS'},
-  {key:'alimentacao',        label:'Alimentação'},
-  {key:'notaFiscal',         label:'Nota Fiscal'},
-  {key:'jovemAprendiz',      label:'Jovem Aprendiz'},
-  {key:'planoSaude',         label:'Plano Saúde'},
-  {key:'planoOdontologico',  label:'Plano Odont.'},
-  {key:'seguroVida',         label:'Seguro Vida'},
-  {key:'diariasMedias',      label:'Diárias/Médias'},
-  {key:'premio',             label:'Prêmio'},
-  {key:'multimed',           label:'Multimed'},
-  {key:'horasExtras',        label:'Horas Extras'},
+  {key:'folha',              label:'Folha',              grupo:'folha'},
+  {key:'inss',               label:'INSS',               grupo:'encargos'},
+  {key:'sesiSenai',          label:'SESI/SENAI',         grupo:'encargos'},
+  {key:'fgts',               label:'FGTS',               grupo:'encargos'},
+  {key:'alimentacao',        label:'Alimentação',        grupo:'beneficios'},
+  {key:'notaFiscal',         label:'Nota Fiscal',        grupo:'folha'},
+  {key:'jovemAprendiz',      label:'Jovem Aprendiz',     grupo:'folha'},
+  {key:'planoSaude',         label:'Plano Saúde',        grupo:'beneficios'},
+  {key:'planoOdontologico',  label:'Plano Odont.',       grupo:'beneficios'},
+  {key:'seguroVida',         label:'Seguro Vida',        grupo:'beneficios'},
+  {key:'diariasMedias',      label:'Diárias/Médias',     grupo:'folha'},
+  {key:'premio',             label:'Prêmio',             grupo:'folha'},
+  {key:'multimed',           label:'Multimed',           grupo:'encargos'},
+  {key:'horasExtras',        label:'Horas Extras',       grupo:'folha'},
+];
+// mesma divisão em 3 grupos que a planilha original já usa (folha/encargos somam ao total geral)
+const GRUPOS = [
+  {key:'folha',      label:'Folha e Complementos', desc:'Folha, nota fiscal, jovem aprendiz, diárias/médias, horas extras, prêmio'},
+  {key:'encargos',   label:'Encargos',             desc:'INSS, SESI/SENAI, FGTS, Multimed'},
+  {key:'beneficios', label:'Benefícios',           desc:'Alimentação, plano de saúde, plano odontológico, seguro de vida'},
 ];
 
 let state = { custos:[], filterDe:'', filterAte:'', filterFiliais:new Set(), filterDeptos:new Set() };
@@ -606,6 +642,27 @@ function limparImportacao(){
   document.getElementById('imp-preview').style.display='none';
   document.getElementById('imp-file').value = '';
 }
+async function baixarPlanilha(){
+  if(!state.custos.length){ toast('Ainda não há nada gravado para baixar.', true); return; }
+  try{
+    await carregarSheetJS();
+    const linhas = [...state.custos]
+      .sort((a,b)=> (a.competencia+a.filial+a.depto).localeCompare(b.competencia+b.filial+b.depto))
+      .map(l=>{
+        const [y,m] = (l.competencia||'').split('-').map(Number);
+        // dia 15 (meio do mês) evita qualquer problema de fuso-horário ao reabrir a planilha depois
+        const obj = {'Competência': (y&&m)? new Date(y, m-1, 15) : l.competencia, 'Filial': l.filial, 'Departamento': l.depto};
+        CUSTO_CATS.forEach(c=> obj[c.label] = l[c.key]||0);
+        obj['Total'] = l.total||0;
+        return obj;
+      });
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'DADOS');
+    XLSX.writeFile(wb, `dp_custos_${todayISO()}.xlsx`);
+    toast(`Planilha baixada com ${linhas.length} linha(s) ✓`);
+  }catch(e){ console.error(e); toast('Falha ao gerar a planilha.', true); }
+}
 
 /* ================= ZONA DE RISCO ================= */
 async function apagarTudo(){
@@ -635,7 +692,9 @@ function agregarPeriodo(rows, de, ate){
   const meses = [...new Set(f.map(l=>l.competencia))];
   const porCategoria = {};
   CUSTO_CATS.forEach(c=> porCategoria[c.key] = f.reduce((s,l)=>s+(l[c.key]||0),0));
-  return {total, nMeses:meses.length, porCategoria, linhas:f};
+  const porGrupo = {};
+  GRUPOS.forEach(g=> porGrupo[g.key] = CUSTO_CATS.filter(c=>c.grupo===g.key).reduce((s,c)=>s+(porCategoria[c.key]||0),0));
+  return {total, nMeses:meses.length, porCategoria, porGrupo, linhas:f};
 }
 function renderDashboard(){
   const base = filtroBase(state.custos);
@@ -653,18 +712,44 @@ function renderDashboard(){
     anterior.nMeses? cmpLine(atual.total, anterior.total, false, v=>fmtMoeda(v)) : semAnterior));
   cards.push(kpiCard('Custo médio mensal', fmtMoeda(atual.nMeses? atual.total/atual.nMeses : 0),
     'Custo total ÷ meses no período', ''));
-  const maiorCat = Object.entries(atual.porCategoria).sort((a,b)=>b[1]-a[1])[0];
-  const catLabel = maiorCat ? (CUSTO_CATS.find(c=>c.key===maiorCat[0])?.label||maiorCat[0]) : '—';
-  cards.push(kpiCard('Maior categoria', catLabel,
-    maiorCat? fmtMoeda(maiorCat[1])+' no período' : 'Sem lançamentos', ''));
+  cards.push(kpiCard('Benefícios no período', fmtMoeda(atual.porGrupo.beneficios||0),
+    atual.total? ((atual.porGrupo.beneficios||0)/atual.total*100).toFixed(1)+'% do custo total' : 'Sem lançamentos',
+    anterior.nMeses? cmpLine(atual.porGrupo.beneficios||0, anterior.porGrupo.beneficios||0, false, v=>fmtMoeda(v)) : semAnterior));
   const nLinhas = new Set(atual.linhas.map(l=>l.filial+'||'+l.depto)).size;
   cards.push(kpiCard('Departamentos com custo', nLinhas+'', `${atual.nMeses} mês(es) considerado(s)`, ''));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
+  renderGrupos(atual);
   renderHistorico(base);
-  renderPorCategoria(atual);
+  renderCatBars('beneficios-breakdown', CUSTO_CATS.filter(c=>c.grupo==='beneficios'), atual.porCategoria, atual.porGrupo.beneficios);
+  renderCatBars('categoria-breakdown', CUSTO_CATS, atual.porCategoria, atual.total);
   renderPorFilial();
   renderPorDepto();
+}
+function renderGrupos(atual){
+  document.getElementById('grupo-cards').innerHTML = GRUPOS.map(g=>{
+    const val = atual.porGrupo[g.key]||0;
+    const pct = atual.total? (val/atual.total*100).toFixed(1) : '0.0';
+    return `<div class="grupo-card ${g.key==='beneficios'?'beneficios':''}">
+      <div class="g-label">${esc(g.label)}</div>
+      <div class="g-val">${fmtMoeda(val)}</div>
+      <div class="g-pct">${pct}% do custo total</div>
+      <div class="g-desc">${esc(g.desc)}</div>
+    </div>`;
+  }).join('');
+}
+function renderCatBars(containerId, cats, porCategoria, denom){
+  const rows = cats.map(c=>({label:c.label, val:porCategoria[c.key]||0})).sort((a,b)=>b.val-a.val);
+  const html = rows.map(r=>{
+    const pct = denom? (r.val/denom*100) : 0;
+    return `<div class="cat-row">
+      <div class="cat-label">${esc(r.label)}</div>
+      <div class="cat-bar-wrap"><span class="cat-bar" style="width:${Math.min(100,pct).toFixed(1)}%"></span></div>
+      <div class="cat-val">${fmtMoeda(r.val)}</div>
+      <div class="cat-pct">${pct.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+  document.getElementById(containerId).innerHTML = html || '<div class="empty">Sem dados</div>';
 }
 function renderHistorico(base){
   const meses = [...new Set(base.map(l=>l.competencia))].filter(Boolean).sort().slice(-12).reverse();
@@ -673,12 +758,6 @@ function renderHistorico(base){
     return [ fmtMesComp(m), fmtMoeda(r.total) ];
   });
   document.getElementById('tbl-historico').innerHTML = tableHTML(['Mês','Custo total'], rows);
-}
-function renderPorCategoria(atual){
-  const rows = CUSTO_CATS.map(c=>[c.label, fmtMoeda(atual.porCategoria[c.key]||0),
-    atual.total? ((atual.porCategoria[c.key]||0)/atual.total*100).toFixed(1)+'%' : '0%'])
-    .sort((a,b)=> parseFloat(b[2]) - parseFloat(a[2]));
-  document.getElementById('tbl-categoria').innerHTML = tableHTML(['Categoria','Valor','% do total'], rows);
 }
 function renderPorFilial(){
   const base = state.custos.filter(l=>!state.filterDeptos.size || state.filterDeptos.has(l.depto));
@@ -764,7 +843,7 @@ function montarAtalhos(){
 /* ================= INIT ================= */
 Object.assign(window, {
   logout, showPage,
-  processarPlanilhaCusto, gravarImportacao, limparImportacao,
+  processarPlanilhaCusto, gravarImportacao, limparImportacao, baixarPlanilha,
   apagarTudo,
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
