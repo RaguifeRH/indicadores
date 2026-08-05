@@ -343,6 +343,43 @@
         <div class="btn-row"><button class="btn btn-primary" id="u-btn" onclick="criarUsuario()">Cadastrar</button></div>
       </div>
 
+      <div class="panel" style="border-color:#ecd3cf">
+        <h2 style="color:var(--erro)">Reparar login sem perfil</h2>
+        <div class="desc">Use quando alguém já tem conta de login (Authentication) mas não aparece na lista de pessoas — cola o UID exato de lá e preenche o resto igual ao cadastro normal. Não cria uma senha nova, só liga o perfil ao login que já existe.</div>
+        <div class="form-grid">
+          <div><label>UID (copiado do Authentication → Users)</label><input type="text" id="r-uid" placeholder="ex: rZZLGP8GDYfrpw4aTRYxp4f05e53"></div>
+          <div><label>Nome completo</label><input type="text" id="r-nome"></div>
+          <div><label>Setor</label><input type="text" id="r-setor"></div>
+          <div><label>E-mail (o mesmo do login)</label><input type="email" id="r-email"></div>
+        </div>
+
+        <label style="margin-top:16px;display:block">Painéis liberados</label>
+        <div class="permgrid" id="r-perms"></div>
+
+        <label class="permchk" id="r-admin-wrap" style="margin-top:12px;max-width:440px">
+          <input type="checkbox" id="r-admin" onchange="onToggleAdminRepair()">
+          <span><b>Administrador</b><span>Vê os dois painéis, cadastra pessoas e edita metas</span></span>
+        </label>
+
+        <div id="r-check-wrap" style="display:none;margin-top:16px;border-top:1px dashed var(--linha);padding-top:16px">
+          <div class="form-grid">
+            <div><label>Checklists que responde (Facilities)</label>
+              <select id="r-check">
+                <option value="">Nenhum — só visualiza</option>
+                <option value="adm">Administrativa</option>
+                <option value="hig">Higiênica</option>
+                <option value="ambos">Ambas</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:11px"><label>Setores ADM que avalia (vírgula)</label><input type="text" id="r-areas-adm" placeholder="ex: RH, Financeiro"></div>
+          <div style="margin-top:11px"><label>Áreas higiênicas que avalia (vírgula)</label><input type="text" id="r-areas-hig" placeholder="ex: Vestiário, Copa"></div>
+          <div class="note">Em branco = todas as áreas liberadas.</div>
+        </div>
+
+        <div class="btn-row"><button class="btn btn-danger" id="r-btn" onclick="repararLogin()">Reparar</button></div>
+      </div>
+
       <div class="panel">
         <h2>Pessoas cadastradas</h2>
         <div class="table-wrap" id="tbl-usuarios"></div>
@@ -550,6 +587,53 @@ function renderPerms(){
   document.getElementById('u-perms').innerHTML = PAINEIS.map(p=>`
     <label class="permchk"><input type="checkbox" value="${p.id}" onchange="onPerm()">
       <span><b>${p.ic} ${p.label}</b><span>${p.desc}</span></span></label>`).join('');
+  document.getElementById('r-perms').innerHTML = PAINEIS.map(p=>`
+    <label class="permchk"><input type="checkbox" value="${p.id}" onchange="onPermRepair()">
+      <span><b>${p.ic} ${p.label}</b><span>${p.desc}</span></span></label>`).join('');
+}
+function onPermRepair(){
+  document.querySelectorAll('#r-perms .permchk').forEach(l=>l.classList.toggle('on', l.querySelector('input').checked));
+  const fac = document.querySelector('#r-perms input[value=facilities]');
+  document.getElementById('r-check-wrap').style.display = (fac && fac.checked)? 'block':'none';
+}
+function onToggleAdminRepair(){
+  const a = document.getElementById('r-admin').checked;
+  document.getElementById('r-admin-wrap').classList.toggle('on', a);
+  document.querySelectorAll('#r-perms input').forEach(c=>{ if(a) c.checked=true; c.disabled=a; });
+  onPermRepair();
+}
+async function repararLogin(){
+  const uid = document.getElementById('r-uid').value.trim();
+  const nome = document.getElementById('r-nome').value.trim();
+  const email = document.getElementById('r-email').value.trim();
+  if(!uid || nome.length<2){ toast('Informe o UID (copiado do Authentication) e o nome.', true); return; }
+  if(!/^[a-zA-Z0-9]{20,32}$/.test(uid)){ toast('Esse UID não parece certo — confira se copiou o texto completo, sem espaços.', true); return; }
+  const isAdm = document.getElementById('r-admin').checked;
+  const modulos = {};
+  document.querySelectorAll('#r-perms input').forEach(c=>{ modulos[c.value] = isAdm? true : c.checked; });
+  if(!isAdm && !Object.values(modulos).some(Boolean)){ toast('Marque ao menos um painel.', true); return; }
+  const btn = document.getElementById('r-btn'); btn.disabled=true;
+  try{
+    const existente = await getDoc(doc(db,'nrh_usuarios',uid));
+    if(existente.exists()){
+      const ok = confirm('Já existe um perfil com esse UID. Sobrescrever os dados dele?');
+      if(!ok){ btn.disabled=false; return; }
+    }
+    await setDoc(doc(db,'nrh_usuarios',uid), {
+      nome, email, setor: document.getElementById('r-setor').value.trim(),
+      admin:isAdm, ativo:true, modulos,
+      check:    modulos.facilities? document.getElementById('r-check').value : '',
+      areasAdm: modulos.facilities? parseAreas(document.getElementById('r-areas-adm').value) : [],
+      areasHig: modulos.facilities? parseAreas(document.getElementById('r-areas-hig').value) : [],
+      criadoEm: todayISO(),
+    });
+    ['r-uid','r-nome','r-setor','r-email','r-areas-adm','r-areas-hig'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('r-admin').checked=false;
+    document.querySelectorAll('#r-perms input').forEach(c=>{ c.checked=false; c.disabled=false; });
+    onPermRepair();
+    toast('Perfil religado ao login ✓');
+  }catch(e){ toast(authErrPT(e), true); }
+  btn.disabled=false;
 }
 function onPerm(){
   document.querySelectorAll('#u-perms .permchk').forEach(l=>l.classList.toggle('on', l.querySelector('input').checked));
@@ -574,11 +658,14 @@ async function criarUsuario(){
   document.querySelectorAll('#u-perms input').forEach(c=>{ modulos[c.value] = isAdm? true : c.checked; });
   if(!isAdm && !Object.values(modulos).some(Boolean)){ toast('Marque ao menos um painel.', true); return; }
   const btn = document.getElementById('u-btn'); btn.disabled=true;
+  let cred = null, secAuth = null;
   try{
     // app secundário: cria a conta sem derrubar a sessão do administrador
     const secApp = initializeApp(firebaseConfig, 'sec-'+Date.now());
-    const secAuth = getAuth(secApp);
-    const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+    secAuth = getAuth(secApp);
+    cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+  }catch(e){ toast(authErrPT(e), true); btn.disabled=false; return; }
+  try{
     await setDoc(doc(db,'nrh_usuarios',cred.user.uid), {
       nome, email, setor: document.getElementById('u-setor').value.trim(),
       admin:isAdm, ativo:true, modulos,
@@ -593,7 +680,12 @@ async function criarUsuario(){
     document.querySelectorAll('#u-perms input').forEach(c=>{ c.checked=false; c.disabled=false; });
     onPerm();
     toast('Pessoa cadastrada ✓ — entregue a senha inicial a ela');
-  }catch(e){ toast(authErrPT(e), true); }
+  }catch(e){
+    // login foi criado, mas o perfil não salvou — não é pra tentar de novo (o e-mail já existe),
+    // e sim usar o painel "Reparar login sem perfil" com o UID abaixo.
+    alert('O login foi criado, mas o perfil não foi salvo (provavelmente cota do Firebase).\n\nUID: '+cred.user.uid+'\n\nUse o painel "Reparar login sem perfil" logo abaixo, colando esse UID, para concluir o cadastro sem precisar criar a senha de novo.');
+    toast('Login criado, mas perfil falhou — veja o UID no alerta.', true);
+  }
   btn.disabled=false;
 }
 
@@ -826,6 +918,7 @@ checkBootstrap();
 Object.assign(window, {
   doLogin, esqueciSenha, criarAdminInicial, logout,
   criarUsuario, onPerm, onToggleAdmin, modalEditar, salvarEdicao,
+  repararLogin, onPermRepair, onToggleAdminRepair,
   verificarImport, executarImport,
   toggleAtivo, removerUsuario, resetSenhaUsuario,
   openModal, closeModal, confirmModal, _runConfirm, openModalSenha, salvarNovaSenha,
