@@ -1365,6 +1365,16 @@ function statusColab(u, tipo){
   const count = areas.filter(a=>feitas.includes(a.trim().toLowerCase())).length;
   return {done: count>=areas.length, label: count+'/'+areas.length+' áreas', total:areas.length, count};
 }
+function copiarLinkFill(uid, tipo){
+  const cfg = state.emailCfg||{};
+  const base = cfg.linkApp || (location.origin+location.pathname);
+  const sep = base.includes('?') ? '&' : '?';
+  const link = base + sep + 'fill=' + encodeURIComponent(uid) + '&tipo=' + tipo;
+  navigator.clipboard.writeText(link).then(
+    ()=> toast('Link copiado ✓ — cole numa aba anônima pra testar'),
+    ()=> prompt('Copie o link abaixo:', link)
+  );
+}
 function renderWeekStatus(){
   const colabs = state.users.filter(u=>!u.admin && u.modulos && u.modulos.facilities && u.check);
   if(!colabs.length){ document.getElementById('week-status').innerHTML='<div class="empty">Ninguém com checklist atribuído — defina em <b>Acesso › Pessoas</b></div>'; return; }
@@ -1375,10 +1385,11 @@ function renderWeekStatus(){
       if(!t) return;
       const st = statusColab(u, t);
       rows.push([esc(u.nome), t==='adm'?'Administrativa':'Higiênica', esc(u.setor||'—'),
-        st.done? '<span class="pill p-ok">'+st.label+'</span>' : '<span class="pill '+(st.count>0?'p-warn':'p-bad')+'">'+st.label+'</span>']);
+        st.done? '<span class="pill p-ok">'+st.label+'</span>' : '<span class="pill '+(st.count>0?'p-warn':'p-bad')+'">'+st.label+'</span>',
+        '<button class="btn btn-ghost btn-mini" onclick="copiarLinkFill(\''+u.id+'\',\''+t+'\')">Copiar link</button>']);
     });
   });
-  let html = tableHTML(['Colaborador','Checklist','Setor','Status'], rows);
+  let html = tableHTML(['Colaborador','Checklist','Setor','Status',''], rows);
   const pend = pendentesSemana().filter(p=>p.email);
   if(pend.length){
     const emails = [...new Set(pend.map(p=>p.email))].join(';');
@@ -1743,7 +1754,7 @@ Object.assign(window, {
   salvarConfig, salvarEmailCfg, enviarCobrancas, salvarHorarios,
   renderFillForm, submitFill,
   applyFilter, setPreset, copyTabletLink, enviarSatisfacao,
-  renderHistorico, gerarPDF,
+  renderHistorico, gerarPDF, copiarLinkFill,
   openModal, closeModal, confirmModal, _runConfirm, openModalSenha, salvarNovaSenha,
 });
 init();
