@@ -650,12 +650,20 @@ async function repararLogin(){
 /* ================= DIAGNÓSTICO EM MASSA ================= */
 function diagnosticar(){
   const raw = document.getElementById('diag-paste').value;
-  const emailsList = raw.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-  const uidsList = raw.match(/\b[a-zA-Z0-9]{20,32}\b/g) || [];
-  if(!emailsList.length){ toast('Não encontrei nenhum e-mail no texto colado — confira se copiou a tabela certa.', true); return; }
-  const avisoContagem = emailsList.length !== uidsList.length
-    ? `<div class="note" style="background:#f7e3df;color:var(--erro)">Encontrei ${emailsList.length} e-mail(s) mas ${uidsList.length} UID(s) — a lista pode ter vindo desalinhada. Confira o resultado com atenção antes de corrigir.</div>` : '';
-  const pares = emailsList.map((email,i)=>({email, uid: uidsList[i]||null}));
+  // pareia e-mail + UID DENTRO da mesma linha (o UID é sempre o último token de 20-32
+  // caracteres na linha, já que "UID do usuário" é a última coluna da tabela do Firebase) —
+  // evita qualquer risco de desalinhamento entre listas separadas.
+  const pares = [];
+  raw.split(/\n+/).forEach(linha=>{
+    const email = (linha.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)||[])[0];
+    if(!email) return;
+    const uidsNaLinha = linha.match(/\b[a-zA-Z0-9]{20,32}\b/g) || [];
+    pares.push({email, uid: uidsNaLinha.length ? uidsNaLinha[uidsNaLinha.length-1] : null});
+  });
+  if(!pares.length){ toast('Não encontrei nenhum e-mail no texto colado — confira se copiou a tabela certa.', true); return; }
+  const semUid = pares.filter(p=>!p.uid).length;
+  const avisoContagem = semUid
+    ? `<div class="note" style="background:#f7e3df;color:var(--erro)">${semUid} linha(s) com e-mail mas sem UID identificado — confira essas manualmente.</div>` : '';
 
   const linhas = pares.map(({email,uid})=>{
     const perfil = users.find(u=>(u.email||'').toLowerCase().trim()===email.toLowerCase().trim());
