@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Raguife — Dashboard Consolidado</title>
+<meta name="theme-color" content="#024f2b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde:#024f2b; --verde-escuro:#013a20; --folha:#739630; --folha-suave:#e9f0dc;
+    --cinza:#666666; --bg:#f4f6f1; --branco:#ffffff; --linha:#e2e6dc;
+    --amber:#d99a2b; --erro:#c0392b; --ok:#3d7a26; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:#22301f;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;}
+  h1,h2,h3{font-family:'Poppins',sans-serif;margin:0;}
+  button{font-family:inherit;}
+  a{color:var(--verde);}
+
+  #app{display:none;}
+  .topbar{background:var(--verde);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 20px;}
+  .topbar .brandline{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+  .topbar .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:20px;letter-spacing:-0.02em;}
+  .topbar .app-sub{font-size:11px;color:#a9c98f;display:block;margin-top:-3px;}
+  .userchip{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+  .userchip .uname{font-weight:600;}
+  .userchip .urole{color:#a9c98f;font-size:11px;display:block;}
+  .btn-top{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn-top:hover{background:rgba(255,255,255,.22);}
+
+  main{max-width:900px;margin:0 auto;padding:26px 20px 80px;}
+  .page-title{font-size:22px;color:var(--verde);margin-bottom:2px;}
+  .page-desc{color:var(--cinza);font-size:13px;margin-bottom:20px;}
+  .panel{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
+  .panel h2{font-size:16px;color:var(--verde);margin-bottom:3px;}
+  .panel .desc{color:var(--cinza);font-size:12.5px;margin-bottom:16px;}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;}
+  label{display:block;font-size:12px;font-weight:600;color:#40503b;margin-bottom:5px;}
+  input,select{width:100%;padding:10px 11px;border:1px solid var(--linha);border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;background:#fbfcf9;color:#22301f;}
+  input:focus,select:focus{outline:2px solid var(--folha);outline-offset:1px;border-color:var(--folha);}
+  .btn{font-family:'Poppins',sans-serif;font-weight:600;font-size:13.5px;border:none;border-radius:10px;padding:11px 20px;cursor:pointer;transition:transform .1s;}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.6;cursor:wait;}
+  .btn-primary{background:var(--verde);color:#fff;}
+  .btn-primary:hover{background:var(--verde-escuro);}
+  .btn-leaf{background:var(--folha);color:#fff;}
+  .btn-leaf:hover{background:#647f2b;}
+  .btn-ghost{background:transparent;color:var(--verde);border:1px solid var(--linha);}
+  .btn-ghost:hover{background:var(--folha-suave);}
+  .btn-row{margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
+  .checklist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .chk-pill{font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;background:#eef0ea;color:var(--cinza);}
+  .chk-pill.ok{background:#e5f1db;color:var(--ok);}
+  #preview-wrap{display:none;}
+  #preview-frame{width:100%;height:1400px;border:1px solid var(--linha);border-radius:var(--radius);background:#fff;}
+
+  #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
+  #modal-bg.open{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;}
+  .modal h3{font-size:17px;color:var(--verde);margin-bottom:14px;}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--verde);color:#fff;padding:12px 22px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:90;opacity:0;transition:all .3s ease;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:90vw;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.err{background:var(--erro);}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brandline">
+      <div id="logo-small"></div>
+      <div>
+        <span class="wordmark">raguife</span>
+        <span class="app-sub">Dashboard Consolidado</span>
+      </div>
+    </div>
+    <div class="userchip">
+      <div style="text-align:right">
+        <span class="uname" id="chip-nome"></span>
+        <span class="urole" id="chip-role"></span>
+      </div>
+      <button class="btn-top" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <main>
+    <h1 class="page-title">Relatório consolidado</h1>
+    <div class="page-desc">Junta os números de RH, Ambulatório e Departamento Pessoal num único HTML — dá pra baixar e mandar por e-mail, sem precisar de login pra abrir.</div>
+
+    <div class="panel">
+      <h2>1 · Período</h2>
+      <div class="form-grid">
+        <div><label>De (mês)</label><input type="month" id="rp-de"></div>
+        <div><label>Até (mês)</label><input type="month" id="rp-ate"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="gerarRelatorio()" id="btn-gerar">Gerar relatório</button>
+      </div>
+      <div class="checklist" id="fontes-checklist"></div>
+      <div class="note">Lê direto do banco no momento em que você clica em gerar — é uma fotografia do período, não fica atualizando sozinho depois.</div>
+    </div>
+
+    <div class="panel" id="preview-wrap">
+      <h2>2 · Conferir e baixar</h2>
+      <div class="desc" id="preview-resumo"></div>
+      <div class="btn-row" style="margin-top:0;margin-bottom:14px">
+        <button class="btn btn-leaf" onclick="baixarRelatorio()">Baixar HTML</button>
+      </div>
+      <iframe id="preview-frame"></iframe>
+    </div>
+  </main>
+</div>
+
+<div id="modal-bg"><div class="modal" id="modal-box"></div></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
+  authDomain: "controlepix-cc524.firebaseapp.com",
+  projectId: "controlepix-cc524",
+  storageBucket: "controlepix-cc524.firebasestorage.app",
+  messagingSenderId: "949223824940",
+  appId: "1:949223824940:web:d56a9e04901aff35273b89"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+const ROLES = {admin:'Administrador', operador:'Operador'};
+let currentUser = null;
+let ultimoHTML = null;
+
+/* ================= HELPERS (mesmas fórmulas dos outros módulos) ================= */
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function monthISO(){ return todayISO().slice(0,7); }
+function fmtMesComp(c){ if(!c) return '—'; const [y,m]=String(c).split('-'); const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return (nomes[parseInt(m,10)-1]||m)+'/'+y; }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
+function addMonths(m, n){ let [y,mo]=m.split('-').map(Number); mo+=n; while(mo>12){mo-=12;y++;} while(mo<1){mo+=12;y--;} return y+'-'+String(mo).padStart(2,'0'); }
+function monthsBetween(de, ate){ let n=0,m=de; while(m<=ate && n<600){ n++; m=addMonths(m,1);} return n; }
+function prevRangeMes(de, ate){
+  const n = monthsBetween(de, ate);
+  const novoAte = addMonths(de, -1);
+  const novoDe = addMonths(novoAte, -(n-1));
+  return {de:novoDe, ate:novoAte};
+}
+function inRangeMes(dataISO, de, ate){ if(!dataISO) return false; const m=dataISO.slice(0,7); return m>=de && m<=ate; }
+function fimDoMes(m){ const [y,mo]=m.split('-').map(Number); const d=new Date(y,mo,0); return m+'-'+String(d.getDate()).padStart(2,'0'); }
+function businessDays(deISO, ateISO){
+  if(!deISO || !ateISO) return 0;
+  let n=0; const d=new Date(deISO+'T00:00:00'); const end=new Date(ateISO+'T00:00:00');
+  while(d<=end){ const wd=d.getDay(); if(wd!==0 && wd!==6) n++; d.setDate(d.getDate()+1); }
+  return n;
+}
+// selo de comparação estático (pronto pro HTML exportado, sem depender de JS depois de baixado)
+function cmpBadge(curr, prev, higherIsBetter, fmt){
+  if(prev==null || curr==null) return '<span class="cmp cmp-flat">— sem período anterior</span>';
+  const diff = curr - prev;
+  if(Math.abs(diff) < 1e-9) return `<span class="cmp cmp-flat">＝ estável (${fmt(prev)})</span>`;
+  const up = diff>0, good = higherIsBetter? up : !up;
+  const cls = good? 'cmp-up':'cmp-down';
+  const arrow = up? '▲':'▼';
+  return `<span class="cmp ${cls}">${arrow} ${fmt(Math.abs(diff))} vs. anterior (${fmt(prev)})</span>`;
+}
+// trata período sem nenhum registro como "sem dado" (não como zero) na comparação
+function pv(agg, field){ return agg && agg.nMeses ? agg[field] : null; }
+function logoSVG(size){
+  return `<svg width="${size}" height="${size*0.78}" viewBox="0 0 100 78" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#8CB43E" stroke-width="7"/>
+    <circle cx="30" cy="27" r="6.5" fill="#8CB43E"/><circle cx="50" cy="23" r="6.5" fill="#8CB43E"/><circle cx="70" cy="27" r="6.5" fill="#8CB43E"/>
+    <path d="M27 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+    <path d="M50 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+  </svg>`;
+}
+function toast(msg, isErr){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+/* ================= ACESSO ================= */
+async function logout(){ await signOut(auth); location.replace('index.html'); }
+onAuthStateChanged(auth, async (user)=>{
+  if(!user || user.isAnonymous){ location.replace('index.html'); return; }
+  try{
+    const prof = await getDoc(doc(db,'nrh_usuarios',user.uid));
+    if(!prof.exists()){ await signOut(auth); location.replace('index.html'); return; }
+    const d = prof.data();
+    if(d.ativo === false){ await signOut(auth); location.replace('index.html?erro=inativo'); return; }
+    if(!d.admin && !(d.modulos && d.modulos.dashboard)){ location.replace('index.html?erro=semacesso'); return; }
+    currentUser = {uid:user.uid, ...d, role: d.admin?'admin':'operador'};
+    document.getElementById('app').style.display='block';
+    document.getElementById('logo-small').innerHTML = logoSVG(34);
+    document.getElementById('chip-nome').textContent = currentUser.nome;
+    document.getElementById('chip-role').textContent = ROLES[currentUser.role] + (currentUser.setor? ' · '+currentUser.setor : '');
+    montarAtalhos();
+    document.getElementById('rp-de').value = monthISO();
+    document.getElementById('rp-ate').value = monthISO();
+  }catch(e){
+    document.body.innerHTML = '<div style="padding:40px;font-family:Inter,sans-serif">Erro ao carregar seu perfil. <a href="index.html">Voltar ao início</a></div>';
+  }
+});
+function montarAtalhos(){
+  const chip = document.querySelector('.topbar .userchip');
+  if(!chip || document.getElementById('btn-inicio')) return;
+  const podeFac = currentUser.admin || (currentUser.modulos && currentUser.modulos.facilities);
+  const podeAmb = currentUser.admin || (currentUser.modulos && currentUser.modulos.ambulatorio);
+  const podeRH  = currentUser.admin || (currentUser.modulos && currentUser.modulos.rh);
+  const podeDP  = currentUser.admin || (currentUser.modulos && currentUser.modulos.dp);
+  const html = `<button class="btn-top" id="btn-inicio" onclick="location.href='index.html'">Início</button>` +
+    (podeAmb ? `<button class="btn-top" onclick="location.href='ambulatorio.html'">⚕ Ambulatório</button>` : '') +
+    (podeRH  ? `<button class="btn-top" onclick="location.href='rh.html'">👥 RH</button>` : '') +
+    (podeDP  ? `<button class="btn-top" onclick="location.href='dp.html'">💰 DP</button>` : '') +
+    (podeFac ? `<button class="btn-top" onclick="location.href='facilities.html'">🍽 Facilities</button>` : '');
+  chip.insertAdjacentHTML('afterbegin', html);
+}
+
+/* ================= CONSTANTES DE CÁLCULO (mesmas dos módulos de origem) ================= */
+const SAT_MEDICO = [{k:'q1'},{k:'q2'},{k:'q3'},{k:'q4'},{k:'q5'}];
+const SAT_AMB = [{k:'q1'},{k:'q2'},{k:'q3'},{k:'q4'},{k:'q5'}];
+function mediaSat(rows, def){
+  if(!rows.length) return 0; let sum=0,n=0;
+  rows.forEach(r=>def.forEach(q=>{ if(r[q.k]!=null){ sum+=r[q.k]; n++; } }));
+  return n? sum/n : 0;
+}
+const CUSTO_CATS = [
+  {key:'folha',grupo:'folha'},{key:'inss',grupo:'encargos'},{key:'sesiSenai',grupo:'encargos'},{key:'fgts',grupo:'encargos'},
+  {key:'alimentacao',grupo:'beneficios'},{key:'notaFiscal',grupo:'folha'},{key:'jovemAprendiz',grupo:'folha'},
+  {key:'planoSaude',grupo:'beneficios'},{key:'planoOdontologico',grupo:'beneficios'},{key:'seguroVida',grupo:'beneficios'},
+  {key:'diariasMedias',grupo:'folha'},{key:'premio',grupo:'folha'},{key:'multimed',grupo:'encargos'},
+];
+const GRUPOS = [
+  {key:'folha', label:'Folha e Complementos'}, {key:'encargos', label:'Encargos e Obrigações'}, {key:'beneficios', label:'Benefícios'},
+];
+
+/* ================= BUSCA OS DADOS ================= */
+async function fetchColecao(nome){
+  try{ const snap = await getDocs(collection(db,nome)); return snap.docs.map(d=>({id:d.id, ...d.data()})); }
+  catch(e){ console.error(nome, e); return null; } // null = sem permissão / módulo não liberado
+}
+async function fetchConfig(nome, def){
+  try{ const s = await getDoc(doc(db,'config',nome)); return s.exists()? {...def, ...s.data()} : {...def}; }
+  catch(e){ return {...def}; }
+}
+
+/* ================= AGREGAÇÕES: RH ================= */
+function agregarRH(rows, de, ate){
+  const f = rows.filter(l=>l.competencia>=de && l.competencia<=ate);
+  const meses = [...new Set(f.map(l=>l.competencia))];
+  const ultimoMes = meses.sort().slice(-1)[0];
+  const headcount = ultimoMes? f.filter(l=>l.competencia===ultimoMes).reduce((s,l)=>s+(l.ativos||0),0) : 0;
+  const admitidos = f.reduce((s,l)=>s+(l.admitidos||0),0);
+  const demitidos = f.reduce((s,l)=>s+(l.demitidos||0),0);
+  const somaMovs = f.reduce((s,l)=>s+((l.admitidos||0)+(l.demitidos||0))/2,0);
+  const somaAtivosPorMes = meses.map(m=> f.filter(l=>l.competencia===m).reduce((s,l)=>s+(l.ativos||0),0));
+  const mediaAtivos = somaAtivosPorMes.length? somaAtivosPorMes.reduce((a,b)=>a+b,0)/somaAtivosPorMes.length : 0;
+  const turnover = mediaAtivos? (somaMovs/mediaAtivos*100) : null;
+  const somaAtivosLinhas = f.reduce((s,l)=>s+(l.ativos||0),0);
+  const pond = key => f.reduce((s,l)=>s+((l[key]||0)*(l.ativos||0)),0);
+  const absCom = somaAtivosLinhas? pond('absenteismoComAbono')/somaAtivosLinhas : null;
+  const absSem = somaAtivosLinhas? pond('absenteismoSemAbono')/somaAtivosLinhas : null;
+  const absMed = somaAtivosLinhas? pond('absenteismoMedico')/somaAtivosLinhas : null;
+  const faltas = f.length? f.reduce((s,l)=>s+(l.faltasQtd||0),0) : null;
+  return {headcount, admitidos, demitidos, turnover, absCom, absSem, absMed, faltas, nMeses:meses.length};
+}
+
+/* ================= AGREGAÇÕES: DP ================= */
+function agregarDP(rows, de, ate){
+  const f = rows.filter(l=>l.competencia>=de && l.competencia<=ate);
+  const total = f.reduce((s,l)=>s+(l.total||0),0);
+  const porGrupo = {};
+  GRUPOS.forEach(g=> porGrupo[g.key] = CUSTO_CATS.filter(c=>c.grupo===g.key).reduce((s,c)=>s+f.reduce((s2,l)=>s2+(l[c.key]||0),0),0));
+  const horasExtras = f.reduce((s,l)=>s+(l.horasExtras||0),0);
+  const ocorrencias = f.reduce((s,l)=>s+(l.ocorrenciasPonto||0),0);
+  const nMeses = new Set(f.map(l=>l.competencia)).size;
+  return {total, porGrupo, horasExtras, ocorrencias, nMeses, linhas:f};
+}
+
+/* ================= GERAR RELATÓRIO ================= */
+async function gerarRelatorio(){
+  const de = document.getElementById('rp-de').value, ate = document.getElementById('rp-ate').value;
+  if(!de || !ate || de>ate){ toast('Escolha um período válido.', true); return; }
+  const btn = document.getElementById('btn-gerar');
+  btn.disabled = true; btn.textContent = 'Gerando...';
+  document.getElementById('fontes-checklist').innerHTML = '';
+  try{
+    const [rh, absAmb, exAmb, dspAmb, satMedAmb, satAmbAmb, custosDP, fatDP, cfgRH, cfgAmb, cfgDP] = await Promise.all([
+      fetchColecao('rh_lancamentos'), fetchColecao('amb_absenteismo'), fetchColecao('amb_exames'), fetchColecao('amb_dsp'),
+      fetchColecao('amb_sat_medico'), fetchColecao('amb_sat_amb'), fetchColecao('dp_custos'), fetchColecao('dp_faturamento'),
+      fetchConfig('rh_metas', {metaTurnover:5, metaAbsenteismo:3}),
+      fetchConfig('amb_metas', {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, efetivo:0}),
+      fetchConfig('dp_metas', {metaFolhaFaturamento:20}),
+    ]);
+
+    const fontes = [
+      {label:'RH', ok: rh!==null}, {label:'Ambulatório', ok: absAmb!==null},
+      {label:'Departamento Pessoal', ok: custosDP!==null},
+    ];
+    document.getElementById('fontes-checklist').innerHTML = fontes.map(f=>
+      `<span class="chk-pill ${f.ok?'ok':''}">${f.ok?'✓':'✗'} ${f.label}${f.ok?'':' — sem acesso'}</span>`).join('');
+
+    const pr = prevRangeMes(de, ate);
+    const html = montarRelatorioHTML({
+      de, ate, pr,
+      rh: rh||[], absAmb: absAmb||[], exAmb: exAmb||[], dspAmb: dspAmb||[], satMedAmb: satMedAmb||[], satAmbAmb: satAmbAmb||[],
+      custosDP: custosDP||[], fatDP: fatDP||[], cfgRH, cfgAmb, cfgDP,
+    });
+    ultimoHTML = html;
+    document.getElementById('preview-frame').srcdoc = html;
+    document.getElementById('preview-resumo').textContent = `${fmtMesComp(de)} a ${fmtMesComp(ate)} · gerado agora`;
+    document.getElementById('preview-wrap').style.display = 'block';
+    toast('Relatório gerado ✓');
+  }catch(e){ console.error(e); toast('Falha ao gerar: '+(e.message||e), true); }
+  finally{ btn.disabled=false; btn.textContent='Gerar relatório'; }
+}
+function baixarRelatorio(){
+  if(!ultimoHTML) return;
+  const blob = new Blob([ultimoHTML], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `relatorio-raguife_${document.getElementById('rp-de').value}_a_${document.getElementById('rp-ate').value}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ================= MONTA O HTML EXPORTÁVEL ================= */
+function montarRelatorioHTML(d){
+  const {de, ate, pr} = d;
+
+  // ---- RH ----
+  const rhAtual = agregarRH(d.rh, de, ate);
+  const rhAnterior = agregarRH(d.rh, pr.de, pr.ate);
+  const filiaisRH = [...new Set(d.rh.map(l=>l.filial).filter(Boolean))].sort();
+  const rhPorFilial = filiaisRH.map(f=>({filial:f, ...agregarRH(d.rh.filter(l=>l.filial===f), de, ate)}));
+
+  // ---- Ambulatório ----
+  const absF = d.absAmb.filter(a=>inRangeMes(a.inicio, de, ate));
+  const absP = d.absAmb.filter(a=>inRangeMes(a.inicio, pr.de, pr.ate));
+  const diasPerdidos = absF.reduce((s,a)=>s+(a.dias||0),0);
+  const diasPerdidosP = absP.reduce((s,a)=>s+(a.dias||0),0);
+  const efetivo = d.cfgAmb.efetivo||0;
+  const taxaAbsAtual = efetivo? (diasPerdidos/(efetivo*businessDays(de, fimDoMes(ate)))*100) : null;
+  const taxaAbsAnterior = efetivo? (diasPerdidosP/(efetivo*businessDays(pr.de, fimDoMes(pr.ate)))*100) : null;
+  const exF = d.exAmb.filter(e=>inRangeMes(e.prevista, de, ate));
+  const noPrazo = exF.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const pctExames = exF.length? (noPrazo/exF.length*100) : null;
+  const exP = d.exAmb.filter(e=>inRangeMes(e.prevista, pr.de, pr.ate));
+  const noPrazoP = exP.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const pctExamesP = exP.length? (noPrazoP/exP.length*100) : null;
+  const dspF = d.dspAmb.filter(x=>inRangeMes(x.data, de, ate));
+  const dspP = d.dspAmb.filter(x=>inRangeMes(x.data, pr.de, pr.ate));
+  const dspPart = dspF.reduce((s,x)=>s+(x.participantes||0),0);
+  const satMed = mediaSat(d.satMedAmb.filter(s=>inRangeMes(s.data, de, ate)), SAT_MEDICO);
+  const satMedP = mediaSat(d.satMedAmb.filter(s=>inRangeMes(s.data, pr.de, pr.ate)), SAT_MEDICO);
+  const satAmbV = mediaSat(d.satAmbAmb.filter(s=>inRangeMes(s.data, de, ate)), SAT_AMB);
+  const satAmbP = mediaSat(d.satAmbAmb.filter(s=>inRangeMes(s.data, pr.de, pr.ate)), SAT_AMB);
+  const setoresAmb = [...new Set(absF.map(a=>a.setor).filter(Boolean))].sort();
+  const absPorSetor = setoresAmb.map(s=>({setor:s, dias: absF.filter(a=>a.setor===s).reduce((s2,a)=>s2+(a.dias||0),0), n: absF.filter(a=>a.setor===s).length}));
+  const deptosDsp = [...new Set(dspF.map(x=>(x.depto||'').trim()).filter(Boolean))].sort();
+  const dspPorDepto = deptosDsp.map(dp=>({depto:dp, n: dspF.filter(x=>(x.depto||'').trim()===dp).length, part: dspF.filter(x=>(x.depto||'').trim()===dp).reduce((s,x)=>s+(x.participantes||0),0)}));
+
+  // ---- DP ----
+  const dpAtual = agregarDP(d.custosDP, de, ate);
+  const dpAnterior = agregarDP(d.custosDP, pr.de, pr.ate);
+  const fatAtual = d.fatDP.filter(f=>f.competencia>=de && f.competencia<=ate).reduce((s,f)=>s+(f.valor||0),0);
+  const fatAnterior = d.fatDP.filter(f=>f.competencia>=pr.de && f.competencia<=pr.ate).reduce((s,f)=>s+(f.valor||0),0);
+  const razaoAtual = fatAtual? (dpAtual.total/fatAtual*100) : null;
+  const razaoAnterior = fatAnterior? (dpAnterior.total/fatAnterior*100) : null;
+  const filiaisDP = [...new Set(d.custosDP.map(l=>l.filial).filter(Boolean))].sort();
+  const dpPorFilial = filiaisDP.map(f=>({filial:f, ...agregarDP(d.custosDP.filter(l=>l.filial===f), de, ate)}));
+
+  const kpi = (titulo, valor, meta, cmp) => `
+    <div class="kpi"><div class="k-t">${esc(titulo)}</div><div class="k-v">${valor}</div><div class="k-m">${esc(meta||'')}</div>${cmp||''}</div>`;
+  const tbl = (headers, rows) => rows.length
+    ? `<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    : '<div class="vazio">Sem registros no período</div>';
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Relatório Raguife — ${fmtMesComp(de)} a ${fmtMesComp(ate)}</title>
+<style>
+  :root{--verde:#024f2b;--folha:#739630;--folha-suave:#e9f0dc;--cinza:#666;--linha:#e2e6dc;--ok:#3d7a26;--erro:#c0392b;}
+  *{box-sizing:border-box;} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f1;color:#22301f;font-size:14px;}
+  header{background:var(--verde);color:#fff;padding:24px 30px;}
+  header h1{margin:0;font-size:22px;} header .sub{color:#a9c98f;font-size:13px;margin-top:4px;}
+  main{max-width:980px;margin:0 auto;padding:24px 20px 60px;}
+  section{background:#fff;border:1px solid var(--linha);border-radius:12px;padding:22px;margin-bottom:20px;}
+  section h2{color:var(--verde);font-size:17px;margin:0 0 3px;border-bottom:2px solid var(--folha-suave);padding-bottom:10px;}
+  h3{font-size:14px;color:#2f3d2b;margin:22px 0 8px;}
+  .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px;}
+  .kpi{border:1px solid var(--linha);border-radius:10px;padding:14px;}
+  .k-t{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--cinza);font-weight:700;}
+  .k-v{font-size:22px;font-weight:700;color:#1d2b1a;margin-top:4px;}
+  .k-m{font-size:11px;color:var(--cinza);margin-top:3px;}
+  .cmp{font-size:11px;font-weight:700;display:inline-block;margin-top:6px;}
+  .cmp-up{color:var(--ok);} .cmp-down{color:var(--erro);} .cmp-flat{color:var(--cinza);}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;}
+  th{text-align:left;color:var(--cinza);font-size:10.5px;text-transform:uppercase;padding:7px 9px;border-bottom:1px solid var(--linha);}
+  td{padding:7px 9px;border-bottom:1px solid #eef0e8;}
+  .vazio{color:var(--cinza);font-size:12.5px;padding:10px 0;}
+  footer{text-align:center;color:var(--cinza);font-size:11.5px;padding:20px;}
+  @media print{ section{break-inside:avoid;} }
+</style></head>
+<body>
+<header><h1>Relatório consolidado — Raguife</h1><div class="sub">Período: ${fmtMesComp(de)} a ${fmtMesComp(ate)} · gerado em ${new Date().toLocaleString('pt-BR')}</div></header>
+<main>
+
+<section>
+  <h2>Recursos Humanos</h2>
+  <div class="grid-kpi">
+    ${kpi('Headcount (ativos)', rhAtual.headcount, 'Fim do período', cmpBadge(rhAtual.headcount, pv(rhAnterior,'headcount'), true, v=>Math.round(v)+''))}
+    ${kpi('Turnover', rhAtual.turnover==null?'—':rhAtual.turnover.toFixed(1)+'%', `Meta: até ${d.cfgRH.metaTurnover}%`, cmpBadge(rhAtual.turnover, rhAnterior.turnover, false, v=>v.toFixed(1)+'%'))}
+    ${kpi('Absenteísmo c/ abono', rhAtual.absCom==null?'—':rhAtual.absCom.toFixed(2)+'%', '', cmpBadge(rhAtual.absCom, rhAnterior.absCom, false, v=>v.toFixed(1)+'%'))}
+    ${kpi('Absenteísmo s/ abono', rhAtual.absSem==null?'—':rhAtual.absSem.toFixed(2)+'%', '', cmpBadge(rhAtual.absSem, rhAnterior.absSem, false, v=>v.toFixed(1)+'%'))}
+    ${kpi('Absenteísmo médico', rhAtual.absMed==null?'—':rhAtual.absMed.toFixed(2)+'%', '', cmpBadge(rhAtual.absMed, rhAnterior.absMed, false, v=>v.toFixed(1)+'%'))}
+    ${kpi('Faltas (ocorrências)', rhAtual.faltas==null?'—':rhAtual.faltas, '', cmpBadge(rhAtual.faltas, rhAnterior.faltas, false, v=>Math.round(v)+''))}
+    ${kpi('Admissões', rhAtual.admitidos, '', cmpBadge(rhAtual.admitidos, pv(rhAnterior,'admitidos'), true, v=>Math.round(v)+''))}
+    ${kpi('Desligamentos', rhAtual.demitidos, '', cmpBadge(rhAtual.demitidos, pv(rhAnterior,'demitidos'), false, v=>Math.round(v)+''))}
+  </div>
+  <h3>Por filial</h3>
+  ${tbl(['Filial','Headcount','Turnover','Absent. c/ abono','Absent. s/ abono','Admissões','Desligamentos'],
+    rhPorFilial.map(r=>[esc(r.filial), r.headcount, r.turnover==null?'—':r.turnover.toFixed(1)+'%',
+      r.absCom==null?'—':r.absCom.toFixed(1)+'%', r.absSem==null?'—':r.absSem.toFixed(1)+'%', r.admitidos, r.demitidos]))}
+</section>
+
+<section>
+  <h2>Ambulatório</h2>
+  <div class="grid-kpi">
+    ${kpi('Dias perdidos (atestado)', diasPerdidos, taxaAbsAtual!=null? `Taxa: ${taxaAbsAtual.toFixed(2)}%`:'', cmpBadge(diasPerdidos, diasPerdidosP, false, v=>Math.round(v)+''))}
+    ${kpi('Atestados', absF.length, '', cmpBadge(absF.length, absP.length, false, v=>Math.round(v)+''))}
+    ${kpi('Exames no prazo', pctExames==null?'—':pctExames.toFixed(0)+'%', `Meta: ≥ ${d.cfgAmb.metaExames}%`, cmpBadge(pctExames, pctExamesP, true, v=>v.toFixed(0)+'%'))}
+    ${kpi('DSPs realizados', dspF.length, `${dspPart} participantes`, cmpBadge(dspF.length, dspP.length, true, v=>Math.round(v)+''))}
+    ${kpi('Satisfação — consulta', satMed? satMed.toFixed(2)+' / 5':'—', `Meta: ≥ ${d.cfgAmb.metaSatMed}`, cmpBadge(satMed, satMedP, true, v=>v.toFixed(2)))}
+    ${kpi('Satisfação — ambulatório', satAmbV? satAmbV.toFixed(2)+' / 5':'—', `Meta: ≥ ${d.cfgAmb.metaSatAmb}`, cmpBadge(satAmbV, satAmbP, true, v=>v.toFixed(2)))}
+  </div>
+  <h3>Absenteísmo por setor</h3>
+  ${tbl(['Setor','Dias perdidos','Atestados'], absPorSetor.sort((a,b)=>b.dias-a.dias).map(r=>[esc(r.setor), r.dias, r.n]))}
+  <h3>DSP por departamento</h3>
+  ${tbl(['Departamento','DSPs','Participantes'], dspPorDepto.sort((a,b)=>b.n-a.n).map(r=>[esc(r.depto), r.n, r.part]))}
+</section>
+
+<section>
+  <h2>Departamento Pessoal</h2>
+  <div class="grid-kpi">
+    ${kpi('Custo total', fmtMoeda(dpAtual.total), `${dpAtual.nMeses} mês(es)`, cmpBadge(dpAtual.total, pv(dpAnterior,'total'), false, v=>fmtMoeda(v)))}
+    ${kpi('Folha e Complementos', fmtMoeda(dpAtual.porGrupo.folha), dpAtual.total? ((dpAtual.porGrupo.folha/dpAtual.total)*100).toFixed(1)+'% do total':'', '')}
+    ${kpi('Encargos e Obrigações', fmtMoeda(dpAtual.porGrupo.encargos), dpAtual.total? ((dpAtual.porGrupo.encargos/dpAtual.total)*100).toFixed(1)+'% do total':'', '')}
+    ${kpi('Benefícios', fmtMoeda(dpAtual.porGrupo.beneficios), dpAtual.total? ((dpAtual.porGrupo.beneficios/dpAtual.total)*100).toFixed(1)+'% do total':'', cmpBadge(dpAtual.porGrupo.beneficios, dpAnterior.nMeses?dpAnterior.porGrupo.beneficios:null, false, v=>fmtMoeda(v)))}
+    ${kpi('Folha ÷ Faturamento', razaoAtual==null?'—':razaoAtual.toFixed(1)+'%', `Meta: até ${d.cfgDP.metaFolhaFaturamento}%`, cmpBadge(razaoAtual, razaoAnterior, false, v=>v.toFixed(1)+'%'))}
+    ${kpi('Horas Extras (informativo)', fmtMoeda(dpAtual.horasExtras), 'Já embutido na Folha', cmpBadge(dpAtual.horasExtras, pv(dpAnterior,'horasExtras'), false, v=>fmtMoeda(v)))}
+    ${kpi('Ocorrências de Ponto', dpAtual.ocorrencias, '', cmpBadge(dpAtual.ocorrencias, pv(dpAnterior,'ocorrencias'), false, v=>Math.round(v)+''))}
+  </div>
+  <h3>Custo por filial</h3>
+  ${tbl(['Filial','Custo total','Folha e Compl.','Encargos e Obrig.','Benefícios'],
+    dpPorFilial.sort((a,b)=>b.total-a.total).map(r=>[esc(r.filial), fmtMoeda(r.total), fmtMoeda(r.porGrupo.folha), fmtMoeda(r.porGrupo.encargos), fmtMoeda(r.porGrupo.beneficios)]))}
+</section>
+
+<footer>Gerado automaticamente pelo Painel Raguife · ${new Date().toLocaleDateString('pt-BR')}</footer>
+</main>
+</body></html>`;
+}
+
+/* ================= INIT ================= */
+Object.assign(window, { logout, gerarRelatorio, baixarRelatorio });
+</script>
+</body>
+</html>
