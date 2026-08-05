@@ -492,6 +492,23 @@
           <div class="note">Faixas que cruzam a meia-noite funcionam (ex: Ceia 23:00–02:00). O tablet aplica os novos horários quando a página recarrega — o Fully Kiosk já faz isso no reload diário, ou recarregue manualmente.</div>
         </div>
         <div class="panel">
+          <h2>Itens dos checklists</h2>
+          <div class="desc">Edite o que é avaliado em cada checklist. A escala continua de 1 a 5. As mudanças valem para os próximos envios.</div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div>
+              <label>Limpeza Administrativa</label>
+              <div id="qs-adm"></div>
+              <button class="btn btn-ghost btn-mini" onclick="quesitoAdd('adm')">+ Adicionar item</button>
+            </div>
+            <div>
+              <label>Limpeza Higiênica</label>
+              <div id="qs-hig"></div>
+              <button class="btn btn-ghost btn-mini" onclick="quesitoAdd('hig')">+ Adicionar item</button>
+            </div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarQuesitos()">Salvar itens</button></div>
+        </div>
+        <div class="panel">
           <h2>EmailJS — cobrança dos checklists</h2>
           <div class="desc">Dados da sua conta em emailjs.com, usados no disparo semanal para pendentes</div>
           <div class="form-grid">
@@ -588,7 +605,7 @@ const NAV_DEF = [
 const DEFAULT_CFG = {metaSobra:5, metaResto:0.03, metaSat:4.5, metaConf:4.5, orcamento:60000};
 const DEFAULT_CATS = ['Hortifrúti','Proteínas','Mercearia','Laticínios / Frios','Padaria','Descartáveis / Limpeza','Gás','Outros'];
 
-let state = { users:[], lanc:[], sat:[], adm:[], hig:[], compras:[], custos:[], cfg:{...DEFAULT_CFG}, emailCfg:{}, categorias:[...DEFAULT_CATS], filterDe:'', filterAte:'' };
+let state = { users:[], lanc:[], sat:[], adm:[], hig:[], compras:[], custos:[], cfg:{...DEFAULT_CFG}, emailCfg:{}, categorias:[...DEFAULT_CATS], quesitosAdm:[...ADM_QUESITOS], quesitosHig:[...HIG_QUESITOS], filterDe:'', filterAte:'' };
 let currentUser = null;   // {uid, nome, email, setor, role, check}
 let admScores = {}, higScores = {}, kioskAnswers = {}, kioskTurno = null;
 let unsubs = [];
@@ -682,6 +699,13 @@ async function loadConfig(){
     state.categorias = (c.exists() && Array.isArray(c.data().lista) && c.data().lista.length)? c.data().lista : [...DEFAULT_CATS];
   }catch(e){ state.categorias = [...DEFAULT_CATS]; }
   await loadHorarios();
+  try{
+    const q = await getDoc(doc(db,'config','fac_checklists'));
+    const norm = arr => (Array.isArray(arr)? arr.map(x=>String(x||'').trim()).filter(Boolean) : []);
+    const qd = q.exists()? q.data() : {};
+    state.quesitosAdm = norm(qd.adm).length? norm(qd.adm) : [...ADM_QUESITOS];
+    state.quesitosHig = norm(qd.hig).length? norm(qd.hig) : [...HIG_QUESITOS];
+  }catch(e){ state.quesitosAdm=[...ADM_QUESITOS]; state.quesitosHig=[...HIG_QUESITOS]; }
   if(currentUser.role==='admin'){
     try{
       const ej = await getDoc(doc(db,'config','emailjs'));
@@ -775,9 +799,10 @@ function enterApp(){
   document.getElementById('ej-tpl-hig').value = ej.templateHig||'';
   document.getElementById('ej-link').value = ej.linkApp||'';
 
-  buildQuesitos('adm-quesitos', ADM_QUESITOS, admScores);
-  buildQuesitos('hig-quesitos', HIG_QUESITOS, higScores);
+  buildQuesitos('adm-quesitos', state.quesitosAdm, admScores);
+  buildQuesitos('hig-quesitos', state.quesitosHig, higScores);
   renderCategorias();
+  renderQuesitosEditor();
   showPage(nav[0].id);
 }
 function showPage(id){
@@ -888,6 +913,41 @@ async function salvarCategorias(){
     renderCategorias();
   }catch(e){ toast(authErrPT(e), true); }
 }
+
+/* ================= EDITOR DE ITENS DO CHECKLIST ================= */
+function renderQuesitosEditor(){ renderQuesitosList('adm'); renderQuesitosList('hig'); }
+function renderQuesitosList(kind){
+  const list = kind==='adm'? state.quesitosAdm : state.quesitosHig;
+  const el = document.getElementById('qs-'+kind);
+  if(!el) return;
+  el.innerHTML = (list.length? list.map((t,i)=>`
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <input type="text" value="${esc(t)}" oninput="quesitoEdit('${kind}',${i},this.value)" placeholder="item do checklist">
+      <button class="btn btn-danger btn-mini" onclick="quesitoRemove('${kind}',${i})">×</button>
+    </div>`).join('') : '<div class="empty">Sem itens — adicione abaixo</div>');
+}
+function quesitoEdit(kind,i,val){ (kind==='adm'?state.quesitosAdm:state.quesitosHig)[i] = val; }
+function quesitoAdd(kind){
+  const list = kind==='adm'?state.quesitosAdm:state.quesitosHig;
+  list.push('');
+  renderQuesitosList(kind);
+}
+function quesitoRemove(kind,i){
+  const list = kind==='adm'?state.quesitosAdm:state.quesitosHig;
+  list.splice(i,1);
+  renderQuesitosList(kind);
+}
+async function salvarQuesitos(){
+  const adm = state.quesitosAdm.map(t=>t.trim()).filter(Boolean);
+  const hig = state.quesitosHig.map(t=>t.trim()).filter(Boolean);
+  if(!adm.length || !hig.length){ toast('Cada checklist precisa de ao menos 1 item preenchido.', true); return; }
+  state.quesitosAdm = adm; state.quesitosHig = hig;
+  try{
+    await setDoc(doc(db,'config','fac_checklists'), {adm, hig});
+    toast('Itens do checklist salvos ✓'); renderQuesitosEditor();
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+
 async function addCategoria(){
   const v = document.getElementById('cat-nova').value.trim();
   if(!v){ toast('Digite o nome da categoria.', true); return; }
@@ -1018,7 +1078,7 @@ function renderCustos(){
 /* ================= CHECKLISTS ================= */
 async function salvarChecklist(tipo){
   const isAdm = tipo==='adm';
-  const list = isAdm? ADM_QUESITOS : HIG_QUESITOS;
+  const list = isAdm? state.quesitosAdm : state.quesitosHig;
   const scores = isAdm? admScores : higScores;
   if(Object.keys(scores).length < list.length){ toast('Dê uma nota para todos os itens.', true); return; }
   const quesitos = {};
@@ -1032,8 +1092,8 @@ async function salvarChecklist(tipo){
       quesitos,
       obs: document.getElementById(tipo+'-obs').value.trim(),
     });
-    if(isAdm){ admScores={}; buildQuesitos('adm-quesitos', ADM_QUESITOS, admScores); }
-    else { higScores={}; buildQuesitos('hig-quesitos', HIG_QUESITOS, higScores); }
+    if(isAdm){ admScores={}; buildQuesitos('adm-quesitos', state.quesitosAdm, admScores); }
+    else { higScores={}; buildQuesitos('hig-quesitos', state.quesitosHig, higScores); }
     document.getElementById(tipo+'-obs').value='';
     const areas = areasDoUsuario(currentUser, tipo);
     if(areas.length){
@@ -1595,7 +1655,7 @@ function renderFillChooser(tipos){
 function renderFillForm(tipo){
   fillScores = {};
   const isAdm = tipo==='adm';
-  const list = isAdm? ADM_QUESITOS : HIG_QUESITOS;
+  const list = isAdm? state.quesitosAdm : state.quesitosHig;
   const areas = areasDoUsuario(fillUser, tipo);
   const body = document.getElementById('fill-body');
   const setorField = areas.length
@@ -1615,7 +1675,7 @@ function renderFillForm(tipo){
 }
 async function submitFill(tipo){
   const isAdm = tipo==='adm';
-  const list = isAdm? ADM_QUESITOS : HIG_QUESITOS;
+  const list = isAdm? state.quesitosAdm : state.quesitosHig;
   if(Object.keys(fillScores).length < list.length){ toast('Dê uma nota para todos os itens.', true); return; }
   const setor = (document.getElementById('fill-setor').value||'').trim();
   if(!setor){ toast(isAdm?'Informe o setor.':'Informe a área avaliada.', true); return; }
@@ -1678,6 +1738,7 @@ Object.assign(window, {
   logout, showPage,
   salvarLancamento, delLancamento, salvarCompra, delCompra,
   addCategoria, removeCategoria, renderCategorias,
+  quesitoEdit, quesitoAdd, quesitoRemove, salvarQuesitos,
   previewCusto, salvarCustoMes, salvarChecklist,
   salvarConfig, salvarEmailCfg, enviarCobrancas, salvarHorarios,
   renderFillForm, submitFill,
