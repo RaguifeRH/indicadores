@@ -1645,6 +1645,16 @@ async function bootFillMode(){
     body.innerHTML = '<div style="text-align:center;padding:40px 0;color:#bcd9a6;line-height:1.9">Não foi possível carregar seus dados.<br>Verifique as regras do Firestore.</div>';
     return;
   }
+  // o modo "link aberto" não passa pelo login normal, então os itens personalizados do
+  // checklist (config/fac_checklists) precisam ser buscados aqui também — senão fica só
+  // com a lista padrão fixa no código.
+  try{
+    const q = await getDoc(doc(db,'config','fac_checklists'));
+    const norm = arr => (Array.isArray(arr)? arr.map(x=>String(x||'').trim()).filter(Boolean) : []);
+    const qd = q.exists()? q.data() : {};
+    state.quesitosAdm = norm(qd.adm).length? norm(qd.adm) : [...ADM_QUESITOS];
+    state.quesitosHig = norm(qd.hig).length? norm(qd.hig) : [...HIG_QUESITOS];
+  }catch(e){ state.quesitosAdm=[...ADM_QUESITOS]; state.quesitosHig=[...HIG_QUESITOS]; }
   // quais checklists mostrar
   let tipos;
   if(fillTipoParam==='adm'||fillTipoParam==='hig') tipos=[fillTipoParam];
