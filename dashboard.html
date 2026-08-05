@@ -309,10 +309,18 @@ async function gerarRelatorio(){
       `<span class="chk-pill ${f.ok?'ok':''}">${f.ok?'✓':'✗'} ${f.label}${f.ok?'':' — sem acesso'}</span>`).join('');
 
     const pr = prevRangeMes(de, ate);
+    const janDe = pr.de, janAte = fimDoMes(ate);
     const html = montarRelatorioHTML({
       de, ate, pr,
-      rh: rh||[], absAmb: absAmb||[], exAmb: exAmb||[], dspAmb: dspAmb||[], satMedAmb: satMedAmb||[], satAmbAmb: satAmbAmb||[],
-      custosDP: custosDP||[], fatDP: fatDP||[], cfgRH, cfgAmb, cfgDP,
+      rh: (rh||[]).filter(l=>l.competencia>=janDe && l.competencia<=ate),
+      absAmb: (absAmb||[]).filter(a=>inRangeMes(a.inicio, janDe, ate)),
+      exAmb: (exAmb||[]).filter(e=>inRangeMes(e.prevista, janDe, ate)),
+      dspAmb: (dspAmb||[]).filter(x=>inRangeMes(x.data, janDe, ate)),
+      satMedAmb: (satMedAmb||[]).filter(s=>inRangeMes(s.data, janDe, ate)),
+      satAmbAmb: (satAmbAmb||[]).filter(s=>inRangeMes(s.data, janDe, ate)),
+      custosDP: (custosDP||[]).filter(l=>l.competencia>=janDe && l.competencia<=ate),
+      fatDP: (fatDP||[]).filter(f=>f.competencia>=janDe && f.competencia<=ate),
+      cfgRH, cfgAmb, cfgDP,
     });
     ultimoHTML = html;
     document.getElementById('preview-frame').srcdoc = html;
@@ -332,60 +340,17 @@ function baixarRelatorio(){
   URL.revokeObjectURL(a.href);
 }
 
-/* ================= MONTA O HTML EXPORTÁVEL ================= */
+/* ================= MONTA O HTML EXPORTÁVEL (interativo, autocontido) ================= */
 function montarRelatorioHTML(d){
-  const {de, ate, pr} = d;
-
-  // ---- RH ----
-  const rhAtual = agregarRH(d.rh, de, ate);
-  const rhAnterior = agregarRH(d.rh, pr.de, pr.ate);
-  const filiaisRH = [...new Set(d.rh.map(l=>l.filial).filter(Boolean))].sort();
-  const rhPorFilial = filiaisRH.map(f=>({filial:f, ...agregarRH(d.rh.filter(l=>l.filial===f), de, ate)}));
-
-  // ---- Ambulatório ----
-  const absF = d.absAmb.filter(a=>inRangeMes(a.inicio, de, ate));
-  const absP = d.absAmb.filter(a=>inRangeMes(a.inicio, pr.de, pr.ate));
-  const diasPerdidos = absF.reduce((s,a)=>s+(a.dias||0),0);
-  const diasPerdidosP = absP.reduce((s,a)=>s+(a.dias||0),0);
-  const efetivo = d.cfgAmb.efetivo||0;
-  const taxaAbsAtual = efetivo? (diasPerdidos/(efetivo*businessDays(de, fimDoMes(ate)))*100) : null;
-  const taxaAbsAnterior = efetivo? (diasPerdidosP/(efetivo*businessDays(pr.de, fimDoMes(pr.ate)))*100) : null;
-  const exF = d.exAmb.filter(e=>inRangeMes(e.prevista, de, ate));
-  const noPrazo = exF.filter(e=>e.realizada && e.realizada<=e.prevista).length;
-  const pctExames = exF.length? (noPrazo/exF.length*100) : null;
-  const exP = d.exAmb.filter(e=>inRangeMes(e.prevista, pr.de, pr.ate));
-  const noPrazoP = exP.filter(e=>e.realizada && e.realizada<=e.prevista).length;
-  const pctExamesP = exP.length? (noPrazoP/exP.length*100) : null;
-  const dspF = d.dspAmb.filter(x=>inRangeMes(x.data, de, ate));
-  const dspP = d.dspAmb.filter(x=>inRangeMes(x.data, pr.de, pr.ate));
-  const dspPart = dspF.reduce((s,x)=>s+(x.participantes||0),0);
-  const satMed = mediaSat(d.satMedAmb.filter(s=>inRangeMes(s.data, de, ate)), SAT_MEDICO);
-  const satMedP = mediaSat(d.satMedAmb.filter(s=>inRangeMes(s.data, pr.de, pr.ate)), SAT_MEDICO);
-  const satAmbV = mediaSat(d.satAmbAmb.filter(s=>inRangeMes(s.data, de, ate)), SAT_AMB);
-  const satAmbP = mediaSat(d.satAmbAmb.filter(s=>inRangeMes(s.data, pr.de, pr.ate)), SAT_AMB);
-  const setoresAmb = [...new Set(absF.map(a=>a.setor).filter(Boolean))].sort();
-  const absPorSetor = setoresAmb.map(s=>({setor:s, dias: absF.filter(a=>a.setor===s).reduce((s2,a)=>s2+(a.dias||0),0), n: absF.filter(a=>a.setor===s).length}));
-  const deptosDsp = [...new Set(dspF.map(x=>(x.depto||'').trim()).filter(Boolean))].sort();
-  const dspPorDepto = deptosDsp.map(dp=>({depto:dp, n: dspF.filter(x=>(x.depto||'').trim()===dp).length, part: dspF.filter(x=>(x.depto||'').trim()===dp).reduce((s,x)=>s+(x.participantes||0),0)}));
-
-  // ---- DP ----
-  const dpAtual = agregarDP(d.custosDP, de, ate);
-  const dpAnterior = agregarDP(d.custosDP, pr.de, pr.ate);
-  const fatAtual = d.fatDP.filter(f=>f.competencia>=de && f.competencia<=ate).reduce((s,f)=>s+(f.valor||0),0);
-  const fatAnterior = d.fatDP.filter(f=>f.competencia>=pr.de && f.competencia<=pr.ate).reduce((s,f)=>s+(f.valor||0),0);
-  const razaoAtual = fatAtual? (dpAtual.total/fatAtual*100) : null;
-  const razaoAnterior = fatAnterior? (dpAnterior.total/fatAnterior*100) : null;
-  const filiaisDP = [...new Set(d.custosDP.map(l=>l.filial).filter(Boolean))].sort();
-  const dpPorFilial = filiaisDP.map(f=>({filial:f, ...agregarDP(d.custosDP.filter(l=>l.filial===f), de, ate)}));
-
-  const kpi = (titulo, valor, meta, cmp) => `
-    <div class="kpi"><div class="k-t">${esc(titulo)}</div><div class="k-v">${valor}</div><div class="k-m">${esc(meta||'')}</div>${cmp||''}</div>`;
-  const tbl = (headers, rows) => rows.length
-    ? `<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`
-    : '<div class="vazio">Sem registros no período</div>';
+  const DADOS = {
+    de: d.de, ate: d.ate, prDe: d.pr.de, prAte: d.pr.ate,
+    rh: d.rh, absAmb: d.absAmb, exAmb: d.exAmb, dspAmb: d.dspAmb, satMed: d.satMedAmb, satAmb: d.satAmbAmb,
+    custosDP: d.custosDP, fatDP: d.fatDP, cfgRH: d.cfgRH, cfgAmb: d.cfgAmb, cfgDP: d.cfgDP,
+  };
+  const dadosJSON = JSON.stringify(DADOS).replace(/</g, '\\u003c'); // evita fechar a tag <script> sem querer
 
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Relatório Raguife — ${fmtMesComp(de)} a ${fmtMesComp(ate)}</title>
+<title>Relatório Raguife — ${fmtMesComp(d.de)} a ${fmtMesComp(d.ate)}</title>
 <style>
   :root{--verde:#024f2b;--folha:#739630;--folha-suave:#e9f0dc;--cinza:#666;--linha:#e2e6dc;--ok:#3d7a26;--erro:#c0392b;}
   *{box-sizing:border-box;} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f1;color:#22301f;font-size:14px;}
@@ -407,64 +372,290 @@ function montarRelatorioHTML(d){
   td{padding:7px 9px;border-bottom:1px solid #eef0e8;}
   .vazio{color:var(--cinza);font-size:12.5px;padding:10px 0;}
   footer{text-align:center;color:var(--cinza);font-size:11.5px;padding:20px;}
-  @media print{ section{break-inside:avoid;} }
+  .filtro-box{background:#fff;border:1px solid var(--linha);border-radius:12px;padding:18px 20px;margin-bottom:20px;}
+  .filtro-box label{display:block;font-size:12px;font-weight:700;color:#40503b;margin-bottom:7px;}
+  .filtro-box .sub-label{font-weight:400;color:var(--cinza);}
+  .chip-group{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+  .chip{padding:6px 12px;border-radius:20px;border:1px solid var(--linha);background:#fbfcf9;font-size:12px;font-weight:600;color:#40503b;cursor:pointer;user-select:none;}
+  .chip:hover{background:var(--folha-suave);}
+  .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
+  .depto-wrap{position:relative;max-width:420px;}
+  .depto-wrap input{width:100%;padding:9px 11px;border:1px solid var(--linha);border-radius:9px;font-size:13px;font-family:inherit;}
+  .dropdown-panel{position:absolute;z-index:20;background:#fff;border:1px solid var(--linha);border-radius:10px;margin-top:4px;max-height:220px;overflow-y:auto;width:100%;box-shadow:0 10px 28px rgba(0,0,0,.14);display:none;}
+  .dropdown-item{padding:7px 11px;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+  .dropdown-item:hover{background:var(--folha-suave);}
+  .dropdown-item input{width:auto;margin:0;}
+  .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  .tag{background:var(--verde);color:#fff;border-radius:20px;padding:4px 5px 4px 11px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:5px;}
+  .tag button{background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:11px;width:16px;height:16px;border-radius:50%;padding:0;}
+  @media print{ .filtro-box{display:none;} section{break-inside:avoid;} }
 </style></head>
 <body>
-<header><h1>Relatório consolidado — Raguife</h1><div class="sub">Período: ${fmtMesComp(de)} a ${fmtMesComp(ate)} · gerado em ${new Date().toLocaleString('pt-BR')}</div></header>
+<header><h1>Relatório consolidado — Raguife</h1><div class="sub">Período: ${fmtMesComp(d.de)} a ${fmtMesComp(d.ate)} · gerado em ${new Date().toLocaleString('pt-BR')}</div></header>
 <main>
+
+<div class="filtro-box">
+  <label>Filial <span class="sub-label">(clique para marcar mais de uma — afeta RH e Departamento Pessoal)</span></label>
+  <div class="chip-group" id="f-filial-boxes"></div>
+  <label>Departamento / Setor <span class="sub-label">(busque e marque quantos quiser — afeta as três seções)</span></label>
+  <div class="depto-wrap">
+    <input type="text" id="f-depto-search" placeholder="Buscar departamento ou setor..." autocomplete="off">
+    <div id="f-depto-dropdown" class="dropdown-panel"></div>
+  </div>
+  <div class="tag-row" id="f-depto-tags"></div>
+</div>
 
 <section>
   <h2>Recursos Humanos</h2>
-  <div class="grid-kpi">
-    ${kpi('Headcount (ativos)', rhAtual.headcount, 'Fim do período', cmpBadge(rhAtual.headcount, pv(rhAnterior,'headcount'), true, v=>Math.round(v)+''))}
-    ${kpi('Turnover', rhAtual.turnover==null?'—':rhAtual.turnover.toFixed(1)+'%', `Meta: até ${d.cfgRH.metaTurnover}%`, cmpBadge(rhAtual.turnover, rhAnterior.turnover, false, v=>v.toFixed(1)+'%'))}
-    ${kpi('Absenteísmo c/ abono', rhAtual.absCom==null?'—':rhAtual.absCom.toFixed(2)+'%', '', cmpBadge(rhAtual.absCom, rhAnterior.absCom, false, v=>v.toFixed(1)+'%'))}
-    ${kpi('Absenteísmo s/ abono', rhAtual.absSem==null?'—':rhAtual.absSem.toFixed(2)+'%', '', cmpBadge(rhAtual.absSem, rhAnterior.absSem, false, v=>v.toFixed(1)+'%'))}
-    ${kpi('Absenteísmo médico', rhAtual.absMed==null?'—':rhAtual.absMed.toFixed(2)+'%', '', cmpBadge(rhAtual.absMed, rhAnterior.absMed, false, v=>v.toFixed(1)+'%'))}
-    ${kpi('Faltas (ocorrências)', rhAtual.faltas==null?'—':rhAtual.faltas, '', cmpBadge(rhAtual.faltas, rhAnterior.faltas, false, v=>Math.round(v)+''))}
-    ${kpi('Admissões', rhAtual.admitidos, '', cmpBadge(rhAtual.admitidos, pv(rhAnterior,'admitidos'), true, v=>Math.round(v)+''))}
-    ${kpi('Desligamentos', rhAtual.demitidos, '', cmpBadge(rhAtual.demitidos, pv(rhAnterior,'demitidos'), false, v=>Math.round(v)+''))}
-  </div>
+  <div class="grid-kpi" id="sec-rh-kpi"></div>
   <h3>Por filial</h3>
-  ${tbl(['Filial','Headcount','Turnover','Absent. c/ abono','Absent. s/ abono','Admissões','Desligamentos'],
-    rhPorFilial.map(r=>[esc(r.filial), r.headcount, r.turnover==null?'—':r.turnover.toFixed(1)+'%',
-      r.absCom==null?'—':r.absCom.toFixed(1)+'%', r.absSem==null?'—':r.absSem.toFixed(1)+'%', r.admitidos, r.demitidos]))}
+  <div id="sec-rh-tbl"></div>
 </section>
 
 <section>
   <h2>Ambulatório</h2>
-  <div class="grid-kpi">
-    ${kpi('Dias perdidos (atestado)', diasPerdidos, taxaAbsAtual!=null? `Taxa: ${taxaAbsAtual.toFixed(2)}%`:'', cmpBadge(diasPerdidos, diasPerdidosP, false, v=>Math.round(v)+''))}
-    ${kpi('Atestados', absF.length, '', cmpBadge(absF.length, absP.length, false, v=>Math.round(v)+''))}
-    ${kpi('Exames no prazo', pctExames==null?'—':pctExames.toFixed(0)+'%', `Meta: ≥ ${d.cfgAmb.metaExames}%`, cmpBadge(pctExames, pctExamesP, true, v=>v.toFixed(0)+'%'))}
-    ${kpi('DSPs realizados', dspF.length, `${dspPart} participantes`, cmpBadge(dspF.length, dspP.length, true, v=>Math.round(v)+''))}
-    ${kpi('Satisfação — consulta', satMed? satMed.toFixed(2)+' / 5':'—', `Meta: ≥ ${d.cfgAmb.metaSatMed}`, cmpBadge(satMed, satMedP, true, v=>v.toFixed(2)))}
-    ${kpi('Satisfação — ambulatório', satAmbV? satAmbV.toFixed(2)+' / 5':'—', `Meta: ≥ ${d.cfgAmb.metaSatAmb}`, cmpBadge(satAmbV, satAmbP, true, v=>v.toFixed(2)))}
-  </div>
+  <div class="grid-kpi" id="sec-amb-kpi"></div>
   <h3>Absenteísmo por setor</h3>
-  ${tbl(['Setor','Dias perdidos','Atestados'], absPorSetor.sort((a,b)=>b.dias-a.dias).map(r=>[esc(r.setor), r.dias, r.n]))}
+  <div id="sec-amb-tbl-setor"></div>
   <h3>DSP por departamento</h3>
-  ${tbl(['Departamento','DSPs','Participantes'], dspPorDepto.sort((a,b)=>b.n-a.n).map(r=>[esc(r.depto), r.n, r.part]))}
+  <div id="sec-amb-tbl-dsp"></div>
 </section>
 
 <section>
   <h2>Departamento Pessoal</h2>
-  <div class="grid-kpi">
-    ${kpi('Custo total', fmtMoeda(dpAtual.total), `${dpAtual.nMeses} mês(es)`, cmpBadge(dpAtual.total, pv(dpAnterior,'total'), false, v=>fmtMoeda(v)))}
-    ${kpi('Folha e Complementos', fmtMoeda(dpAtual.porGrupo.folha), dpAtual.total? ((dpAtual.porGrupo.folha/dpAtual.total)*100).toFixed(1)+'% do total':'', '')}
-    ${kpi('Encargos e Obrigações', fmtMoeda(dpAtual.porGrupo.encargos), dpAtual.total? ((dpAtual.porGrupo.encargos/dpAtual.total)*100).toFixed(1)+'% do total':'', '')}
-    ${kpi('Benefícios', fmtMoeda(dpAtual.porGrupo.beneficios), dpAtual.total? ((dpAtual.porGrupo.beneficios/dpAtual.total)*100).toFixed(1)+'% do total':'', cmpBadge(dpAtual.porGrupo.beneficios, dpAnterior.nMeses?dpAnterior.porGrupo.beneficios:null, false, v=>fmtMoeda(v)))}
-    ${kpi('Folha ÷ Faturamento', razaoAtual==null?'—':razaoAtual.toFixed(1)+'%', `Meta: até ${d.cfgDP.metaFolhaFaturamento}%`, cmpBadge(razaoAtual, razaoAnterior, false, v=>v.toFixed(1)+'%'))}
-    ${kpi('Horas Extras (informativo)', fmtMoeda(dpAtual.horasExtras), 'Já embutido na Folha', cmpBadge(dpAtual.horasExtras, pv(dpAnterior,'horasExtras'), false, v=>fmtMoeda(v)))}
-    ${kpi('Ocorrências de Ponto', dpAtual.ocorrencias, '', cmpBadge(dpAtual.ocorrencias, pv(dpAnterior,'ocorrencias'), false, v=>Math.round(v)+''))}
-  </div>
+  <div class="grid-kpi" id="sec-dp-kpi"></div>
   <h3>Custo por filial</h3>
-  ${tbl(['Filial','Custo total','Folha e Compl.','Encargos e Obrig.','Benefícios'],
-    dpPorFilial.sort((a,b)=>b.total-a.total).map(r=>[esc(r.filial), fmtMoeda(r.total), fmtMoeda(r.porGrupo.folha), fmtMoeda(r.porGrupo.encargos), fmtMoeda(r.porGrupo.beneficios)]))}
+  <div id="sec-dp-tbl"></div>
 </section>
 
 <footer>Gerado automaticamente pelo Painel Raguife · ${new Date().toLocaleDateString('pt-BR')}</footer>
 </main>
+
+<script>
+const DADOS = ${dadosJSON};
+function stripAcc(s){ return String(s==null?'':s).normalize('NFD').replace(/[\\u0300-\\u036f]/g,''); }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
+function fmtMesComp(c){ if(!c) return '—'; const p=String(c).split('-'); const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return (nomes[parseInt(p[1],10)-1]||p[1])+'/'+p[0]; }
+function inRangeMes(dataISO, de, ate){ if(!dataISO) return false; const m=dataISO.slice(0,7); return m>=de && m<=ate; }
+function fimDoMes(m){ const p=m.split('-').map(Number); const dt=new Date(p[0],p[1],0); return m+'-'+String(dt.getDate()).padStart(2,'0'); }
+function businessDays(deISO, ateISO){
+  if(!deISO || !ateISO) return 0;
+  let n=0; const dt=new Date(deISO+'T00:00:00'); const end=new Date(ateISO+'T00:00:00');
+  while(dt<=end){ const wd=dt.getDay(); if(wd!==0 && wd!==6) n++; dt.setDate(dt.getDate()+1); }
+  return n;
+}
+function cmpBadge(curr, prev, higherIsBetter, fmt){
+  if(prev==null || curr==null) return '<span class="cmp cmp-flat">— sem período anterior</span>';
+  const diff = curr - prev;
+  if(Math.abs(diff) < 1e-9) return '<span class="cmp cmp-flat">＝ estável ('+fmt(prev)+')</span>';
+  const up = diff>0, good = higherIsBetter? up : !up;
+  const cls = good? 'cmp-up':'cmp-down';
+  const arrow = up? '▲':'▼';
+  return '<span class="cmp '+cls+'">'+arrow+' '+fmt(Math.abs(diff))+' vs. anterior ('+fmt(prev)+')</span>';
+}
+function pv(agg, field){ return agg && agg.nMeses ? agg[field] : null; }
+const SAT_DEF = [{k:'q1'},{k:'q2'},{k:'q3'},{k:'q4'},{k:'q5'}];
+function mediaSat(rows, def){
+  if(!rows.length) return 0; let sum=0,n=0;
+  rows.forEach(r=>def.forEach(q=>{ if(r[q.k]!=null){ sum+=r[q.k]; n++; } }));
+  return n? sum/n : 0;
+}
+const CUSTO_CATS = [
+  {key:'folha',grupo:'folha'},{key:'inss',grupo:'encargos'},{key:'sesiSenai',grupo:'encargos'},{key:'fgts',grupo:'encargos'},
+  {key:'alimentacao',grupo:'beneficios'},{key:'notaFiscal',grupo:'folha'},{key:'jovemAprendiz',grupo:'folha'},
+  {key:'planoSaude',grupo:'beneficios'},{key:'planoOdontologico',grupo:'beneficios'},{key:'seguroVida',grupo:'beneficios'},
+  {key:'diariasMedias',grupo:'folha'},{key:'premio',grupo:'folha'},{key:'multimed',grupo:'encargos'},
+];
+const GRUPOS = [{key:'folha',label:'Folha e Complementos'},{key:'encargos',label:'Encargos e Obrigações'},{key:'beneficios',label:'Benefícios'}];
+
+function agregarRH(rows, de, ate){
+  const f = rows.filter(l=>l.competencia>=de && l.competencia<=ate);
+  const meses = [...new Set(f.map(l=>l.competencia))];
+  const ultimoMes = meses.sort().slice(-1)[0];
+  const headcount = ultimoMes? f.filter(l=>l.competencia===ultimoMes).reduce((s,l)=>s+(l.ativos||0),0) : 0;
+  const admitidos = f.reduce((s,l)=>s+(l.admitidos||0),0);
+  const demitidos = f.reduce((s,l)=>s+(l.demitidos||0),0);
+  const somaMovs = f.reduce((s,l)=>s+((l.admitidos||0)+(l.demitidos||0))/2,0);
+  const somaAtivosPorMes = meses.map(m=> f.filter(l=>l.competencia===m).reduce((s,l)=>s+(l.ativos||0),0));
+  const mediaAtivos = somaAtivosPorMes.length? somaAtivosPorMes.reduce((a,b)=>a+b,0)/somaAtivosPorMes.length : 0;
+  const turnover = mediaAtivos? (somaMovs/mediaAtivos*100) : null;
+  const somaAtivosLinhas = f.reduce((s,l)=>s+(l.ativos||0),0);
+  const pond = key => f.reduce((s,l)=>s+((l[key]||0)*(l.ativos||0)),0);
+  const absCom = somaAtivosLinhas? pond('absenteismoComAbono')/somaAtivosLinhas : null;
+  const absSem = somaAtivosLinhas? pond('absenteismoSemAbono')/somaAtivosLinhas : null;
+  const absMed = somaAtivosLinhas? pond('absenteismoMedico')/somaAtivosLinhas : null;
+  const faltas = f.length? f.reduce((s,l)=>s+(l.faltasQtd||0),0) : null;
+  return {headcount, admitidos, demitidos, turnover, absCom, absSem, absMed, faltas, nMeses:meses.length};
+}
+function agregarDP(rows, de, ate){
+  const f = rows.filter(l=>l.competencia>=de && l.competencia<=ate);
+  const total = f.reduce((s,l)=>s+(l.total||0),0);
+  const porGrupo = {};
+  GRUPOS.forEach(g=> porGrupo[g.key] = CUSTO_CATS.filter(c=>c.grupo===g.key).reduce((s,c)=>s+f.reduce((s2,l)=>s2+(l[c.key]||0),0),0));
+  const horasExtras = f.reduce((s,l)=>s+(l.horasExtras||0),0);
+  const ocorrencias = f.reduce((s,l)=>s+(l.ocorrenciasPonto||0),0);
+  const nMeses = new Set(f.map(l=>l.competencia)).size;
+  return {total, porGrupo, horasExtras, ocorrencias, nMeses, linhas:f};
+}
+function kpi(titulo, valor, meta, cmp){
+  return '<div class="kpi"><div class="k-t">'+esc(titulo)+'</div><div class="k-v">'+valor+'</div><div class="k-m">'+esc(meta||'')+'</div>'+(cmp||'')+'</div>';
+}
+function tbl(headers, rows){
+  if(!rows.length) return '<div class="vazio">Sem registros no período/filtro atual</div>';
+  return '<table><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+}
+
+/* ---- filtros ---- */
+let filtroFiliais = new Set();
+let filtroDeptos = new Set();
+function todasFiliais(){ return [...new Set([...DADOS.rh, ...DADOS.custosDP].map(r=>r.filial).filter(Boolean))].sort(); }
+function todosDeptos(){
+  const baseRHDP = [...DADOS.rh, ...DADOS.custosDP].filter(r=> !filtroFiliais.size || filtroFiliais.has(r.filial));
+  const deptosRHDP = baseRHDP.map(r=>r.depto);
+  const setoresAmb = DADOS.absAmb.map(a=>a.setor);
+  const deptosDsp = DADOS.dspAmb.map(x=>(x.depto||'').trim());
+  return [...new Set([...deptosRHDP, ...setoresAmb, ...deptosDsp].filter(Boolean))].sort();
+}
+function renderFiltroFilial(){
+  const filiais = todasFiliais();
+  document.getElementById('f-filial-boxes').innerHTML =
+    '<button type="button" class="chip '+(filtroFiliais.size===0?'on':'')+'" data-value="__all__">Todas</button>' +
+    filiais.map(f=>'<button type="button" class="chip '+(filtroFiliais.has(f)?'on':'')+'" data-value="'+esc(f)+'">'+esc(f)+'</button>').join('');
+}
+function renderDeptoTags(){
+  document.getElementById('f-depto-tags').innerHTML = [...filtroDeptos]
+    .map(dp=>'<span class="tag">'+esc(dp)+'<button type="button" data-remove="'+esc(dp)+'">×</button></span>').join('');
+}
+function renderDeptoDropdown(filtro){
+  const deptos = todosDeptos();
+  const f = stripAcc(filtro||'').toLowerCase().trim();
+  const list = f? deptos.filter(x=>stripAcc(x).toLowerCase().includes(f)) : deptos;
+  const panel = document.getElementById('f-depto-dropdown');
+  panel.innerHTML = list.length
+    ? list.map(x=>'<div class="dropdown-item" data-value="'+esc(x)+'"><input type="checkbox" '+(filtroDeptos.has(x)?'checked':'')+' tabindex="-1"> '+esc(x)+'</div>').join('')
+    : '<div class="dropdown-item" style="color:#666;cursor:default">Nada encontrado</div>';
+}
+function toggleFilial(v){
+  if(v==='__all__') filtroFiliais.clear();
+  else { if(filtroFiliais.has(v)) filtroFiliais.delete(v); else filtroFiliais.add(v); }
+  for(const dp of [...filtroDeptos]) if(!todosDeptos().includes(dp)) filtroDeptos.delete(dp);
+  renderFiltroFilial(); renderDeptoTags(); renderTudo();
+}
+function toggleDepto(v){
+  if(filtroDeptos.has(v)) filtroDeptos.delete(v); else filtroDeptos.add(v);
+  renderDeptoTags(); renderTudo();
+}
+
+/* ---- render principal ---- */
+function renderTudo(){
+  const de=DADOS.de, ate=DADOS.ate, pr={de:DADOS.prDe, ate:DADOS.prAte};
+  const semAnterior = '<span class="cmp cmp-flat">— sem período anterior</span>';
+  const fFilial = r => !filtroFiliais.size || filtroFiliais.has(r.filial);
+  const fDepto = r => !filtroDeptos.size || filtroDeptos.has(r.depto);
+
+  // ---- RH ----
+  const rhF = DADOS.rh.filter(r=>fFilial(r) && fDepto(r));
+  const rhAtual = agregarRH(rhF, de, ate);
+  const rhAnterior = agregarRH(rhF, pr.de, pr.ate);
+  document.getElementById('sec-rh-kpi').innerHTML = [
+    kpi('Headcount (ativos)', rhAtual.headcount, 'Fim do período', cmpBadge(rhAtual.headcount, pv(rhAnterior,'headcount'), true, v=>Math.round(v)+'')),
+    kpi('Turnover', rhAtual.turnover==null?'—':rhAtual.turnover.toFixed(1)+'%', 'Meta: até '+DADOS.cfgRH.metaTurnover+'%', cmpBadge(rhAtual.turnover, rhAnterior.turnover, false, v=>v.toFixed(1)+'%')),
+    kpi('Absenteísmo c/ abono', rhAtual.absCom==null?'—':rhAtual.absCom.toFixed(2)+'%', '', cmpBadge(rhAtual.absCom, rhAnterior.absCom, false, v=>v.toFixed(1)+'%')),
+    kpi('Absenteísmo s/ abono', rhAtual.absSem==null?'—':rhAtual.absSem.toFixed(2)+'%', '', cmpBadge(rhAtual.absSem, rhAnterior.absSem, false, v=>v.toFixed(1)+'%')),
+    kpi('Absenteísmo médico', rhAtual.absMed==null?'—':rhAtual.absMed.toFixed(2)+'%', '', cmpBadge(rhAtual.absMed, rhAnterior.absMed, false, v=>v.toFixed(1)+'%')),
+    kpi('Faltas (ocorrências)', rhAtual.faltas==null?'—':rhAtual.faltas, '', cmpBadge(rhAtual.faltas, pv(rhAnterior,'faltas'), false, v=>Math.round(v)+'')),
+    kpi('Admissões', rhAtual.admitidos, '', cmpBadge(rhAtual.admitidos, pv(rhAnterior,'admitidos'), true, v=>Math.round(v)+'')),
+    kpi('Desligamentos', rhAtual.demitidos, '', cmpBadge(rhAtual.demitidos, pv(rhAnterior,'demitidos'), false, v=>Math.round(v)+'')),
+  ].join('');
+  const filiaisRHView = [...new Set(rhF.map(r=>r.filial).filter(Boolean))].sort();
+  document.getElementById('sec-rh-tbl').innerHTML = tbl(['Filial','Headcount','Turnover','Absent. c/ abono','Absent. s/ abono','Admissões','Desligamentos'],
+    filiaisRHView.map(fl=>{ const r=agregarRH(rhF.filter(x=>x.filial===fl), de, ate);
+      return [esc(fl), r.headcount, r.turnover==null?'—':r.turnover.toFixed(1)+'%', r.absCom==null?'—':r.absCom.toFixed(1)+'%', r.absSem==null?'—':r.absSem.toFixed(1)+'%', r.admitidos, r.demitidos]; }));
+
+  // ---- Ambulatório (setor faz o papel de "departamento" aqui) ----
+  const absF = DADOS.absAmb.filter(a=>inRangeMes(a.inicio, de, ate) && (!filtroDeptos.size || filtroDeptos.has(a.setor)));
+  const absP = DADOS.absAmb.filter(a=>inRangeMes(a.inicio, pr.de, pr.ate) && (!filtroDeptos.size || filtroDeptos.has(a.setor)));
+  const diasPerdidos = absF.reduce((s,a)=>s+(a.dias||0),0);
+  const diasPerdidosP = absP.reduce((s,a)=>s+(a.dias||0),0);
+  const efetivo = DADOS.cfgAmb.efetivo||0;
+  const taxaAbsAtual = efetivo? (diasPerdidos/(efetivo*businessDays(de, fimDoMes(ate)))*100) : null;
+  const exF = DADOS.exAmb.filter(e=>inRangeMes(e.prevista, de, ate));
+  const noPrazo = exF.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const pctExames = exF.length? (noPrazo/exF.length*100) : null;
+  const exP = DADOS.exAmb.filter(e=>inRangeMes(e.prevista, pr.de, pr.ate));
+  const noPrazoP = exP.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const pctExamesP = exP.length? (noPrazoP/exP.length*100) : null;
+  const dspF = DADOS.dspAmb.filter(x=>inRangeMes(x.data, de, ate) && (!filtroDeptos.size || filtroDeptos.has((x.depto||'').trim())));
+  const dspP = DADOS.dspAmb.filter(x=>inRangeMes(x.data, pr.de, pr.ate) && (!filtroDeptos.size || filtroDeptos.has((x.depto||'').trim())));
+  const dspPart = dspF.reduce((s,x)=>s+(x.participantes||0),0);
+  const satMed = mediaSat(DADOS.satMed.filter(s=>inRangeMes(s.data, de, ate)), SAT_DEF);
+  const satMedP = mediaSat(DADOS.satMed.filter(s=>inRangeMes(s.data, pr.de, pr.ate)), SAT_DEF);
+  const satAmbV = mediaSat(DADOS.satAmb.filter(s=>inRangeMes(s.data, de, ate)), SAT_DEF);
+  const satAmbP = mediaSat(DADOS.satAmb.filter(s=>inRangeMes(s.data, pr.de, pr.ate)), SAT_DEF);
+  document.getElementById('sec-amb-kpi').innerHTML = [
+    kpi('Dias perdidos (atestado)', diasPerdidos, taxaAbsAtual!=null? 'Taxa: '+taxaAbsAtual.toFixed(2)+'%':'', cmpBadge(diasPerdidos, diasPerdidosP, false, v=>Math.round(v)+'')),
+    kpi('Atestados', absF.length, '', cmpBadge(absF.length, absP.length, false, v=>Math.round(v)+'')),
+    kpi('Exames no prazo', pctExames==null?'—':pctExames.toFixed(0)+'%', 'Meta: ≥ '+DADOS.cfgAmb.metaExames+'%', cmpBadge(pctExames, pctExamesP, true, v=>v.toFixed(0)+'%')),
+    kpi('DSPs realizados', dspF.length, dspPart+' participantes', cmpBadge(dspF.length, dspP.length, true, v=>Math.round(v)+'')),
+    kpi('Satisfação — consulta', satMed? satMed.toFixed(2)+' / 5':'—', 'Meta: ≥ '+DADOS.cfgAmb.metaSatMed, cmpBadge(satMed||null, satMedP||null, true, v=>v.toFixed(2))),
+    kpi('Satisfação — ambulatório', satAmbV? satAmbV.toFixed(2)+' / 5':'—', 'Meta: ≥ '+DADOS.cfgAmb.metaSatAmb, cmpBadge(satAmbV||null, satAmbP||null, true, v=>v.toFixed(2))),
+  ].join('');
+  const setoresView = [...new Set(absF.map(a=>a.setor).filter(Boolean))].sort();
+  document.getElementById('sec-amb-tbl-setor').innerHTML = tbl(['Setor','Dias perdidos','Atestados'],
+    setoresView.map(s=>[esc(s), absF.filter(a=>a.setor===s).reduce((s2,a)=>s2+(a.dias||0),0), absF.filter(a=>a.setor===s).length])
+      .sort((a,b)=>b[1]-a[1]));
+  const deptosDspView = [...new Set(dspF.map(x=>(x.depto||'').trim()).filter(Boolean))].sort();
+  document.getElementById('sec-amb-tbl-dsp').innerHTML = tbl(['Departamento','DSPs','Participantes'],
+    deptosDspView.map(dp=>[esc(dp), dspF.filter(x=>(x.depto||'').trim()===dp).length, dspF.filter(x=>(x.depto||'').trim()===dp).reduce((s,x)=>s+(x.participantes||0),0)])
+      .sort((a,b)=>b[1]-a[1]));
+
+  // ---- DP (Folha ÷ Faturamento sempre no total geral, ignora filtro) ----
+  const dpF = DADOS.custosDP.filter(r=>fFilial(r) && fDepto(r));
+  const dpAtual = agregarDP(dpF, de, ate);
+  const dpAnterior = agregarDP(dpF, pr.de, pr.ate);
+  const dpAtualGeral = agregarDP(DADOS.custosDP, de, ate);
+  const fatAtual = DADOS.fatDP.filter(f=>f.competencia>=de && f.competencia<=ate).reduce((s,f)=>s+(f.valor||0),0);
+  const fatAnterior = DADOS.fatDP.filter(f=>f.competencia>=pr.de && f.competencia<=pr.ate).reduce((s,f)=>s+(f.valor||0),0);
+  const dpAnteriorGeral = agregarDP(DADOS.custosDP, pr.de, pr.ate);
+  const razaoAtual = fatAtual? (dpAtualGeral.total/fatAtual*100) : null;
+  const razaoAnterior = fatAnterior? (dpAnteriorGeral.total/fatAnterior*100) : null;
+  document.getElementById('sec-dp-kpi').innerHTML = [
+    kpi('Custo total', fmtMoeda(dpAtual.total), dpAtual.nMeses+' mês(es)', cmpBadge(dpAtual.total, pv(dpAnterior,'total'), false, v=>fmtMoeda(v))),
+    kpi('Folha e Complementos', fmtMoeda(dpAtual.porGrupo.folha), dpAtual.total? ((dpAtual.porGrupo.folha/dpAtual.total)*100).toFixed(1)+'% do total':'', ''),
+    kpi('Encargos e Obrigações', fmtMoeda(dpAtual.porGrupo.encargos), dpAtual.total? ((dpAtual.porGrupo.encargos/dpAtual.total)*100).toFixed(1)+'% do total':'', ''),
+    kpi('Benefícios', fmtMoeda(dpAtual.porGrupo.beneficios), dpAtual.total? ((dpAtual.porGrupo.beneficios/dpAtual.total)*100).toFixed(1)+'% do total':'', cmpBadge(dpAtual.porGrupo.beneficios, dpAnterior.nMeses?dpAnterior.porGrupo.beneficios:null, false, v=>fmtMoeda(v))),
+    kpi('Folha ÷ Faturamento', razaoAtual==null?'—':razaoAtual.toFixed(1)+'%', 'Meta: até '+DADOS.cfgDP.metaFolhaFaturamento+'% · sempre empresa toda, ignora filtro', cmpBadge(razaoAtual, razaoAnterior, false, v=>v.toFixed(1)+'%')),
+    kpi('Horas Extras (informativo)', fmtMoeda(dpAtual.horasExtras), 'Já embutido na Folha', cmpBadge(dpAtual.horasExtras, pv(dpAnterior,'horasExtras'), false, v=>fmtMoeda(v))),
+    kpi('Ocorrências de Ponto', dpAtual.ocorrencias, '', cmpBadge(dpAtual.ocorrencias, pv(dpAnterior,'ocorrencias'), false, v=>Math.round(v)+'')),
+  ].join('');
+  const filiaisDPView = [...new Set(dpF.map(r=>r.filial).filter(Boolean))].sort();
+  document.getElementById('sec-dp-tbl').innerHTML = tbl(['Filial','Custo total','Folha e Compl.','Encargos e Obrig.','Benefícios'],
+    filiaisDPView.map(fl=>{ const r=agregarDP(dpF.filter(x=>x.filial===fl), de, ate);
+      return [esc(fl), fmtMoeda(r.total), fmtMoeda(r.porGrupo.folha), fmtMoeda(r.porGrupo.encargos), fmtMoeda(r.porGrupo.beneficios)]; })
+      .sort((a,b)=> parseFloat(b[1].replace(/[^\\d,-]/g,'').replace(',','.')) - parseFloat(a[1].replace(/[^\\d,-]/g,'').replace(',','.'))));
+}
+
+/* ---- inicialização ---- */
+document.getElementById('f-filial-boxes').addEventListener('click', e=>{
+  const box = e.target.closest('.chip'); if(box) toggleFilial(box.dataset.value);
+});
+const buscaDepto = document.getElementById('f-depto-search');
+buscaDepto.addEventListener('focus', ()=>{ renderDeptoDropdown(buscaDepto.value); document.getElementById('f-depto-dropdown').style.display='block'; });
+buscaDepto.addEventListener('input', ()=>{ renderDeptoDropdown(buscaDepto.value); document.getElementById('f-depto-dropdown').style.display='block'; });
+document.getElementById('f-depto-dropdown').addEventListener('mousedown', e=>{
+  const item = e.target.closest('.dropdown-item'); if(!item || !item.dataset.value) return;
+  e.preventDefault(); toggleDepto(item.dataset.value);
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#f-depto-search') && !e.target.closest('#f-depto-dropdown')){
+    document.getElementById('f-depto-dropdown').style.display='none';
+  }
+});
+renderFiltroFilial();
+renderTudo();
+</script>
 </body></html>`;
 }
 
