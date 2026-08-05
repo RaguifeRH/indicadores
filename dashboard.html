@@ -101,7 +101,7 @@
         <button class="btn btn-primary" onclick="gerarRelatorio()" id="btn-gerar">Gerar relatório</button>
       </div>
       <div class="checklist" id="fontes-checklist"></div>
-      <div class="note">Lê direto do banco no momento em que você clica em gerar — é uma fotografia do período, não fica atualizando sozinho depois.</div>
+      <div class="note">Lê direto do banco no momento em que você clica em gerar — é uma fotografia, não fica atualizando sozinho depois. Pra dar folga pra você mexer no período dentro do próprio HTML, ele embute também os 12 meses anteriores ao "De" escolhido.</div>
     </div>
 
     <div class="panel" id="preview-wrap">
@@ -309,17 +309,17 @@ async function gerarRelatorio(){
       `<span class="chk-pill ${f.ok?'ok':''}">${f.ok?'✓':'✗'} ${f.label}${f.ok?'':' — sem acesso'}</span>`).join('');
 
     const pr = prevRangeMes(de, ate);
-    const janDe = pr.de, janAte = fimDoMes(ate);
+    const janDe = addMonths(de, -12), janAte = ate; // janela bem maior, pra dar pra mexer no período dentro do HTML
     const html = montarRelatorioHTML({
-      de, ate, pr,
-      rh: (rh||[]).filter(l=>l.competencia>=janDe && l.competencia<=ate),
-      absAmb: (absAmb||[]).filter(a=>inRangeMes(a.inicio, janDe, ate)),
-      exAmb: (exAmb||[]).filter(e=>inRangeMes(e.prevista, janDe, ate)),
-      dspAmb: (dspAmb||[]).filter(x=>inRangeMes(x.data, janDe, ate)),
-      satMedAmb: (satMedAmb||[]).filter(s=>inRangeMes(s.data, janDe, ate)),
-      satAmbAmb: (satAmbAmb||[]).filter(s=>inRangeMes(s.data, janDe, ate)),
-      custosDP: (custosDP||[]).filter(l=>l.competencia>=janDe && l.competencia<=ate),
-      fatDP: (fatDP||[]).filter(f=>f.competencia>=janDe && f.competencia<=ate),
+      de, ate, pr, janDe, janAte,
+      rh: (rh||[]).filter(l=>l.competencia>=janDe && l.competencia<=janAte),
+      absAmb: (absAmb||[]).filter(a=>inRangeMes(a.inicio, janDe, janAte)),
+      exAmb: (exAmb||[]).filter(e=>inRangeMes(e.prevista, janDe, janAte)),
+      dspAmb: (dspAmb||[]).filter(x=>inRangeMes(x.data, janDe, janAte)),
+      satMedAmb: (satMedAmb||[]).filter(s=>inRangeMes(s.data, janDe, janAte)),
+      satAmbAmb: (satAmbAmb||[]).filter(s=>inRangeMes(s.data, janDe, janAte)),
+      custosDP: (custosDP||[]).filter(l=>l.competencia>=janDe && l.competencia<=janAte),
+      fatDP: (fatDP||[]).filter(f=>f.competencia>=janDe && f.competencia<=janAte),
       cfgRH, cfgAmb, cfgDP,
     });
     ultimoHTML = html;
@@ -343,7 +343,7 @@ function baixarRelatorio(){
 /* ================= MONTA O HTML EXPORTÁVEL (interativo, autocontido) ================= */
 function montarRelatorioHTML(d){
   const DADOS = {
-    de: d.de, ate: d.ate, prDe: d.pr.de, prAte: d.pr.ate,
+    de: d.de, ate: d.ate, prDe: d.pr.de, prAte: d.pr.ate, janDe: d.janDe, janAte: d.janAte,
     rh: d.rh, absAmb: d.absAmb, exAmb: d.exAmb, dspAmb: d.dspAmb, satMed: d.satMedAmb, satAmb: d.satAmbAmb,
     custosDP: d.custosDP, fatDP: d.fatDP, cfgRH: d.cfgRH, cfgAmb: d.cfgAmb, cfgDP: d.cfgDP,
   };
@@ -388,14 +388,25 @@ function montarRelatorioHTML(d){
   .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
   .tag{background:var(--verde);color:#fff;border-radius:20px;padding:4px 5px 4px 11px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:5px;}
   .tag button{background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:11px;width:16px;height:16px;border-radius:50%;padding:0;}
+  .periodo-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+  .mini-label{display:block;font-size:11px;color:var(--cinza);margin-bottom:4px;}
+  .periodo-row input[type=month]{padding:8px 10px;border:1px solid var(--linha);border-radius:9px;font-size:13px;font-family:inherit;}
+  .btn-aplicar{background:var(--folha);color:#fff;border:none;border-radius:9px;padding:9px 16px;font-weight:700;font-size:12.5px;cursor:pointer;}
+  .btn-aplicar:hover{background:#647f2b;}
   @media print{ .filtro-box{display:none;} section{break-inside:avoid;} }
 </style></head>
 <body>
-<header><h1>Relatório consolidado — Raguife</h1><div class="sub">Período: ${fmtMesComp(d.de)} a ${fmtMesComp(d.ate)} · gerado em ${new Date().toLocaleString('pt-BR')}</div></header>
+<header><h1>Relatório consolidado — Raguife</h1><div class="sub" id="periodo-sub">Período: ${fmtMesComp(d.de)} a ${fmtMesComp(d.ate)} · gerado em ${new Date().toLocaleString('pt-BR')}</div></header>
 <main>
 
 <div class="filtro-box">
-  <label>Filial <span class="sub-label">(clique para marcar mais de uma — afeta RH e Departamento Pessoal)</span></label>
+  <label>Período <span class="sub-label">(dados disponíveis de ${fmtMesComp(d.janDe)} a ${fmtMesComp(d.janAte)})</span></label>
+  <div class="periodo-row">
+    <div><span class="mini-label">De</span><input type="month" id="f-per-de" value="${esc(d.de)}" min="${esc(d.janDe)}" max="${esc(d.janAte)}"></div>
+    <div><span class="mini-label">Até</span><input type="month" id="f-per-ate" value="${esc(d.ate)}" min="${esc(d.janDe)}" max="${esc(d.janAte)}"></div>
+    <button type="button" class="btn-aplicar" id="f-per-aplicar">Aplicar</button>
+  </div>
+  <label style="margin-top:16px">Filial <span class="sub-label">(clique para marcar mais de uma — afeta RH e Departamento Pessoal)</span></label>
   <div class="chip-group" id="f-filial-boxes"></div>
   <label>Departamento / Setor <span class="sub-label">(busque e marque quantos quiser — afeta as três seções)</span></label>
   <div class="depto-wrap">
@@ -439,6 +450,14 @@ function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',cur
 function fmtMesComp(c){ if(!c) return '—'; const p=String(c).split('-'); const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return (nomes[parseInt(p[1],10)-1]||p[1])+'/'+p[0]; }
 function inRangeMes(dataISO, de, ate){ if(!dataISO) return false; const m=dataISO.slice(0,7); return m>=de && m<=ate; }
 function fimDoMes(m){ const p=m.split('-').map(Number); const dt=new Date(p[0],p[1],0); return m+'-'+String(dt.getDate()).padStart(2,'0'); }
+function addMonths(m, n){ let p=m.split('-').map(Number); let y=p[0], mo=p[1]+n; while(mo>12){mo-=12;y++;} while(mo<1){mo+=12;y--;} return y+'-'+String(mo).padStart(2,'0'); }
+function monthsBetween(de, ate){ let n=0,m=de; while(m<=ate && n<600){ n++; m=addMonths(m,1);} return n; }
+function prevRangeMes(de, ate){
+  const n = monthsBetween(de, ate);
+  const novoAte = addMonths(de, -1);
+  const novoDe = addMonths(novoAte, -(n-1));
+  return {de:novoDe, ate:novoAte};
+}
 function businessDays(deISO, ateISO){
   if(!deISO || !ateISO) return 0;
   let n=0; const dt=new Date(deISO+'T00:00:00'); const end=new Date(ateISO+'T00:00:00');
@@ -510,6 +529,8 @@ function tbl(headers, rows){
 /* ---- filtros ---- */
 let filtroFiliais = new Set();
 let filtroDeptos = new Set();
+let periodoDe = DADOS.de, periodoAte = DADOS.ate;
+const geradoEmTexto = new Date().toLocaleString('pt-BR');
 function todasFiliais(){ return [...new Set([...DADOS.rh, ...DADOS.custosDP].map(r=>r.filial).filter(Boolean))].sort(); }
 function todosDeptos(){
   const baseRHDP = [...DADOS.rh, ...DADOS.custosDP].filter(r=> !filtroFiliais.size || filtroFiliais.has(r.filial));
@@ -550,7 +571,8 @@ function toggleDepto(v){
 
 /* ---- render principal ---- */
 function renderTudo(){
-  const de=DADOS.de, ate=DADOS.ate, pr={de:DADOS.prDe, ate:DADOS.prAte};
+  const de=periodoDe, ate=periodoAte, pr=prevRangeMes(de, ate);
+  document.getElementById('periodo-sub').textContent = 'Período: '+fmtMesComp(de)+' a '+fmtMesComp(ate)+' · gerado em '+geradoEmTexto;
   const semAnterior = '<span class="cmp cmp-flat">— sem período anterior</span>';
   const fFilial = r => !filtroFiliais.size || filtroFiliais.has(r.filial);
   const fDepto = r => !filtroDeptos.size || filtroDeptos.has(r.depto);
@@ -638,6 +660,13 @@ function renderTudo(){
 }
 
 /* ---- inicialização ---- */
+document.getElementById('f-per-aplicar').addEventListener('click', ()=>{
+  const nDe = document.getElementById('f-per-de').value, nAte = document.getElementById('f-per-ate').value;
+  if(!nDe || !nAte || nDe>nAte){ alert('Escolha um período válido.'); return; }
+  if(nDe<DADOS.janDe || nAte>DADOS.janAte){ alert('Esse relatório só tem dados de '+fmtMesComp(DADOS.janDe)+' a '+fmtMesComp(DADOS.janAte)+'. Gere um novo relatório no sistema para outro período.'); return; }
+  periodoDe = nDe; periodoAte = nAte;
+  renderTudo();
+});
 document.getElementById('f-filial-boxes').addEventListener('click', e=>{
   const box = e.target.closest('.chip'); if(box) toggleFilial(box.dataset.value);
 });
