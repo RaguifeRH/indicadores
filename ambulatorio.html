@@ -123,6 +123,17 @@
   .quesito{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eef0e8;gap:14px;flex-wrap:wrap;}
   .quesito:last-child{border-bottom:none;}
 
+  .cat-picker{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+  .cat-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--linha);border-radius:11px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:500;background:#fbfcf9;user-select:none;}
+  .cat-chip input{width:16px;height:16px;accent-color:var(--verde);margin:0;flex:none;}
+  .cat-chip.on{background:var(--folha-suave);border-color:var(--folha);color:#2f4417;}
+  .cat-line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #eef0e8;flex-wrap:wrap;}
+  .cat-line:last-child{border-bottom:none;}
+  .cat-line .cl-nome{font-size:13.5px;font-weight:600;min-width:120px;}
+  .cat-line input[type=date]{max-width:170px;}
+  .catbadge{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;background:#eef0ea;color:var(--cinza);margin:1px 3px 1px 0;display:inline-block;}
+  .catbadge.done{background:#e5f1db;color:var(--ok);}
+
   .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:13px 15px;}
   .filter-bar .fld{min-width:140px;}
   .presets{display:flex;gap:6px;flex-wrap:wrap;}
@@ -233,16 +244,8 @@
           <div class="table-wrap" id="tbl-historico"></div>
         </div>
         <div class="panel">
-          <h2>Absenteísmo por CID</h2>
-          <div class="desc">Principais causas de afastamento no período (código CID)</div>
-          <div class="table-wrap" id="tbl-cid"></div>
-        </div>
-        <div class="panel">
-          <h2>Absenteísmo por setor</h2>
-          <div class="table-wrap" id="tbl-setor"></div>
-        </div>
-        <div class="panel">
-          <h2>Últimos atestados lançados</h2>
+          <h2>Absenteísmo médico por departamento</h2>
+          <div class="desc">Vindo do módulo de RH · registro mais recente de cada departamento no período</div>
           <div class="table-wrap" id="tbl-abs-dash"></div>
         </div>
         <div class="panel">
@@ -260,25 +263,21 @@
       <!-- ABSENTEISMO -->
       <div class="page" id="page-absenteismo">
         <h1 class="page-title">Absenteísmo médico</h1>
-        <div class="page-desc">Lançamento de atestados e afastamentos, com controle de CID</div>
+        <div class="page-desc">Dados importados do módulo de Recursos Humanos (relatório de ponto)</div>
         <div class="panel">
-          <h2>Novo atestado / afastamento</h2>
-          <div class="form-grid">
-            <div><label>Colaborador</label><input type="text" id="ab-nome" placeholder="nome do colaborador"></div>
-            <div><label>Setor</label><input type="text" id="ab-setor"></div>
-            <div><label>Data de início</label><input type="date" id="ab-inicio"></div>
-            <div><label>Dias afastado</label><input type="number" id="ab-dias" min="1" value="1"></div>
-            <div><label>CID (código)</label><input type="text" id="ab-cid" placeholder="ex: M54.5"></div>
-            <div><label>Descrição do CID (opcional)</label><input type="text" id="ab-ciddesc" placeholder="ex: dor lombar"></div>
-            <div><label>Tipo</label>
-              <select id="ab-tipo"><option>Atestado</option><option>Afastamento (INSS)</option><option>Acidente de trabalho</option><option>Consulta / retorno</option></select>
-            </div>
-            <div><label>Médico emissor</label><input type="text" id="ab-medico" placeholder="opcional"></div>
-          </div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="salvarAbsenteismo()">Salvar atestado</button></div>
+          <h2>Absenteísmo médico no período</h2>
+          <div class="desc">Média ponderada pelo efetivo, considerando os meses do filtro do Dashboard. Para mudar o período, ajuste o filtro no Dashboard.</div>
+          <div class="grid-kpi" id="abs-kpi"></div>
+          <div class="note">Este número é calculado e mantido no módulo de <b>RH</b>. Se algo estiver desatualizado, importe o relatório de ponto mais recente lá.</div>
         </div>
         <div class="panel">
-          <h2>Histórico recente</h2>
+          <h2>Por departamento</h2>
+          <div class="desc">Absenteísmo médico de cada departamento no período (do mais recente registro dentro do intervalo)</div>
+          <div class="table-wrap" id="tbl-abs-depto"></div>
+        </div>
+        <div class="panel">
+          <h2>Histórico mensal</h2>
+          <div class="desc">Absenteísmo médico ponderado, mês a mês (últimos 12 meses com registro)</div>
           <div class="table-wrap" id="tbl-abs-full"></div>
         </div>
       </div>
@@ -288,7 +287,8 @@
         <h1 class="page-title">Exames periódicos</h1>
         <div class="page-desc">Controle de exames ocupacionais (ASO) e cumprimento de prazo</div>
         <div class="panel">
-          <h2>Novo exame / agendamento</h2>
+          <h2>Cadastrar pessoa para exame</h2>
+          <div class="desc">Cadastre quem precisa fazer exame e marque quais categorias. Depois, entre no registro para lançar a data de cada exame realizado e, por fim, a data de recebimento do ASO.</div>
           <div class="form-grid">
             <div><label>Colaborador</label><input type="text" id="ex-nome"></div>
             <div><label>Setor</label><input type="text" id="ex-setor"></div>
@@ -296,16 +296,16 @@
               <select id="ex-tipo"><option>Periódico</option><option>Admissional</option><option>Demissional</option><option>Mudança de função</option><option>Retorno ao trabalho</option></select>
             </div>
             <div><label>Data prevista</label><input type="date" id="ex-prev"></div>
-            <div><label>Data realizada (se já foi)</label><input type="date" id="ex-real"></div>
-            <div><label>Resultado</label>
-              <select id="ex-result"><option value="">—</option><option>Apto</option><option>Apto com restrição</option><option>Inapto</option></select>
-            </div>
           </div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="salvarExame()">Salvar exame</button></div>
+          <div style="margin-top:14px">
+            <label>Categorias de exame</label>
+            <div id="ex-cats" class="cat-picker"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarExame()">Salvar cadastro</button></div>
         </div>
         <div class="panel">
-          <h2>Exames — status por prazo</h2>
-          <div class="desc">No prazo = realizado até a data prevista · Vencido = passou da data e ainda não foi feito</div>
+          <h2>Exames — acompanhamento</h2>
+          <div class="desc">Pendente = aguardando realização · Aguardando ASO = todas as categorias feitas, falta o ASO · Concluído = ASO recebido. No prazo = tudo realizado até a data prevista.</div>
           <div class="table-wrap" id="tbl-exames"></div>
         </div>
       </div>
@@ -319,7 +319,7 @@
           <div class="form-grid">
             <div><label>Data</label><input type="date" id="ag-data"></div>
             <div><label>Hora</label><input type="time" id="ag-hora"></div>
-            <div><label>Médico</label><input type="text" id="ag-medico"></div>
+            <div><label>Médico</label><select id="ag-medico"></select></div>
             <div><label>Colaborador</label><input type="text" id="ag-nome"></div>
             <div><label>Tipo</label>
               <select id="ag-tipo"><option>Consulta</option><option>Exame ocupacional</option><option>Retorno</option><option>Procedimento</option></select>
@@ -327,12 +327,13 @@
             <div style="grid-column:span 2"><label>Observações</label><input type="text" id="ag-obs" placeholder="opcional"></div>
           </div>
           <div class="btn-row"><button class="btn btn-primary" onclick="salvarAgenda()">Salvar agendamento</button></div>
+          <div class="note" id="ag-sem-medico" style="display:none">Nenhum médico cadastrado ainda. Cadastre em <b>Metas &amp; Config → Médicos cadastrados</b>.</div>
         </div>
         <div class="panel">
           <h2>Agenda do dia</h2>
           <div class="filter-bar" style="margin-bottom:14px">
             <div class="fld"><label>Ver dia</label><input type="date" id="ag-filtro-data"></div>
-            <div class="fld"><label>Médico</label><input type="text" id="ag-filtro-medico" placeholder="todos"></div>
+            <div class="fld"><label>Médico</label><select id="ag-filtro-medico"></select></div>
             <button class="btn btn-leaf" onclick="renderAgenda()">Aplicar</button>
           </div>
           <div class="table-wrap" id="tbl-agenda"></div>
@@ -410,13 +411,18 @@
           <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar metas</button></div>
         </div>
         <div class="panel">
-          <h2>Base de cálculo do absenteísmo</h2>
-          <div class="desc">A taxa é: dias perdidos ÷ (efetivo × dias úteis no período) × 100</div>
-          <div class="form-grid">
-            <div><label>Efetivo (nº de colaboradores)</label><input type="number" id="cfg-efetivo" min="0"></div>
+          <h2>Médicos cadastrados</h2>
+          <div class="desc">Estes médicos aparecem na lista ao criar um agendamento. Informe o nome e a especialidade.</div>
+          <div class="form-grid" style="grid-template-columns:2fr 2fr auto;align-items:end">
+            <div><label>Nome do médico</label><input type="text" id="med-nome" placeholder="ex: Dra. Ana Souza"></div>
+            <div><label>Especialidade</label><input type="text" id="med-esp" placeholder="ex: Clínico / Medicina do Trabalho"></div>
+            <div><button class="btn btn-leaf" onclick="addMedico()">+ Adicionar</button></div>
           </div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar base</button></div>
-          <div class="note">Sem o efetivo preenchido, o dashboard mostra apenas os dias perdidos absolutos, sem a taxa percentual.</div>
+          <div class="table-wrap" id="tbl-medicos" style="margin-top:14px"></div>
+        </div>
+        <div class="panel">
+          <h2>Absenteísmo médico</h2>
+          <div class="note">O absenteísmo médico agora vem direto do módulo de <b>Recursos Humanos</b> (importação do relatório de ponto). Não é mais lançado manualmente aqui — basta manter o RH atualizado.</div>
         </div>
         <div class="panel">
           <h2>Perguntas das pesquisas</h2>
@@ -500,8 +506,18 @@ const NAV_DEF = [
   {id:'config',      label:'Metas & Config', ic:'⚙', roles:['admin']},
 ];
 const DEFAULT_CFG = {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, efetivo:0};
+// Categorias de exame ocupacional (chave interna + rótulo exibido)
+const EXAME_CATS = [
+  {k:'audiometria',  t:'Audiometria'},
+  {k:'laboratorial', t:'Laboratorial'},
+  {k:'complementar', t:'Complementar'},
+  {k:'clinico',      t:'Clínico'},
+];
+const catLabel = k => (EXAME_CATS.find(c=>c.k===k)||{}).t || k;
 
-let state = { users:[], abs:[], exames:[], agenda:[], dsp:[], satMed:[], satAmb:[], satMedPrev:[], satAmbPrev:[], satHist:{}, cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
+let state = { users:[], rhLanc:[], exames:[], agenda:[], medicos:[], dsp:[], satMed:[], satAmb:[], satMedPrev:[], satAmbPrev:[], satHist:{}, cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
+// rascunho de categorias marcadas no formulário de cadastro
+let novoExameCats = {};
 let currentUser = null;
 let surveyAnswers = {}, surveyDef = null, surveyKind = null;
 let unsubs = [];
@@ -609,7 +625,32 @@ async function loadConfig(){
     const m = await getDoc(doc(db,'config','amb_metas'));
     state.cfg = m.exists()? {...DEFAULT_CFG, ...m.data()} : {...DEFAULT_CFG};
   }catch(e){ state.cfg = {...DEFAULT_CFG}; }
+  try{
+    const md = await getDoc(doc(db,'config','amb_medicos'));
+    state.medicos = md.exists() && Array.isArray(md.data().lista) ? md.data().lista : [];
+  }catch(e){ state.medicos = []; }
   await loadPesquisas();
+}
+// Absenteísmo médico vindo do RH: média ponderada pelos ativos, dentro do intervalo de meses.
+// deISO/ateISO são datas (YYYY-MM-DD); comparamos pela competência (YYYY-MM).
+function absMedicoRH(deISO, ateISO){
+  const de = (deISO||'').slice(0,7), ate = (ateISO||'').slice(0,7);
+  const f = state.rhLanc.filter(l=>{
+    const c = l.competencia || ''; if(!c) return false;
+    if(de && c < de) return false; if(ate && c > ate) return false;
+    return l.absenteismoMedico != null;
+  });
+  const somaAtivos = f.reduce((s,l)=>s+(l.ativos||0),0);
+  if(somaAtivos){
+    const pond = f.reduce((s,l)=>s+((l.absenteismoMedico||0)*(l.ativos||0)),0);
+    return {taxa: pond/somaAtivos, meses:[...new Set(f.map(l=>l.competencia))].length};
+  }
+  // sem ativos (registros só de absenteísmo): média simples
+  if(f.length){
+    const media = f.reduce((s,l)=>s+(l.absenteismoMedico||0),0)/f.length;
+    return {taxa: media, meses:[...new Set(f.map(l=>l.competencia))].length};
+  }
+  return {taxa:null, meses:0};
 }
 function normPesq(arr){
   if(!Array.isArray(arr) || !arr.length) return null;
@@ -636,7 +677,7 @@ function sub(colName, target, after){
 }
 function subscribeData(){
   unsubs.forEach(u=>u()); unsubs=[];
-  sub('amb_absenteismo','abs', ()=>{ renderAbs(); renderDashboard(); });
+  sub('rh_lancamentos','rhLanc', ()=>{ renderAbs(); renderDashboard(); });
   sub('amb_exames','exames', ()=>{ renderExames(); renderDashboard(); });
   sub('amb_agenda','agenda', ()=>{ renderAgenda(); });
   sub('amb_dsp','dsp', ()=>{ renderDsp(); renderDashboard(); });
@@ -698,7 +739,6 @@ function enterApp(){
     '<div class="navlbl">Menu</div>' +
     nav.map(n=>`<button class="navbtn" data-id="${n.id}" onclick="showPage('${n.id}')"><span class="ic">${n.ic}</span>${n.label}</button>`).join('');
 
-  document.getElementById('ab-inicio').value = todayISO();
   document.getElementById('ex-prev').value = todayISO();
   document.getElementById('ag-data').value = todayISO();
   document.getElementById('ag-filtro-data').value = todayISO();
@@ -716,8 +756,10 @@ function enterApp(){
   document.getElementById('cfg-exames').value = state.cfg.metaExames;
   document.getElementById('cfg-satmed').value = state.cfg.metaSatMed;
   document.getElementById('cfg-satamb').value = state.cfg.metaSatAmb;
-  document.getElementById('cfg-efetivo').value = state.cfg.efetivo||'';
   renderPesqEditor();
+  renderCatPicker();
+  renderMedicos();
+  preencherSelectsMedico();
 
   showPage(nav[0].id);
 }
@@ -725,75 +767,265 @@ function showPage(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
   if(id==='dashboard') renderDashboard();
+  if(id==='absenteismo') renderAbs();
   if(id==='agenda') renderAgenda();
   if(id==='pesquisas') renderSatDetalhe();
 }
 
-/* ================= SAVE: ABSENTEISMO ================= */
-async function salvarAbsenteismo(){
-  const nome = document.getElementById('ab-nome').value.trim();
-  if(!nome){ toast('Informe o colaborador.', true); return; }
-  try{
-    await addDoc(collection(db,'amb_absenteismo'), {
-      nome, setor: document.getElementById('ab-setor').value.trim(),
-      inicio: document.getElementById('ab-inicio').value || todayISO(),
-      dias: Number(document.getElementById('ab-dias').value)||1,
-      cid: document.getElementById('ab-cid').value.trim().toUpperCase(),
-      cidDesc: document.getElementById('ab-ciddesc').value.trim(),
-      tipo: document.getElementById('ab-tipo').value,
-      medico: document.getElementById('ab-medico').value.trim(),
-      por: currentUser.nome,
-    });
-    ['ab-nome','ab-setor','ab-cid','ab-ciddesc','ab-medico'].forEach(i=>document.getElementById(i).value='');
-    document.getElementById('ab-dias').value=1;
-    toast('Atestado salvo ✓');
-  }catch(e){ toast('Falha ao salvar — verifique a internet.', true); }
+/* ================= MÉDICOS CADASTRADOS ================= */
+function preencherSelectsMedico(){
+  const opts = '<option value="">— selecione —</option>' +
+    state.medicos.map(m=>`<option value="${esc(m.nome)}">${esc(m.nome)}${m.esp?(' · '+esc(m.esp)):''}</option>`).join('');
+  const sel = document.getElementById('ag-medico');
+  if(sel) sel.innerHTML = opts;
+  const filt = document.getElementById('ag-filtro-medico');
+  if(filt) filt.innerHTML = '<option value="">todos</option>' +
+    state.medicos.map(m=>`<option value="${esc(m.nome)}">${esc(m.nome)}</option>`).join('');
+  const aviso = document.getElementById('ag-sem-medico');
+  if(aviso) aviso.style.display = state.medicos.length? 'none':'block';
 }
-async function delAbs(id){ confirmModal('Remover este atestado?', async()=>{ try{ await deleteDoc(doc(db,'amb_absenteismo',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+function renderMedicos(){
+  const el = document.getElementById('tbl-medicos'); if(!el) return;
+  const rows = state.medicos.map((m,i)=>[
+    esc(m.nome), esc(m.esp||'—'),
+    `<button class="btn btn-danger btn-mini" onclick="removeMedico(${i})">×</button>`
+  ]);
+  el.innerHTML = tableHTML(['Médico','Especialidade',''], rows);
+}
+async function salvarMedicos(){
+  try{ await setDoc(doc(db,'config','amb_medicos'), {lista: state.medicos}); }
+  catch(e){ toast('Falha ao salvar médicos.', true); }
+}
+async function addMedico(){
+  const nome = document.getElementById('med-nome').value.trim();
+  const esp  = document.getElementById('med-esp').value.trim();
+  if(nome.length<2){ toast('Informe o nome do médico.', true); return; }
+  if(state.medicos.some(m=>m.nome.toLowerCase()===nome.toLowerCase())){ toast('Esse médico já está cadastrado.', true); return; }
+  state.medicos.push({nome, esp});
+  await salvarMedicos();
+  document.getElementById('med-nome').value=''; document.getElementById('med-esp').value='';
+  renderMedicos(); preencherSelectsMedico();
+  toast('Médico adicionado ✓');
+}
+function removeMedico(i){
+  confirmModal('Remover este médico da lista?', async()=>{
+    state.medicos.splice(i,1);
+    await salvarMedicos();
+    renderMedicos(); preencherSelectsMedico();
+    toast('Removido ✓');
+  });
+}
 
-/* ================= SAVE: EXAMES ================= */
+/* ================= RENDER: ABSENTEISMO (do RH) ================= */
+function renderAbs(){
+  // KPI do período (mesmo filtro do dashboard)
+  const {taxa, meses} = absMedicoRH(state.filterDe, state.filterAte);
+  const kpiEl = document.getElementById('abs-kpi');
+  if(kpiEl){
+    const ok = taxa==null ? true : taxa <= state.cfg.metaAbs;
+    kpiEl.innerHTML = kpiCard('Absenteísmo médico',
+      taxa==null ? '—' : taxa.toFixed(2)+'%',
+      taxa==null ? 'Sem dados de RH no período' : `Meta: até ${state.cfg.metaAbs}% · ${meses} mês(es)`,
+      ok, taxa==null?0:taxa, state.cfg.metaAbs*1.6);
+  }
+  // Por departamento — registro mais recente de cada depto dentro do intervalo
+  const de = (state.filterDe||'').slice(0,7), ate = (state.filterAte||'').slice(0,7);
+  const dentro = state.rhLanc.filter(l=>{
+    const c=l.competencia||''; if(!c) return false;
+    if(de && c<de) return false; if(ate && c>ate) return false;
+    return l.absenteismoMedico!=null;
+  });
+  const porDepto = {};
+  dentro.forEach(l=>{
+    const k = (l.filial? l.filial+' · ':'') + (l.depto||'—');
+    if(!porDepto[k] || (l.competencia > porDepto[k].competencia)) porDepto[k] = l;
+  });
+  const deptoRows = Object.entries(porDepto)
+    .sort((a,b)=>(b[1].absenteismoMedico||0)-(a[1].absenteismoMedico||0))
+    .map(([k,l])=>[esc(k), (l.absenteismoMedico||0).toFixed(1)+'%', fmtMesComp(l.competencia)]);
+  const deptoEl = document.getElementById('tbl-abs-depto');
+  if(deptoEl) deptoEl.innerHTML = tableHTML(['Departamento','Absent. médico','Mês'], deptoRows);
+  // Histórico mensal ponderado
+  const meses12 = [...new Set(state.rhLanc.map(l=>l.competencia).filter(Boolean))].sort().slice(-12).reverse();
+  const histRows = meses12.map(m=>{
+    const f = state.rhLanc.filter(l=>l.competencia===m && l.absenteismoMedico!=null);
+    const somaAtivos = f.reduce((s,l)=>s+(l.ativos||0),0);
+    let taxaM;
+    if(somaAtivos) taxaM = f.reduce((s,l)=>s+((l.absenteismoMedico||0)*(l.ativos||0)),0)/somaAtivos;
+    else if(f.length) taxaM = f.reduce((s,l)=>s+(l.absenteismoMedico||0),0)/f.length;
+    return [fmtMesComp(m), taxaM!=null? taxaM.toFixed(1)+'%':'—'];
+  });
+  const fullEl = document.getElementById('tbl-abs-full');
+  if(fullEl) fullEl.innerHTML = tableHTML(['Mês','Absenteísmo médico'], histRows);
+}
+
+/* ================= EXAMES (categorias + fases) ================= */
+// Seletor de categorias no formulário de cadastro
+function renderCatPicker(){
+  const el = document.getElementById('ex-cats'); if(!el) return;
+  el.innerHTML = EXAME_CATS.map(c=>`
+    <label class="cat-chip ${novoExameCats[c.k]?'on':''}" data-k="${c.k}">
+      <input type="checkbox" ${novoExameCats[c.k]?'checked':''}> ${c.t}
+    </label>`).join('');
+  el.querySelectorAll('.cat-chip').forEach(chip=>{
+    const k = chip.dataset.k;
+    chip.querySelector('input').addEventListener('change', e=>{
+      novoExameCats[k] = e.target.checked;
+      chip.classList.toggle('on', e.target.checked);
+    });
+  });
+}
 async function salvarExame(){
   const nome = document.getElementById('ex-nome').value.trim();
   if(!nome){ toast('Informe o colaborador.', true); return; }
+  const marcadas = EXAME_CATS.filter(c=>novoExameCats[c.k]);
+  if(!marcadas.length){ toast('Marque ao menos uma categoria de exame.', true); return; }
+  const cats = {};
+  marcadas.forEach(c=>{ cats[c.k] = {req:true, realizada:''}; });
   try{
     await addDoc(collection(db,'amb_exames'), {
       nome, setor: document.getElementById('ex-setor').value.trim(),
       tipo: document.getElementById('ex-tipo').value,
       prevista: document.getElementById('ex-prev').value || todayISO(),
-      realizada: document.getElementById('ex-real').value || '',
-      resultado: document.getElementById('ex-result').value,
-      por: currentUser.nome,
+      cats, aso:'', por: currentUser.nome, criadoEm: todayISO(),
     });
-    ['ex-nome','ex-setor','ex-real'].forEach(i=>document.getElementById(i).value='');
-    document.getElementById('ex-result').value='';
-    toast('Exame salvo ✓');
+    document.getElementById('ex-nome').value='';
+    document.getElementById('ex-setor').value='';
+    novoExameCats = {}; renderCatPicker();
+    toast('Cadastro salvo ✓');
   }catch(e){ toast('Falha ao salvar.', true); }
 }
-async function delExame(id){ confirmModal('Remover este exame?', async()=>{ try{ await deleteDoc(doc(db,'amb_exames',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+async function delExame(id){ confirmModal('Remover este cadastro de exame?', async()=>{ try{ await deleteDoc(doc(db,'amb_exames',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+
+// categorias requeridas de um registro (compat: registros antigos sem cats)
+function catsReq(e){ return EXAME_CATS.filter(c=>e.cats && e.cats[c.k] && e.cats[c.k].req); }
+function ultimaRealizada(e){
+  const ds = catsReq(e).map(c=>e.cats[c.k].realizada).filter(Boolean);
+  return ds.length? ds.sort().slice(-1)[0] : '';
+}
+function todasRealizadas(e){ const r=catsReq(e); return r.length>0 && r.every(c=>e.cats[c.k].realizada); }
+function noPrazoExame(e){ const u=ultimaRealizada(e); return todasRealizadas(e) && u && u<=e.prevista; }
 function statusExame(e){
-  if(e.realizada){
-    return e.realizada <= e.prevista ? {t:'No prazo', c:'p-ok'} : {t:'Atrasado', c:'p-warn'};
-  }
-  return todayISO() > e.prevista ? {t:'Vencido', c:'p-bad'} : {t:'Agendado', c:'p-neutral'};
+  const reqs = catsReq(e);
+  if(!reqs.length) return {t:'Sem categoria', c:'p-neutral'};
+  if(e.aso) return {t:'Concluído', c:'p-ok'};
+  const feitas = reqs.filter(c=>e.cats[c.k].realizada).length;
+  if(feitas===reqs.length) return {t:'Aguardando ASO', c:'p-warn'};
+  if(feitas>0) return {t:'Em andamento', c:'p-neutral'};
+  return todayISO() > e.prevista ? {t:'Vencido', c:'p-bad'} : {t:'Pendente', c:'p-neutral'};
+}
+function catBadges(e){
+  return catsReq(e).map(c=>{
+    const r = e.cats[c.k].realizada;
+    return `<span class="catbadge ${r?'done':''}" title="${r?('realizado '+fmtBR(r)):'pendente'}">${c.t}${r?' ✓':''}</span>`;
+  }).join('');
+}
+function renderExames(){
+  const rows = [...state.exames].sort((a,b)=>(b.prevista||'').localeCompare(a.prevista||'')).slice(0,40).map(e=>{
+    const s = statusExame(e);
+    const acoes = `<button class="btn btn-ghost btn-mini" onclick="modalDatasExame('${e.id}')">Lançar datas</button> `
+      + (todasRealizadas(e) ? `<button class="btn btn-ghost btn-mini" onclick="modalAso('${e.id}')">${e.aso?'ASO ✓':'Finalizar ASO'}</button> ` : '')
+      + `<button class="btn btn-danger btn-mini" onclick="delExame('${e.id}')">×</button>`;
+    return [
+      fmtBR(e.prevista), esc(e.nome), esc(e.tipo||'—'),
+      catBadges(e),
+      e.aso? fmtBR(e.aso) : '—',
+      `<span class="pill ${s.c}">${s.t}</span>`,
+      acoes
+    ];
+  });
+  document.getElementById('tbl-exames').innerHTML =
+    tableHTML(['Prevista','Colaborador','Tipo','Categorias','ASO','Status',''], rows);
+}
+// Modal: lançar a data realizada de cada categoria
+function modalDatasExame(id){
+  const e = state.exames.find(x=>x.id===id); if(!e) return;
+  const linhas = catsReq(e).map(c=>`
+    <div class="cat-line">
+      <span class="cl-nome">${c.t}</span>
+      <input type="date" id="dt-${c.k}" value="${e.cats[c.k].realizada||''}">
+    </div>`).join('') || '<div class="empty">Nenhuma categoria cadastrada.</div>';
+  openModal(`<h3>Datas de realização — ${esc(e.nome)}</h3>
+    <div class="desc" style="margin-bottom:6px">Preencha o dia em que cada exame foi realizado. Deixe em branco o que ainda não foi feito.</div>
+    ${linhas}
+    <div class="btn-row"><button class="btn btn-primary" onclick="salvarDatasExame('${e.id}')">Salvar datas</button>
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function salvarDatasExame(id){
+  const e = state.exames.find(x=>x.id===id); if(!e) return;
+  const cats = JSON.parse(JSON.stringify(e.cats||{}));
+  catsReq(e).forEach(c=>{
+    const inp = document.getElementById('dt-'+c.k);
+    if(inp) cats[c.k].realizada = inp.value || '';
+  });
+  try{
+    await setDoc(doc(db,'amb_exames',id), {cats}, {merge:true});
+    closeModal(); toast('Datas atualizadas ✓');
+  }catch(err){ toast('Falha ao salvar.', true); }
+}
+// Modal: data de recebimento do ASO (única para a pessoa)
+function modalAso(id){
+  const e = state.exames.find(x=>x.id===id); if(!e) return;
+  if(!todasRealizadas(e)){ toast('Lance a data de todas as categorias antes de finalizar o ASO.', true); return; }
+  openModal(`<h3>Recebimento do ASO — ${esc(e.nome)}</h3>
+    <div class="desc" style="margin-bottom:6px">Data em que o ASO foi recebido. Isso conclui o exame desta pessoa.</div>
+    <label>Data do ASO</label><input type="date" id="aso-data" value="${e.aso||todayISO()}">
+    <div class="btn-row"><button class="btn btn-primary" onclick="salvarAso('${e.id}')">Concluir</button>
+    ${e.aso?`<button class="btn btn-danger" onclick="salvarAso('${e.id}', true)">Limpar ASO</button>`:''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function salvarAso(id, limpar){
+  const val = limpar ? '' : (document.getElementById('aso-data').value || todayISO());
+  try{
+    await setDoc(doc(db,'amb_exames',id), {aso: val}, {merge:true});
+    closeModal(); toast(limpar? 'ASO removido ✓' : 'ASO registrado ✓');
+  }catch(e){ toast('Falha ao salvar.', true); }
 }
 
 /* ================= SAVE: AGENDA ================= */
 async function salvarAgenda(){
   const nome = document.getElementById('ag-nome').value.trim();
   if(!nome){ toast('Informe o colaborador.', true); return; }
+  const medico = document.getElementById('ag-medico').value.trim();
+  if(!medico){ toast('Selecione o médico.', true); return; }
+  const esp = (state.medicos.find(m=>m.nome===medico)||{}).esp || '';
   try{
     await addDoc(collection(db,'amb_agenda'), {
       data: document.getElementById('ag-data').value || todayISO(),
       hora: document.getElementById('ag-hora').value || '',
-      medico: document.getElementById('ag-medico').value.trim(),
+      medico, esp,
       nome, tipo: document.getElementById('ag-tipo').value,
       obs: document.getElementById('ag-obs').value.trim(),
+      realizado:false, realizadoEm:'',
+      linkEnviado:false, linkEnviadoEm:'',
     });
-    ['ag-hora','ag-medico','ag-nome','ag-obs'].forEach(i=>document.getElementById(i).value='');
+    ['ag-hora','ag-nome','ag-obs'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('ag-medico').value='';
     toast('Agendamento salvo ✓');
   }catch(e){ toast('Falha ao salvar.', true); }
 }
 async function delAgenda(id){ confirmModal('Remover este agendamento?', async()=>{ try{ await deleteDoc(doc(db,'amb_agenda',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
+// Confirmar consulta realizada
+async function marcarRealizado(id, val){
+  try{
+    await setDoc(doc(db,'amb_agenda',id), {realizado:!!val, realizadoEm: val? todayISO():''}, {merge:true});
+    toast(val? 'Consulta confirmada ✓':'Confirmação desfeita');
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+// Confirmar que o link da pesquisa médica foi enviado (com data/hora)
+async function marcarLinkEnviado(id, val){
+  const now = new Date();
+  const carimbo = val ? (todayISO()+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')) : '';
+  try{
+    await setDoc(doc(db,'amb_agenda',id), {linkEnviado:!!val, linkEnviadoEm: carimbo}, {merge:true});
+    toast(val? 'Envio do link registrado ✓':'Registro desfeito');
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+function copiarLinkMedico(){
+  const url = baseURL()+'?p=medico';
+  try{ navigator.clipboard && navigator.clipboard.writeText(url); }catch(e){}
+  toast('Link da pesquisa copiado ✓');
+}
 
 /* ================= SAVE: DSP ================= */
 async function salvarDsp(){
@@ -816,11 +1048,11 @@ async function delDsp(id){ confirmModal('Remover este DSP?', async()=>{ try{ awa
 /* ================= CONFIG ================= */
 async function salvarConfig(){
   state.cfg = {
+    ...state.cfg,
     metaAbs: Number(document.getElementById('cfg-abs').value)||DEFAULT_CFG.metaAbs,
     metaExames: Number(document.getElementById('cfg-exames').value)||DEFAULT_CFG.metaExames,
     metaSatMed: Number(document.getElementById('cfg-satmed').value)||DEFAULT_CFG.metaSatMed,
     metaSatAmb: Number(document.getElementById('cfg-satamb').value)||DEFAULT_CFG.metaSatAmb,
-    efetivo: Number(document.getElementById('cfg-efetivo').value)||0,
   };
   try{ await setDoc(doc(db,'config','amb_metas'), state.cfg); toast('Configuração salva ✓'); renderDashboard(); }
   catch(e){ toast('Falha ao salvar.', true); }
@@ -861,32 +1093,34 @@ async function salvarPesquisas(){
 }
 
 /* ================= RENDER: TABELAS ================= */
-function renderAbs(){
-  const rows = [...state.abs].sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||'')).slice(0,20).map(a=>[
-    fmtBR(a.inicio), esc(a.nome), esc(a.setor||'—'),
-    (a.dias||0)+'d', esc(a.cid||'—'), esc(a.tipo||'—'),
-    `<button class="btn btn-danger btn-mini" onclick="delAbs('${a.id}')">×</button>`
-  ]);
-  document.getElementById('tbl-abs-full').innerHTML = tableHTML(['Início','Colaborador','Setor','Dias','CID','Tipo',''], rows);
-}
-function renderExames(){
-  const rows = [...state.exames].sort((a,b)=>(b.prevista||'').localeCompare(a.prevista||'')).slice(0,30).map(e=>{
-    const s = statusExame(e);
-    return [fmtBR(e.prevista), esc(e.nome), esc(e.tipo||'—'),
-      e.realizada?fmtBR(e.realizada):'—', `<span class="pill ${s.c}">${s.t}</span>`,
-      `<button class="btn btn-danger btn-mini" onclick="delExame('${e.id}')">×</button>`];
-  });
-  document.getElementById('tbl-exames').innerHTML = tableHTML(['Prevista','Colaborador','Tipo','Realizada','Status',''], rows);
-}
 function renderAgenda(){
   const fData = (document.getElementById('ag-filtro-data')||{}).value || todayISO();
   const fMed = ((document.getElementById('ag-filtro-medico')||{}).value||'').trim().toLowerCase();
   const rows = state.agenda
     .filter(a=>a.data===fData && (!fMed || (a.medico||'').toLowerCase().includes(fMed)))
     .sort((a,b)=>(a.hora||'').localeCompare(b.hora||''))
-    .map(a=>[a.hora||'—', esc(a.medico||'—'), esc(a.nome), esc(a.tipo||'—'), esc(a.obs||'—'),
-      `<button class="btn btn-danger btn-mini" onclick="delAgenda('${a.id}')">×</button>`]);
-  document.getElementById('tbl-agenda').innerHTML = tableHTML(['Hora','Médico','Colaborador','Tipo','Obs',''], rows);
+    .map(a=>{
+      // Coluna "Realizado": checkbox
+      const realiz = `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" ${a.realizado?'checked':''} style="width:16px;height:16px;accent-color:var(--verde)"
+                 onchange="marcarRealizado('${a.id}', this.checked)">
+          ${a.realizado?('<span style="color:var(--ok);font-size:11px">'+fmtBR(a.realizadoEm)+'</span>'):'<span style="color:var(--cinza);font-size:11px">pendente</span>'}
+        </label>`;
+      // Coluna "Pesquisa": só aparece depois de realizado; lembrete + confirmação de envio
+      let pesq;
+      if(!a.realizado){
+        pesq = '<span style="color:var(--cinza);font-size:11px">—</span>';
+      } else if(a.linkEnviado){
+        pesq = `<span class="pill p-ok">enviado</span> <span style="color:var(--cinza);font-size:11px">${esc(a.linkEnviadoEm||'')}</span>
+                <button class="btn btn-ghost btn-mini" onclick="marcarLinkEnviado('${a.id}', false)">desfazer</button>`;
+      } else {
+        pesq = `<button class="btn btn-ghost btn-mini" onclick="copiarLinkMedico()">Copiar link</button>
+                <button class="btn btn-leaf btn-mini" onclick="marcarLinkEnviado('${a.id}', true)">Marcar enviado</button>`;
+      }
+      return [a.hora||'—', esc(a.medico||'—'), esc(a.nome), esc(a.tipo||'—'), realiz, pesq,
+        `<button class="btn btn-danger btn-mini" onclick="delAgenda('${a.id}')">×</button>`];
+    });
+  document.getElementById('tbl-agenda').innerHTML = tableHTML(['Hora','Médico','Colaborador','Tipo','Realizado','Pesquisa médica',''], rows);
 }
 function renderDsp(){
   const rows = [...state.dsp].sort((a,b)=>(b.data||'').localeCompare(a.data||'')).slice(0,30).map(d=>[
@@ -917,22 +1151,18 @@ function renderDashboard(){
   const pr = prevRange(state.filterDe, state.filterAte);
   const semAnterior = '<div class="cmp cmp-flat">— sem período anterior</div>';
 
-  // ---- Absenteísmo médico (só atestados) ----
-  const absF = state.abs.filter(a=>inRange(a.inicio));
-  const absP = state.abs.filter(a=>inPrev(a.inicio, pr));
-  const diasPerdidos = absF.reduce((s,a)=>s+(a.dias||0),0);
-  const diasPerdidosP = absP.reduce((s,a)=>s+(a.dias||0),0);
-  const nAtestados = absF.length;
-  const efetivo = state.cfg.efetivo||0;
-  const taxaAbs  = efetivo ? (diasPerdidos /(efetivo*businessDays(state.filterDe,state.filterAte))*100) : null;
-  const taxaAbsP = efetivo ? (diasPerdidosP/(efetivo*businessDays(pr.de,pr.ate))*100) : null;
+  // ---- Absenteísmo médico (vindo do RH) ----
+  const absAtual = absMedicoRH(state.filterDe, state.filterAte);
+  const absAnt   = absMedicoRH(pr.de, pr.ate);
+  const taxaAbs  = absAtual.taxa;
+  const taxaAbsP = absAnt.taxa;
 
-  // ---- Exames no prazo ----
+  // ---- Exames no prazo (todas as categorias realizadas até a data prevista) ----
   const exF = state.exames.filter(e=>inRange(e.prevista));
-  const noPrazo = exF.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const noPrazo = exF.filter(noPrazoExame).length;
   const pctExames = exF.length ? (noPrazo/exF.length*100) : null;
   const exP = state.exames.filter(e=>inPrev(e.prevista, pr));
-  const noPrazoP = exP.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+  const noPrazoP = exP.filter(noPrazoExame).length;
   const pctExamesP = exP.length ? (noPrazoP/exP.length*100) : null;
 
   // ---- Satisfação ----
@@ -949,13 +1179,13 @@ function renderDashboard(){
   const cfg = state.cfg;
   const cards = [];
 
-  // Absenteísmo médico — comparativo por taxa (se há efetivo) ou por dias perdidos
-  const absCmp = (taxaAbs!=null)
+  // Absenteísmo médico — do RH, comparativo x período anterior
+  const absCmp = (taxaAbs!=null && taxaAbsP!=null)
     ? cmpLine(taxaAbs, taxaAbsP, false, v=>v.toFixed(1)+'%')
-    : cmpLine(diasPerdidos, diasPerdidosP, false, v=>Math.round(v)+'d');
+    : semAnterior;
   cards.push(kpiCard('Absenteísmo médico',
-    taxaAbs==null ? diasPerdidos+' dias' : taxaAbs.toFixed(2)+'%',
-    taxaAbs==null ? `${nAtestados} atestados · defina o efetivo p/ ver a taxa` : `Meta: até ${cfg.metaAbs}% · ${diasPerdidos} dias / ${nAtestados} atestados`,
+    taxaAbs==null ? '—' : taxaAbs.toFixed(2)+'%',
+    taxaAbs==null ? 'Sem dados de RH no período' : `Meta: até ${cfg.metaAbs}% · fonte: RH · ${absAtual.meses} mês(es)`,
     taxaAbs==null ? true : taxaAbs<=cfg.metaAbs, taxaAbs==null?0:taxaAbs, cfg.metaAbs*1.6, absCmp));
   cards.push(kpiCard('Exames no prazo',
     pctExames==null ? '—' : pctExames.toFixed(0)+'%',
@@ -978,24 +1208,22 @@ function renderDashboard(){
     cmpLine(dspF.length, dspP.length, true, v=>Math.round(v)+'')));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
-  // Top CIDs
-  const cidMap = {};
-  absF.forEach(a=>{ const k=(a.cid||'Sem CID')+(a.cidDesc?(' — '+a.cidDesc):''); if(!cidMap[k]) cidMap[k]={dias:0,n:0}; cidMap[k].dias+=(a.dias||0); cidMap[k].n++; });
-  const cidRows = Object.entries(cidMap).sort((a,b)=>b[1].dias-a[1].dias).slice(0,10)
-    .map(([k,v])=>[esc(k), v.n, v.dias+'d']);
-  document.getElementById('tbl-cid').innerHTML = tableHTML(['CID','Atestados','Dias perdidos'], cidRows);
-
-  // Por setor
-  const setMap = {};
-  absF.forEach(a=>{ const k=a.setor||'—'; if(!setMap[k]) setMap[k]={dias:0,n:0}; setMap[k].dias+=(a.dias||0); setMap[k].n++; });
-  const setRows = Object.entries(setMap).sort((a,b)=>b[1].dias-a[1].dias)
-    .map(([k,v])=>[esc(k), v.n, v.dias+'d']);
-  document.getElementById('tbl-setor').innerHTML = tableHTML(['Setor','Atestados','Dias perdidos'], setRows);
-
-  // Últimos atestados
-  const dashRows = [...absF].sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||'')).slice(0,8)
-    .map(a=>[fmtBR(a.inicio), esc(a.nome), esc(a.setor||'—'), (a.dias||0)+'d', esc(a.cid||'—')]);
-  document.getElementById('tbl-abs-dash').innerHTML = tableHTML(['Início','Colaborador','Setor','Dias','CID'], dashRows);
+  // Absenteísmo médico por departamento (do RH) — registro mais recente de cada depto no período
+  const deM = (state.filterDe||'').slice(0,7), ateM = (state.filterAte||'').slice(0,7);
+  const rhDentro = state.rhLanc.filter(l=>{
+    const c=l.competencia||''; if(!c) return false;
+    if(deM && c<deM) return false; if(ateM && c>ateM) return false;
+    return l.absenteismoMedico!=null;
+  });
+  const deptoMap = {};
+  rhDentro.forEach(l=>{
+    const k = (l.filial? l.filial+' · ':'') + (l.depto||'—');
+    if(!deptoMap[k] || l.competencia > deptoMap[k].competencia) deptoMap[k] = l;
+  });
+  const dashRows = Object.entries(deptoMap)
+    .sort((a,b)=>(b[1].absenteismoMedico||0)-(a[1].absenteismoMedico||0)).slice(0,10)
+    .map(([k,l])=>[esc(k), (l.absenteismoMedico||0).toFixed(1)+'%', fmtMesComp(l.competencia)]);
+  document.getElementById('tbl-abs-dash').innerHTML = tableHTML(['Departamento','Absent. médico','Mês'], dashRows);
 
   // DSP por setor (departamento)
   const dspSetMap = {};
@@ -1018,20 +1246,21 @@ function fimDoMes(m){ const [y,mo]=m.split('-').map(Number); const d=new Date(y,
 // Histórico comparativo: os cinco indicadores mês a mês (últimos 12 meses com registro)
 function renderHistorico(){
   const meses = new Set();
-  state.abs.forEach(a=>{ if(a.inicio) meses.add(a.inicio.slice(0,7)); });
+  state.rhLanc.forEach(l=>{ if(l.competencia) meses.add(l.competencia); });
   state.exames.forEach(e=>{ if(e.prevista) meses.add(e.prevista.slice(0,7)); });
   state.dsp.forEach(d=>{ if(d.data) meses.add(d.data.slice(0,7)); });
   Object.keys(state.satHist||{}).forEach(m=>meses.add(m));
   const lista = [...meses].filter(Boolean).sort().slice(-12).reverse();
-  const efetivo = state.cfg.efetivo||0;
   const rows = lista.map(m=>{
-    const de = m+'-01', ate = fimDoMes(m);
-    const absM = state.abs.filter(a=>(a.inicio||'').slice(0,7)===m);
-    const dias = absM.reduce((s,a)=>s+(a.dias||0),0);
-    const taxa = efetivo ? (dias/(efetivo*businessDays(de,ate))*100) : null;
-    const absTxt = taxa!=null ? taxa.toFixed(1)+'%' : dias+'d';
+    // absenteísmo médico do mês (ponderado pelos ativos), vindo do RH
+    const rhM = state.rhLanc.filter(l=>l.competencia===m && l.absenteismoMedico!=null);
+    const somaAt = rhM.reduce((s,l)=>s+(l.ativos||0),0);
+    let taxa = null;
+    if(somaAt) taxa = rhM.reduce((s,l)=>s+((l.absenteismoMedico||0)*(l.ativos||0)),0)/somaAt;
+    else if(rhM.length) taxa = rhM.reduce((s,l)=>s+(l.absenteismoMedico||0),0)/rhM.length;
+    const absTxt = taxa!=null ? taxa.toFixed(1)+'%' : '—';
     const exM = state.exames.filter(e=>(e.prevista||'').slice(0,7)===m);
-    const np = exM.filter(e=>e.realizada && e.realizada<=e.prevista).length;
+    const np = exM.filter(noPrazoExame).length;
     const exTxt = exM.length ? Math.round(np/exM.length*100)+'%' : '—';
     const h = (state.satHist||{})[m]||{};
     const sc = h.medN? (h.medSum/h.medN):0;
@@ -1174,6 +1403,7 @@ function applyFilter(){
   state.filterAte = document.getElementById('f-ate').value;
   loadSat();
   renderDashboard();
+  renderAbs();
 }
 function setPreset(p){
   let de, ate = todayISO();
@@ -1219,9 +1449,10 @@ async function init(){
 
 Object.assign(window, {
   logout, showPage,
-  salvarAbsenteismo, delAbs, salvarExame, delExame,
-  salvarAgenda, delAgenda, renderAgenda, salvarDsp, delDsp,
-  salvarConfig,
+  salvarExame, delExame, modalDatasExame, salvarDatasExame, modalAso, salvarAso,
+  salvarAgenda, delAgenda, renderAgenda, marcarRealizado, marcarLinkEnviado, copiarLinkMedico,
+  addMedico, removeMedico,
+  salvarDsp, delDsp, salvarConfig,
   applyFilter, setPreset, copyLink, abrirWhats, imprimirQR,
   enviarSurvey, openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
   pesqAdd, pesqRemove, pesqEdit, salvarPesquisas,
