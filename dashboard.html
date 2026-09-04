@@ -294,7 +294,7 @@ async function gerarRelatorio(){
   document.getElementById('fontes-checklist').innerHTML = '';
   try{
     const [rh, absAmb, exAmb, dspAmb, satMedAmb, satAmbAmb, custosDP, fatDP, cfgRH, cfgAmb, cfgDP] = await Promise.all([
-      fetchColecao('rh_lancamentos'), fetchColecao('amb_absenteismo'), fetchColecao('amb_exames'), fetchColecao('amb_dsp'),
+      fetchColecao('rh_lancamentos'), fetchColecao('amb_absenteismo'), fetchColecao('amb_exames'), fetchColecao('amb_dsp_eventos'),
       fetchColecao('amb_sat_medico'), fetchColecao('amb_sat_amb'), fetchColecao('dp_custos'), fetchColecao('dp_faturamento'),
       fetchConfig('rh_metas', {metaTurnover:5, metaAbsenteismo:3}),
       fetchConfig('amb_metas', {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, efetivo:0}),
@@ -428,8 +428,10 @@ function montarRelatorioHTML(d){
   <div class="grid-kpi" id="sec-amb-kpi"></div>
   <h3>Absenteísmo por setor</h3>
   <div id="sec-amb-tbl-setor"></div>
-  <h3>DSP por departamento</h3>
+  <h3>DSP — cobertura por departamento</h3>
   <div id="sec-amb-tbl-dsp"></div>
+  <h3>DSP — top responsáveis</h3>
+  <div id="sec-amb-tbl-dsp-resp"></div>
 </section>
 
 <section>
@@ -609,9 +611,12 @@ function renderTudo(){
   const exP = DADOS.exAmb.filter(e=>inRangeMes(e.prevista, pr.de, pr.ate));
   const noPrazoP = exP.filter(e=>e.realizada && e.realizada<=e.prevista).length;
   const pctExamesP = exP.length? (noPrazoP/exP.length*100) : null;
+  const dspSk = x=> x.data+'|'+(x.titulo||'')+'|'+(x.resp||'');
   const dspF = DADOS.dspAmb.filter(x=>inRangeMes(x.data, de, ate) && (!filtroDeptos.size || filtroDeptos.has((x.depto||'').trim())));
   const dspP = DADOS.dspAmb.filter(x=>inRangeMes(x.data, pr.de, pr.ate) && (!filtroDeptos.size || filtroDeptos.has((x.depto||'').trim())));
-  const dspPart = dspF.reduce((s,x)=>s+(x.participantes||0),0);
+  const dspSess = new Set(dspF.map(dspSk));
+  const dspSessP = new Set(dspP.map(dspSk));
+  const dspPart = dspF.length;
   const satMed = mediaSat(DADOS.satMed.filter(s=>inRangeMes(s.data, de, ate)), SAT_DEF);
   const satMedP = mediaSat(DADOS.satMed.filter(s=>inRangeMes(s.data, pr.de, pr.ate)), SAT_DEF);
   const satAmbV = mediaSat(DADOS.satAmb.filter(s=>inRangeMes(s.data, de, ate)), SAT_DEF);
@@ -620,7 +625,7 @@ function renderTudo(){
     kpi('Dias perdidos (atestado)', diasPerdidos, taxaAbsAtual!=null? 'Taxa: '+taxaAbsAtual.toFixed(2)+'%':'', cmpBadge(diasPerdidos, diasPerdidosP, false, v=>Math.round(v)+'')),
     kpi('Atestados', absF.length, '', cmpBadge(absF.length, absP.length, false, v=>Math.round(v)+'')),
     kpi('Exames no prazo', pctExames==null?'—':pctExames.toFixed(0)+'%', 'Meta: ≥ '+DADOS.cfgAmb.metaExames+'%', cmpBadge(pctExames, pctExamesP, true, v=>v.toFixed(0)+'%')),
-    kpi('DSPs realizados', dspF.length, dspPart+' participantes', cmpBadge(dspF.length, dspP.length, true, v=>Math.round(v)+'')),
+    kpi('DSPs realizados', dspSess.size, dspPart+' participantes', cmpBadge(dspSess.size, dspSessP.size, true, v=>Math.round(v)+'')),
     kpi('Satisfação — consulta', satMed? satMed.toFixed(2)+' / 5':'—', 'Meta: ≥ '+DADOS.cfgAmb.metaSatMed, cmpBadge(satMed||null, satMedP||null, true, v=>v.toFixed(2))),
     kpi('Satisfação — ambulatório', satAmbV? satAmbV.toFixed(2)+' / 5':'—', 'Meta: ≥ '+DADOS.cfgAmb.metaSatAmb, cmpBadge(satAmbV||null, satAmbP||null, true, v=>v.toFixed(2))),
   ].join('');
@@ -629,9 +634,18 @@ function renderTudo(){
     setoresView.map(s=>[esc(s), absF.filter(a=>a.setor===s).reduce((s2,a)=>s2+(a.dias||0),0), absF.filter(a=>a.setor===s).length])
       .sort((a,b)=>b[1]-a[1]));
   const deptosDspView = [...new Set(dspF.map(x=>(x.depto||'').trim()).filter(Boolean))].sort();
-  document.getElementById('sec-amb-tbl-dsp').innerHTML = tbl(['Departamento','DSPs','Participantes'],
-    deptosDspView.map(dp=>[esc(dp), dspF.filter(x=>(x.depto||'').trim()===dp).length, dspF.filter(x=>(x.depto||'').trim()===dp).reduce((s,x)=>s+(x.participantes||0),0)])
-      .sort((a,b)=>b[1]-a[1]));
+  document.getElementById('sec-amb-tbl-dsp').innerHTML = tbl(['Departamento','Sessões','Participações'],
+    deptosDspView.map(dp=>{
+      const rows = dspF.filter(x=>(x.depto||'').trim()===dp);
+      return [esc(dp), new Set(rows.map(dspSk)).size, rows.length];
+    }).sort((a,b)=>b[2]-a[2]));
+  const respView = [...new Set(dspF.map(x=>(x.resp||'').trim()||'Sem responsável'))];
+  document.getElementById('sec-amb-tbl-dsp-resp').innerHTML = tbl(['#','Responsável','Sessões','Participantes'],
+    respView.map(r=>{
+      const rows = dspF.filter(x=>((x.resp||'').trim()||'Sem responsável')===r);
+      return [r, new Set(rows.map(dspSk)).size, rows.length];
+    }).sort((a,b)=>b[1]-a[1]||b[2]-a[2]).slice(0,10)
+      .map((row,i)=>[(i+1)+'º', esc(row[0]), row[1], row[2]]));
 
   // ---- DP (Folha ÷ Faturamento sempre no total geral, ignora filtro) ----
   const dpF = DADOS.custosDP.filter(r=>fFilial(r) && fDepto(r));
