@@ -342,20 +342,18 @@
       <!-- DSP -->
       <div class="page" id="page-dsp">
         <h1 class="page-title">DSP — Diálogo de Segurança Psicológica</h1>
-        <div class="page-desc">Registro dos diálogos realizados</div>
+        <div class="page-desc">Temas abordados no mês, importação da planilha de participação e rankings</div>
         <div class="panel">
-          <h2>Novo DSP</h2>
+          <h2>Temas do mês (lançamento manual)</h2>
+          <div class="desc">Registre apenas os temas de DSP abordados no mês. É uma lista de referência — não alimenta os rankings, que vêm da planilha importada.</div>
           <div class="form-grid">
-            <div><label>Data realizada</label><input type="date" id="ds-data"></div>
+            <div><label>Mês</label><input type="month" id="ds-comp"></div>
             <div style="grid-column:span 2"><label>Tema</label><input type="text" id="ds-tema" placeholder="ex: uso correto de EPI"></div>
-            <div><label>Departamento</label><input type="text" id="ds-depto"></div>
-            <div><label>Nº de participantes</label><input type="number" id="ds-part" min="0"></div>
-            <div><label>Responsável</label><input type="text" id="ds-resp" placeholder="opcional"></div>
           </div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="salvarDsp()">Salvar DSP</button></div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarDsp()">Salvar tema</button></div>
         </div>
         <div class="panel">
-          <h2>DSPs realizados</h2>
+          <h2>Temas lançados</h2>
           <div class="table-wrap" id="tbl-dsp"></div>
         </div>
 
@@ -826,19 +824,16 @@ async function salvarAgenda(){
 }
 async function delAgenda(id){ confirmModal('Remover este agendamento?', async()=>{ try{ await deleteDoc(doc(db,'amb_agenda',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
 
-/* ================= SAVE: DSP ================= */
+/* ================= SAVE: DSP (temas do mês) ================= */
 async function salvarDsp(){
+  const comp = document.getElementById('ds-comp').value; // yyyy-mm
   const tema = document.getElementById('ds-tema').value.trim();
+  if(!comp){ toast('Informe o mês.', true); return; }
   if(!tema){ toast('Informe o tema.', true); return; }
   try{
-    await addDoc(collection(db,'amb_dsp'), {
-      data: document.getElementById('ds-data').value || todayISO(),
-      tema, depto: document.getElementById('ds-depto').value.trim(),
-      participantes: Number(document.getElementById('ds-part').value)||0,
-      resp: document.getElementById('ds-resp').value.trim(),
-    });
-    ['ds-tema','ds-depto','ds-part','ds-resp'].forEach(i=>document.getElementById(i).value='');
-    toast('DSP salvo ✓');
+    await addDoc(collection(db,'amb_dsp'), { comp, tema, data: comp+'-01' });
+    document.getElementById('ds-tema').value='';
+    toast('Tema salvo ✓');
   }catch(e){ toast('Falha ao salvar.', true); }
 }
 async function delDsp(id){ confirmModal('Remover este DSP?', async()=>{ try{ await deleteDoc(doc(db,'amb_dsp',id)); toast('Removido ✓'); }catch(e){ toast('Falha ao remover.',true);} }); }
@@ -1071,11 +1066,14 @@ function renderDspRankings(){
 }
 
 function renderDsp(){
-  const rows = [...state.dsp].sort((a,b)=>(b.data||'').localeCompare(a.data||'')).slice(0,30).map(d=>[
-    fmtBR(d.data), esc(d.tema), esc(d.depto||'—'), (d.participantes||0),
-    `<button class="btn btn-danger btn-mini" onclick="delDsp('${d.id}')">×</button>`
-  ]);
-  document.getElementById('tbl-dsp').innerHTML = tableHTML(['Data','Tema','Departamento','Participantes',''], rows);
+  const rows = [...state.dsp]
+    .map(d=>({comp: d.comp || (d.data||'').slice(0,7), tema: d.tema, id:d.id}))
+    .sort((a,b)=>(b.comp||'').localeCompare(a.comp||'') || (a.tema||'').localeCompare(b.tema||''))
+    .map(d=>[
+      fmtMesComp(d.comp), esc(d.tema||'—'),
+      `<button class="btn btn-danger btn-mini" onclick="delDsp('${d.id}')">×</button>`
+    ]);
+  document.getElementById('tbl-dsp').innerHTML = tableHTML(['Mês','Tema',''], rows);
 }
 
 /* ================= RENDER: DASHBOARD ================= */
