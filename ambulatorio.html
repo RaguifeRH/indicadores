@@ -731,7 +731,7 @@ function enterApp(){
   document.getElementById('ex-prev').value = todayISO();
   document.getElementById('ag-data').value = todayISO();
   document.getElementById('ag-filtro-data').value = todayISO();
-  document.getElementById('ds-data').value = todayISO();
+  document.getElementById('ds-comp').value = todayISO().slice(0,7);
   document.getElementById('f-de').value = todayISO().slice(0,8)+'01';
   document.getElementById('f-ate').value = todayISO();
   state.filterDe = document.getElementById('f-de').value;
