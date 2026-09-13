@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indicadores - Jurídico</title>
+<meta name="theme-color" content="#024f2b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde:#024f2b; --verde-escuro:#013a20; --folha:#739630; --folha-suave:#e9f0dc;
+    --cinza:#666666; --bg:#f4f6f1; --branco:#ffffff; --linha:#e2e6dc;
+    --amber:#d99a2b; --erro:#c0392b; --ok:#3d7a26; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:#22301f;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;}
+  h1,h2,h3{font-family:'Poppins',sans-serif;margin:0;}
+  button{font-family:inherit;}
+  a{color:var(--verde);}
+
+  #app{display:none;}
+  .topbar{background:var(--verde);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 20px;position:sticky;top:0;z-index:30;}
+  .topbar .brandline{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+  .topbar .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:20px;letter-spacing:-0.02em;}
+  .topbar .app-sub{font-size:11px;color:#a9c98f;display:block;margin-top:-3px;}
+  .userchip{display:flex;align-items:center;gap:10px;font-size:12.5px;flex-wrap:wrap;justify-content:flex-end;}
+  .userchip .uname{font-weight:600;}
+  .userchip .urole{color:#a9c98f;font-size:11px;display:block;}
+  .btn-top{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn-top:hover{background:rgba(255,255,255,.22);}
+
+  .layout{display:flex;min-height:calc(100vh - 58px);}
+  nav.side{width:225px;background:var(--branco);border-right:1px solid var(--linha);padding:18px 12px;flex:none;}
+  nav.side .navlbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--cinza);font-weight:700;margin:14px 10px 6px;}
+  .navbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:500;color:#3c4a38;cursor:pointer;margin-bottom:2px;}
+  .navbtn:hover{background:var(--folha-suave);}
+  .navbtn.active{background:var(--verde);color:#fff;font-weight:600;}
+  .navbtn .ic{width:20px;text-align:center;flex:none;}
+  main{flex:1;padding:26px 26px 80px;min-width:0;}
+  .page{display:none;max-width:1280px;margin:0 auto;}
+  .page.active{display:block;animation:fade .22s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .page-title{font-size:22px;color:var(--verde);margin-bottom:2px;}
+  .page-desc{color:var(--cinza);font-size:13px;margin-bottom:20px;}
+
+  @media(max-width:880px){
+    .layout{flex-direction:column;}
+    nav.side{width:100%;display:flex;overflow-x:auto;padding:8px 10px;gap:4px;border-right:none;border-bottom:1px solid var(--linha);}
+    nav.side .navlbl{display:none;}
+    .navbtn{width:auto;white-space:nowrap;padding:9px 13px;}
+    main{padding:18px 14px 70px;}
+    .topbar .app-sub{display:none;}
+  }
+
+  .panel{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
+  .panel h2{font-size:16px;color:var(--verde);margin-bottom:3px;}
+  .panel .desc{color:var(--cinza);font-size:12.5px;margin-bottom:16px;}
+  .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px;margin-bottom:20px;}
+  .kpi{background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:16px;position:relative;}
+  .kpi .eyebrow{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--cinza);font-weight:700;margin-bottom:7px;}
+  .kpi .val{font-family:'Poppins',sans-serif;font-size:24px;font-weight:700;color:#1d2b1a;letter-spacing:-0.02em;}
+  .kpi .meta{font-size:11.5px;color:var(--cinza);margin-top:3px;}
+  .pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.02em;display:inline-block;}
+  .pill.abs{position:absolute;top:14px;right:14px;}
+  .p-ok{background:#e5f1db;color:var(--ok);}
+  .p-bad{background:#f7e3df;color:var(--erro);}
+  .p-warn{background:#f9efd9;color:#996c14;}
+  .p-neutral{background:#eef0ea;color:var(--cinza);}
+
+  label{display:block;font-size:12px;font-weight:600;color:#40503b;margin-bottom:5px;}
+  input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--linha);border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;background:#fbfcf9;color:#22301f;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--folha);outline-offset:1px;border-color:var(--folha);}
+  textarea{resize:vertical;min-height:60px;}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;}
+  .btn{font-family:'Poppins',sans-serif;font-weight:600;font-size:13.5px;border:none;border-radius:10px;padding:11px 20px;cursor:pointer;transition:transform .1s;}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.6;cursor:wait;}
+  .btn-primary{background:var(--verde);color:#fff;}
+  .btn-primary:hover{background:var(--verde-escuro);}
+  .btn-leaf{background:var(--folha);color:#fff;}
+  .btn-leaf:hover{background:#647f2b;}
+  .btn-ghost{background:transparent;color:var(--verde);border:1px solid var(--linha);}
+  .btn-ghost:hover{background:var(--folha-suave);}
+  .btn-mini{padding:5px 9px;font-size:11px;border-radius:7px;}
+  .btn-danger{background:transparent;color:var(--erro);border:1px solid #ecd3cf;}
+  .btn-danger:hover{background:#fbeeec;}
+  .btn-row{margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--cinza);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--linha);white-space:nowrap;}
+  td{padding:8px 10px;border-bottom:1px solid #eef0e8;white-space:nowrap;}
+  tr:last-child td{border-bottom:none;}
+  td.num{font-variant-numeric:tabular-nums;}
+  td.wrap{white-space:normal;min-width:160px;}
+  .table-wrap{overflow-x:auto;margin-top:6px;}
+  .empty{color:var(--cinza);font-size:13px;padding:22px 0;text-align:center;}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover td{background:var(--folha-suave);}
+  tr.ativa td{background:#f2f8ea;}
+  .valor-alto{color:var(--erro);font-weight:700;}
+
+  .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;background:var(--branco);border:1px solid var(--linha);border-radius:var(--radius);padding:13px 15px;}
+  .filter-bar .fld{min-width:150px;}
+  .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
+  .note b{color:var(--verde);}
+
+  .chip-group{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--linha);background:#fbfcf9;font-size:12px;font-weight:600;color:#40503b;cursor:pointer;user-select:none;}
+  .chip:hover{background:var(--folha-suave);}
+  .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
+
+  .status-badge{font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;display:inline-block;white-space:nowrap;}
+  .st-andamento{background:#e5f1db;color:var(--ok);}
+  .st-encerrado{background:#eef0ea;color:var(--cinza);}
+  .res-fav{color:var(--ok);font-weight:700;}
+  .res-desf{color:var(--erro);font-weight:700;}
+
+  .cat-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef0e8;}
+  .cat-row:last-child{border-bottom:none;}
+  .cat-row .cat-label{width:170px;flex:none;font-size:12.5px;font-weight:600;color:#2f3d2b;}
+  .cat-row .cat-bar-wrap{flex:1;min-width:80px;height:9px;background:#edf0e6;border-radius:5px;overflow:hidden;}
+  .cat-row .cat-bar{display:block;height:100%;border-radius:5px;background:var(--folha);}
+  .cat-row .cat-bar.hot{background:var(--erro);}
+  .cat-row .cat-val{width:120px;flex:none;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:600;}
+  .cat-row .cat-pct{width:64px;flex:none;text-align:right;font-size:11px;color:var(--cinza);}
+
+  /* Linha do tempo */
+  .timeline{margin-top:8px;border-left:2px solid var(--linha);padding-left:0;}
+  .tl-item{position:relative;padding:0 0 16px 22px;}
+  .tl-item::before{content:'';position:absolute;left:-7px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--folha);border:2px solid #fff;box-shadow:0 0 0 1px var(--linha);}
+  .tl-item.done::before{background:var(--ok);}
+  .tl-item.future::before{background:#fff;border-color:var(--folha);}
+  .tl-date{font-size:11px;font-weight:700;color:var(--verde);}
+  .tl-title{font-size:13.5px;font-weight:600;margin:1px 0;}
+  .tl-obs{font-size:12px;color:var(--cinza);white-space:normal;}
+  .tl-del{float:right;}
+
+  #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
+  #modal-bg.open{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;max-height:88vh;overflow-y:auto;}
+  .modal.lg{max-width:640px;}
+  .modal h3{font-size:17px;color:var(--verde);margin-bottom:14px;}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--verde);color:#fff;padding:12px 22px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:90;opacity:0;transition:all .3s ease;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:90vw;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.err{background:var(--erro);}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brandline">
+      <div id="logo-small"></div>
+      <div>
+        <span class="wordmark">raguife</span>
+        <span class="app-sub">Painel de Indicadores — Jurídico</span>
+      </div>
+    </div>
+    <div class="userchip">
+      <div style="text-align:right">
+        <span class="uname" id="chip-nome"></span>
+        <span class="urole" id="chip-role"></span>
+      </div>
+      <button class="btn-top" onclick="openModalSenha()">Alterar senha</button>
+      <button class="btn-top" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav class="side" id="sidenav"></nav>
+    <main>
+
+      <!-- ============ RESUMO EXECUTIVO ============ -->
+      <div class="page" id="page-resumo">
+        <h1 class="page-title">Resumo Executivo</h1>
+        <div class="page-desc">Panorama de risco trabalhista — processos, exposição e taxa de litigiosidade. Filtro opcional por filial e departamento.</div>
+
+        <div class="filter-bar">
+          <div class="fld" style="flex:1">
+            <label>Filial</label>
+            <div class="chip-group" id="f-filiais"></div>
+          </div>
+          <div class="fld" style="flex:1">
+            <label>Departamento</label>
+            <div class="chip-group" id="f-deptos"></div>
+          </div>
+        </div>
+
+        <div class="grid-kpi" id="resumo-kpis"></div>
+
+        <div class="panel">
+          <h2>Evolução por ano</h2>
+          <div class="desc">Demissões, ações ajuizadas e taxa de litigiosidade por ano. A barra mostra a litigiosidade (ajuizaram ÷ demitidos).</div>
+          <div class="table-wrap" id="tbl-ano"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Concentração de risco por departamento</h2>
+          <div class="desc">Setores ordenados por valor de causa. Barra vermelha = litigiosidade acima de 10%.</div>
+          <div id="bars-depto"></div>
+        </div>
+
+        <div class="note" id="resumo-nota"></div>
+      </div>
+
+      <!-- ============ PROCESSOS ============ -->
+      <div class="page" id="page-processos">
+        <h1 class="page-title">Processos</h1>
+        <div class="page-desc">Relação de ações trabalhistas. Clique em uma linha para ver a linha do tempo e as etapas.</div>
+
+        <div class="filter-bar">
+          <div class="fld" style="flex:2">
+            <label>Buscar (nome, processo, cargo, depto)</label>
+            <input type="text" id="p-busca" placeholder="Digite para filtrar...">
+          </div>
+          <div class="fld">
+            <label>Status</label>
+            <select id="p-status">
+              <option value="">Todos</option>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Encerrado">Encerrado</option>
+            </select>
+          </div>
+          <div class="fld" id="p-novo-wrap" style="align-self:flex-end">
+            <button class="btn btn-primary" onclick="modalProcesso()">+ Novo processo</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div id="p-resumo-linha" style="font-size:12.5px;color:var(--cinza);margin-bottom:6px"></div>
+          <div class="table-wrap" id="tbl-processos"></div>
+        </div>
+      </div>
+
+      <!-- ============ BASE / LITIGIOSIDADE ============ -->
+      <div class="page" id="page-litig">
+        <h1 class="page-title">Base de litigiosidade</h1>
+        <div class="page-desc">Denominador da litigiosidade (demitidos por ano e por setor). Os demitidos podem ser puxados do RH; o resto é editável.</div>
+
+        <div class="panel">
+          <h2>Sincronizar demitidos com o RH</h2>
+          <div class="desc">Lê os lançamentos do módulo RH (<code>rh_lancamentos</code>) e soma os desligamentos por ano e por departamento. Anos/setores sem dado no RH mantêm o número do retrato inicial.</div>
+          <div class="btn-row" style="margin-top:0">
+            <button class="btn btn-leaf" id="btn-sync-rh" onclick="puxarDemitidosRH()">Puxar demitidos do RH</button>
+            <span id="sync-rh-status" style="font-size:12px;color:var(--cinza)"></span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Por ano</h2>
+          <div class="desc">Edite demitidos, ajuizados e valor. A litigiosidade recalcula sozinha.</div>
+          <div class="table-wrap" id="tbl-litig-ano"></div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarBaseAno()">Salvar por ano</button></div>
+        </div>
+
+        <div class="panel">
+          <h2>Por departamento</h2>
+          <div class="table-wrap" id="tbl-litig-depto"></div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="salvarBaseDepto()">Salvar por departamento</button></div>
+        </div>
+      </div>
+
+      <!-- ============ CARGA INICIAL ============ -->
+      <div class="page" id="page-carga">
+        <h1 class="page-title">Carga inicial</h1>
+        <div class="page-desc">Popula o banco com as 50 ações e a base de litigiosidade do comparativo. Pode rodar mais de uma vez — só grava o que ainda não existe.</div>
+        <div class="panel">
+          <h2>Sincronizar carga inicial</h2>
+          <div class="desc">Grava os processos que ainda não estão no banco (identificados pelo número do processo) e cria a base de litigiosidade, se ainda não existir. Não sobrescreve o que você já editou.</div>
+          <div class="btn-row" style="margin-top:0">
+            <button class="btn btn-primary" id="btn-carga" onclick="rodarCarga()">Sincronizar carga inicial</button>
+            <span id="carga-status" style="font-size:12px;color:var(--cinza)"></span>
+          </div>
+          <div id="carga-preview"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="modal-bg"><div class="modal" id="modal-box"></div></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, signOut, onAuthStateChanged, updatePassword,
+  EmailAuthProvider, reauthenticateWithCredential
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc,
+  onSnapshot, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
+  authDomain: "controlepix-cc524.firebaseapp.com",
+  projectId: "controlepix-cc524",
+  storageBucket: "controlepix-cc524.firebasestorage.app",
+  messagingSenderId: "949223824940",
+  appId: "1:949223824940:web:d56a9e04901aff35273b89"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+/* ================= SEED (carga inicial) ================= */
+const SEED = {"acoes":[{"processo":"0010695-56.2022.5.15.0080","nome":"JORGE APARECIDO DA SILVA JACINTO","cargo":"TERCEIRO WAGNÃO","depto":"","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2022-09-27","valor":8887.35,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2022,"contaLitig":true,"etapas":[]},{"processo":"0010118-25.2015.5.15.0080","nome":"SINDICATO DOS MOTORISTAS DE JALES E REGIÃO","cargo":"AÇÃO COLETIVA","depto":"","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"","valor":0.0,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2013,"contaLitig":false,"etapas":[]},{"processo":"0010798-44.2014.5.15.0080","nome":"SINTRAMEV","cargo":"AÇÃO COLETIVA","depto":"","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2014-09-10","valor":5000.0,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2014,"contaLitig":false,"etapas":[]},{"processo":"14152166619.2025-13","nome":"SUPERINTENDÊNCIA REGIONAL DO TRABALHO EM SÃO PAULO","cargo":"","depto":"","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2025-06-01","valor":42741.88,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2025,"contaLitig":false,"etapas":[]},{"processo":"0011286-91.2017.5.15.0080","nome":"WELLINGTON LUIZ DA SILVA MEDEIROS","cargo":"","depto":"ABASTECIMENTO","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2017-12-12","valor":90467.96,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2017,"contaLitig":true,"etapas":[]},{"processo":"0011105-61.2015.5.15.0080","nome":"ERICK ANGELUCI","cargo":"AUXILIAR DE SERVIÇOS GERAIS","depto":"ABASTECIMENTO","filial":"MATRIZ","admissao":"2014-12-26","demissao":"2015-02-08","recebimento":"2015-10-07","valor":50000.0,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2015,"contaLitig":true,"etapas":[]},{"processo":"0010970-73.2020.5.15.0080","nome":"GILMAR DOS SANTOS","cargo":"OPERADOR DE ABASTECIMENTO","depto":"ABASTECIMENTO","filial":"MATRIZ","admissao":"2019-04-03","demissao":"2020-07-20","recebimento":"2020-11-06","valor":61157.52,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2020,"contaLitig":true,"etapas":[]},{"processo":"0011147-61.2025.5.15.0080","nome":"GUILHERME GOMES DA SILVA","cargo":"OPERADOR DE ABASTECIMENTO","depto":"ABASTECIMENTO","filial":"MATRIZ","admissao":"2024-10-07","demissao":"2025-06-02","recebimento":"2025-09-22","valor":44846.3,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0010056-77.2018.5.15.0080","nome":"LEANDRO MILHORIM DA SILVA","cargo":"OPERADOR DE ABASTECIMENTO","depto":"ABASTECIMENTO","filial":"MATRIZ","admissao":"2016-02-27","demissao":"2017-06-01","recebimento":"2018-01-19","valor":17154.32,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2018,"contaLitig":true,"etapas":[]},{"processo":"0010538-25.2018.5.15.0080","nome":"MATHEUS DA SILVA NICOLAU","cargo":"SERVIÇOS GERAIS","depto":"ABASTECIMENTO","filial":"MATRIZ","admissao":"2018-03-14","demissao":"2018-06-29","recebimento":"2018-07-13","valor":17781.83,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2018,"contaLitig":true,"etapas":[]},{"processo":"0010568-16.2025.5.15.0080","nome":"YUMAR JOSE BENAVIDES MARTINEZ","cargo":"OPERADOR DE ABASTECIMENTO","depto":"ABASTECIMENTO","filial":"MATRIZ","admissao":"2021-12-07","demissao":"2024-03-18","recebimento":"2025-05-16","valor":144167.26,"status":"Em andamento","resultado":"FAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0010541-38.2022.5.15.0080","nome":"WEVERTON LUCAS DA SILVA OLIVEIRA","cargo":"AJUDANTE GERAL","depto":"BALANÇA","filial":"MATRIZ","admissao":"2021-08-02","demissao":"2022-06-10","recebimento":"2023-04-27","valor":32860.51,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2023,"contaLitig":true,"etapas":[]},{"processo":"0010586-71.2024.5.15.0080","nome":"ALAN JUNIO GONÇALVES VALCE","cargo":"ASSISTENTE ADMINISTRATIVO","depto":"COMERCIAL","filial":"MATRIZ","admissao":"2022-12-22","demissao":"2024-06-20","recebimento":"2024-05-30","valor":208667.47,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2024,"contaLitig":true,"etapas":[]},{"processo":"0010339-22.2026.5.15.0080","nome":"CESAR CAETANO JUNIOR","cargo":"OPERADOR DE ENSAQUE","depto":"ENSAQUE","filial":"MATRIZ","admissao":"2024-02-05","demissao":"2024-09-26","recebimento":"2026-03-18","valor":113082.7,"status":"Em andamento","resultado":"","ano":2026,"contaLitig":true,"etapas":[]},{"processo":"0010350-03.2016.5.15.0080","nome":"EDMAR FERREIRA MAIOLO","cargo":"OPERADOR DE ENSAQUE","depto":"ENSAQUE","filial":"MATRIZ","admissao":"2015-01-13","demissao":"2018-08-08","recebimento":"2016-03-15","valor":1400000.0,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2016,"contaLitig":true,"etapas":[]},{"processo":"0010685-46.2021.5.15.0080","nome":"FAGNER MARQUES BATISTA","cargo":"OPERADOR DE ENSAQUE","depto":"ENSAQUE","filial":"MATRIZ","admissao":"2017-12-29","demissao":"2020-12-08","recebimento":"2024-03-01","valor":61100.0,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2024,"contaLitig":true,"etapas":[]},{"processo":"0010173-58.2024.5.15.0080","nome":"LUCAS VINICIUS ALVES OLIVO","cargo":"MENOR APRENDIZ","depto":"ENSAQUE","filial":"MATRIZ","admissao":"2021-02-20","demissao":"2022-12-14","recebimento":"2024-03-06","valor":50176.8,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2024,"contaLitig":true,"etapas":[]},{"processo":"0010399-34.2022.5.15.0080","nome":"WELLINGTON DE FREITAS DURVAL","cargo":"OPERADOR DE ENSAQUE","depto":"ENSAQUE","filial":"MATRIZ","admissao":"2018-01-10","demissao":"2020-04-28","recebimento":"2024-10-14","valor":159072.6,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2024,"contaLitig":true,"etapas":[]},{"processo":"0010621-70.2020.5.15.0080","nome":"FABIO RENATO DE FREITAS PARDINO","cargo":"AJUDANTE DE MOTORISTA","depto":"EXPEDIÇÃO","filial":"MATRIZ","admissao":"2018-04-19","demissao":"2018-06-27","recebimento":"2020-07-08","valor":17500.0,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2020,"contaLitig":true,"etapas":[]},{"processo":"0011428-86.2023.5.15.0015","nome":"FABIO XAVIER RODRIGUES","cargo":"TERCEIRO","depto":"EXPEDIÇÃO","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2023-03-10","valor":17963.18,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2023,"contaLitig":true,"etapas":[]},{"processo":"0011304-34.2025.5.15.0080","nome":"JOSE CRISTIANO DA SILVA","cargo":"AJUDANTE DE MOTORISTA","depto":"EXPEDIÇÃO","filial":"MATRIZ","admissao":"2017-03-21","demissao":"2025-05-08","recebimento":"2025-10-23","valor":280412.0,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0010143-91.2022.5.15.0080","nome":"LUCIVAL ESTEVAO DOS SANTOS","cargo":"AJUDANTE DE MOTORISTA","depto":"EXPEDIÇÃO","filial":"MATRIZ","admissao":"2020-03-24","demissao":"2021-12-21","recebimento":"2023-03-02","valor":63763.56,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2023,"contaLitig":true,"etapas":[]},{"processo":"0010986-22.2023.5.15.0080","nome":"ATHAIDE MESSIAS DE OLIVEIRA JUNIOR","cargo":"AJUDANDE DE MOTORISTA","depto":"EXPEDIÇÃO PET","filial":"MATRIZ","admissao":"2023-07-28","demissao":"2023-08-14","recebimento":"2023-11-07","valor":650000.0,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2023,"contaLitig":true,"etapas":[]},{"processo":"0010981-63.2024.5.15.0080","nome":"RODRIGO DE ANDRADE","cargo":"AJUDANTE DE MOTORISTA","depto":"EXPEDIÇÃO PET","filial":"MATRIZ","admissao":"2023-11-29","demissao":"2024-06-14","recebimento":"2024-08-29","valor":163619.51,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2024,"contaLitig":true,"etapas":[]},{"processo":"0011131-10.2025.5.15.0080","nome":"ALBERTO VICENTE DA SILVA","cargo":"OPERADOR DE EXTRUSORA","depto":"EXTRUSORA","filial":"MATRIZ","admissao":"2019-02-20","demissao":"2024-03-11","recebimento":"2025-09-18","valor":138813.15,"status":"Em andamento","resultado":"FAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0010142-09.2022.5.15.0080","nome":"JOSE CLAUDIO DA SILVA","cargo":"OPERADOR DE EXTRUSORA","depto":"EXTRUSORA","filial":"MATRIZ","admissao":"2016-01-12","demissao":"2020-03-06","recebimento":"2022-02-25","valor":103800.0,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2022,"contaLitig":true,"etapas":[]},{"processo":"0010627-09.2022.5.15.0080","nome":"LUSBERTO SANTOS DA SILVA","cargo":"OPERADOR DE EXTRUSORA","depto":"EXTRUSORA","filial":"MATRIZ","admissao":"2019-01-29","demissao":"2021-07-19","recebimento":"2022-08-29","valor":97600.0,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2022,"contaLitig":true,"etapas":[]},{"processo":"0010243-90.2015.5.15.0080","nome":"MARLON FRANCISQUINI DE QUEIROZ","cargo":"OPERADOR DE EXTRUSORA","depto":"EXTRUSORA","filial":"MATRIZ","admissao":"2013-04-17","demissao":"2014-12-17","recebimento":"2015-02-26","valor":957853.1,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2015,"contaLitig":true,"etapas":[]},{"processo":"0010210-90.2021.5.15.0080","nome":"MAYCON BATISTA DE CAMPOS","cargo":"SERVIÇOS GERAIS","depto":"FFO","filial":"MATRIZ","admissao":"2019-03-18","demissao":"2019-10-02","recebimento":"2021-03-30","valor":16369.32,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2021,"contaLitig":true,"etapas":[]},{"processo":"0010648-24.2018.5.15.0080","nome":"MARCEL NUNES","cargo":"SERVIÇOS GERAIS","depto":"HIGIENIZAÇÃO INDUSTRIAL","filial":"MATRIZ","admissao":"2015-05-19","demissao":"2017-12-26","recebimento":"2018-08-27","valor":169926.12,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2018,"contaLitig":true,"etapas":[]},{"processo":"0011218-44.2017.5.15.0080","nome":"RONALDO MARTINS DE SOUZA","cargo":"OPERADOR","depto":"HIGIENIZAÇÃO INDUSTRIAL","filial":"MATRIZ","admissao":"2015-05-15","demissao":"","recebimento":"2019-09-11","valor":150000.0,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2019,"contaLitig":true,"etapas":[]},{"processo":"0010676-84.2021.5.15.0080","nome":"CLAUDEIMR DE ANDRADE JUNQUEIRA","cargo":"SERRALHEIRO","depto":"MANUTENÇÃO","filial":"MATRIZ","admissao":"2018-09-24","demissao":"2020-05-29","recebimento":"2021-10-19","valor":90792.54,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2021,"contaLitig":true,"etapas":[]},{"processo":"0010894-39.2026.5.15.0080","nome":"MARCIO GONCALVES OLIVEIRA","cargo":"TERCEIRO AMARILDO","depto":"PORTARIA","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2026-07-14","valor":120173.63,"status":"Em andamento","resultado":"","ano":2026,"contaLitig":true,"etapas":[]},{"processo":"0010916-34.2025.5.15.0080","nome":"ROBSON MAURICIO DOS SANTOS ALENCAR","cargo":"AJUDANTE DE MOTORISTA","depto":"RECEBIMENTO","filial":"MATRIZ","admissao":"2024-01-05","demissao":"2024-08-13","recebimento":"2025-08-08","valor":61453.44,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0011310-41.2025.5.15.0080","nome":"ROBSON MAURICIO DOS SANTOS ALENCAR","cargo":"AJUDANTE DE MOTORISTA","depto":"RECEBIMENTO","filial":"MATRIZ","admissao":"2024-01-05","demissao":"2024-08-13","recebimento":"2025-10-24","valor":61272.74,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0010304-62.2026.5.15.0080","nome":"ANDRE LUIS BARBOSA ALVES","cargo":"OPERADOR DE PESAGEM","depto":"SALA DE MICRO","filial":"MATRIZ","admissao":"2021-12-14","demissao":"2024-09-25","recebimento":"2026-03-12","valor":177350.0,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2026,"contaLitig":true,"etapas":[]},{"processo":"0010916-97.2026.5.15.0080","nome":"ANDRE LUIS BARBOSA ALVES","cargo":"OPERADOR DE PESAGEM","depto":"SALA DE MICRO","filial":"MATRIZ","admissao":"2021-12-14","demissao":"2024-09-25","recebimento":"2026-07-20","valor":177350.0,"status":"Em andamento","resultado":"","ano":2026,"contaLitig":true,"etapas":[]},{"processo":"0010298-12.2013.5.15.0080","nome":"ALEXANDRE FRANCO DOS SANTOS","cargo":"TERCEIRO","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2013-12-10","valor":115000.0,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2013,"contaLitig":true,"etapas":[]},{"processo":"0010374-21.2022.5.15.0080","nome":"ANTONIO ERNESTO DOS REIS NETO","cargo":"MOTORISTA DE TRUCK","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2016-06-01","demissao":"2020-06-05","recebimento":"2022-05-19","valor":211401.48,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2022,"contaLitig":true,"etapas":[]},{"processo":"0011053-79.2026.5.15.0080","nome":"CLEBER DALESSIO COMBINATO","cargo":"MOTORISTA DE RODOTREM","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2025-01-20","demissao":"","recebimento":"2026-08-20","valor":108670.37,"status":"Em andamento","resultado":"","ano":2026,"contaLitig":true,"etapas":[]},{"processo":"0010019-84.2017.5.15.0080","nome":"EDINOR MARTINS DIAS","cargo":"MOTORISTA DE CARRETA","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2015-11-01","demissao":"2016-06-23","recebimento":"2017-01-12","valor":27157.0,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2017,"contaLitig":true,"etapas":[]},{"processo":"0010187-08.2025.5.15.0080","nome":"LUIS GUILHERME BIRIBILI","cargo":"MOTORISTA DE BITREM","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2022-06-13","demissao":"2024-04-01","recebimento":"2025-02-13","valor":147556.95,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0011683-87.2016.5.15.0080","nome":"OSMAR DE JESUS SILVA","cargo":"MOTORISTA DE TRUCK","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2015-02-06","demissao":"2016-02-19","recebimento":"2016-11-29","valor":55000.0,"status":"Encerrado","resultado":"FAVORÁVEL","ano":2016,"contaLitig":true,"etapas":[]},{"processo":"0011289-46.2017.5.15.0080","nome":"PATRICK SANA","cargo":"MOTORISTA DE TRUCK","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2013-06-10","demissao":"2016-05-31","recebimento":"2020-11-30","valor":114946.21,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2020,"contaLitig":true,"etapas":[]},{"processo":"0010963-42.2024.5.15.0080","nome":"VAGNER LUIS LONGO","cargo":"MOTORISTA DE BITREM","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2018-08-27","demissao":"","recebimento":"2024-08-26","valor":942481.05,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2024,"contaLitig":true,"etapas":[]},{"processo":"0010936-59.2024.5.15.0080","nome":"VINICIUS RODRIGUES DO ESPIRITO SANTO","cargo":"MOTORISTA DE CARRETA","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2023-08-11","demissao":"2024-05-31","recebimento":"2024-08-19","valor":370261.18,"status":"Encerrado","resultado":"DESFAVORÁVEL","ano":2024,"contaLitig":true,"etapas":[]},{"processo":"0010530-67.2026.5.15.0080","nome":"WILSON FRANCISCO VILELA","cargo":"MOTORISTA DE TRUCK","depto":"TRANSPORTE","filial":"MATRIZ","admissao":"2021-02-08","demissao":"2025-06-02","recebimento":"2026-04-21","valor":682267.58,"status":"Em andamento","resultado":"","ano":2026,"contaLitig":true,"etapas":[]},{"processo":"0010900-17.2024.5.15.0080","nome":"ANDERSON TRINDADE PEGO SILVA","cargo":"MOTORISTA DE TRUCK","depto":"TRANSPORTE PET","filial":"MATRIZ","admissao":"2022-12-07","demissao":"2024-07-08","recebimento":"2025-04-10","valor":502110.89,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2025,"contaLitig":true,"etapas":[]},{"processo":"0010915-20.2023.5.15.0080","nome":"LUCAS LAZARO MESSIAS DE OLIVEIRA","cargo":"FILHO DO ATHAIDE","depto":"TRANSPORTE PET","filial":"MATRIZ","admissao":"","demissao":"","recebimento":"2023-10-19","valor":875500.0,"status":"Em andamento","resultado":"DESFAVORÁVEL","ano":2023,"contaLitig":true,"etapas":[]},{"processo":"0010364-35.2026.5.15.0080","nome":"MARCOS ANTONIO DOS SANTOS","cargo":"OPERADOR DE CALDEIRA","depto":"UTILIDADES","filial":"MATRIZ","admissao":"2021-02-25","demissao":"2025-06-13","recebimento":"2026-03-25","valor":205749.05,"status":"Em andamento","resultado":"","ano":2026,"contaLitig":true,"etapas":[]}],"litYear":[{"ano":2016,"demitidos":47,"ajuizaram":2,"valor":169946.21},{"ano":2017,"demitidos":55,"ajuizaram":3,"valor":277548.4},{"ano":2018,"demitidos":60,"ajuizaram":5,"valor":1549251.15},{"ano":2019,"demitidos":58,"ajuizaram":2,"valor":371069.32},{"ano":2020,"demitidos":55,"ajuizaram":7,"valor":704824.14},{"ano":2021,"demitidos":95,"ajuizaram":2,"valor":161363.56},{"ano":2022,"demitidos":99,"ajuizaram":0,"valor":0.0},{"ano":2023,"demitidos":151,"ajuizaram":1,"valor":650000.0},{"ano":2024,"demitidos":237,"ajuizaram":10,"valor":2160837.82},{"ano":2025,"demitidos":257,"ajuizaram":4,"valor":1213274.93},{"ano":2026,"demitidos":172,"ajuizaram":0,"valor":0.0}],"litDepto":[{"depto":"ENSAQUE","demitidos":191,"ajuizaram":4,"valor":1733255.3},{"depto":"TRANSPORTE PET","demitidos":8,"ajuizaram":2,"valor":1184378.47},{"depto":"TRANSPORTE","demitidos":186,"ajuizaram":5,"valor":899165.82},{"depto":"SALA DE MICRO","demitidos":25,"ajuizaram":2,"valor":709400.0},{"depto":"INATIVO","demitidos":16,"ajuizaram":1,"valor":650000.0},{"depto":"ABASTECIMENTO","demitidos":100,"ajuizaram":7,"valor":479375.19},{"depto":"EXTRUSORA","demitidos":37,"ajuizaram":5,"valor":455313.15},{"depto":"UTILIDADES","demitidos":15,"ajuizaram":2,"valor":222118.37}],"totais":{"demitidos":1286,"ajuizaram":36,"valorConsolidado":7258115.53}};
+
+/* ================= CONSTANTES ================= */
+const ROLES = {admin:'Administrador', operador:'Operador'};
+const NAV_DEF = [
+  {id:'resumo',     label:'Resumo Executivo',   ic:'▦', roles:['admin','operador']},
+  {id:'processos',  label:'Processos',          ic:'⚖', roles:['admin','operador']},
+  {id:'litig',      label:'Base / Litigiosidade',ic:'📊', roles:['admin']},
+  {id:'carga',      label:'Carga inicial',      ic:'📥', roles:['admin']},
+];
+const COL_PROC = 'nrh_juridico_processos';
+const CFG_LITIG = 'juridico_litig';
+const VALOR_ALTO = 400000; // causas acima disso destacadas em vermelho
+const ETAPA_TIPOS = ['Distribuição','Audiência inicial','Audiência de instrução','Perícia','Sentença','Recurso (RO)','Recurso de revista (TST)','Execução','Acordo','Encerramento','Outro'];
+
+let state = { proc:[], litYear:[], litDepto:[], totais:{}, rhDem:null,
+              filterFiliais:new Set(), filterDeptos:new Set(),
+              pBusca:'', pStatus:'' };
+let currentUser = null;
+let unsubs = [];
+
+/* ================= HELPERS ================= */
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function stripAcc(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function fmtMoeda(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
+function fmtMoeda2(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtMi(v){ const n=(v||0)/1e6; return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' mi'; }
+function fmtPct(v){ return (v*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
+function fmtData(iso){ if(!iso) return '—'; const [y,m,d]=String(iso).split('-'); return d&&m&&y? `${d}/${m}/${y}` : '—'; }
+function anoDe(iso){ return iso? Number(String(iso).slice(0,4)) : null; }
+function num(v){ const n=Number(String(v).replace(/\./g,'').replace(',','.')); return isNaN(n)?0:n; }
+function procId(np){ return stripAcc(String(np||'')).replace(/[^0-9A-Za-z]+/g,'_').replace(/^_+|_+$/g,'') || ('p'+Date.now()); }
+function toast(msg, isErr){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), 2800);
+}
+function tableHTML(headers, rows){
+  if(!rows.length) return '<div class="empty">Sem registros ainda</div>';
+  return '<table><thead><tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+r.map(c=>'<td class="num">'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+}
+function authErrPT(e){
+  const c = e?.code || '';
+  if(c.includes('requires-recent-login')) return 'Por segurança, saia e entre de novo antes de alterar a senha.';
+  return 'Erro: '+(e?.message||e);
+}
+function podeEditar(){ return currentUser && (currentUser.role==='admin' || currentUser.role==='operador'); }
+function logoSVG(size){
+  return `<svg width="${size}" height="${size*0.78}" viewBox="0 0 100 78" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#8CB43E" stroke-width="7"/>
+    <circle cx="30" cy="27" r="6.5" fill="#8CB43E"/>
+    <circle cx="50" cy="23" r="6.5" fill="#8CB43E"/>
+    <circle cx="70" cy="27" r="6.5" fill="#8CB43E"/>
+    <path d="M27 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+    <path d="M50 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ================= ACESSO ================= */
+async function logout(){ await signOut(auth); location.replace('index.html'); }
+onAuthStateChanged(auth, async (user)=>{
+  if(!user || user.isAnonymous){ location.replace('index.html'); return; }
+  try{
+    const prof = await getDoc(doc(db,'nrh_usuarios',user.uid));
+    if(!prof.exists()){ await signOut(auth); location.replace('index.html'); return; }
+    const d = prof.data();
+    if(d.ativo === false){ await signOut(auth); location.replace('index.html?erro=inativo'); return; }
+    if(!d.admin && !(d.modulos && d.modulos.juridico)){ location.replace('index.html?erro=semacesso'); return; }
+    const role = d.admin ? 'admin' : 'operador';
+    currentUser = {uid:user.uid, ...d, role};
+    enterApp();
+    subscribeData();
+  }catch(e){
+    document.body.innerHTML = '<div style="padding:40px;font-family:Inter,sans-serif">Erro ao carregar seu perfil. <a href="index.html">Voltar ao início</a></div>';
+  }
+});
+
+/* ================= DADOS ================= */
+function subscribeData(){
+  unsubs.forEach(u=>u()); unsubs=[];
+  const u1 = onSnapshot(collection(db,COL_PROC), snap=>{
+    state.proc = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderFiltros(); renderResumo(); renderProcessos();
+  }, e=>console.error(e));
+  unsubs.push(u1);
+  const u2 = onSnapshot(doc(db,'config',CFG_LITIG), snap=>{
+    const d = snap.exists()? snap.data() : {};
+    state.litYear  = d.litYear  || [];
+    state.litDepto = d.litDepto || [];
+    state.totais   = d.totais   || {};
+    renderResumo(); renderBase();
+  }, e=>console.error(e));
+  unsubs.push(u2);
+}
+
+/* ================= NAV / SHELL ================= */
+function allowedNav(){ return NAV_DEF.filter(n=>n.roles.includes(currentUser.role)); }
+function enterApp(){
+  document.getElementById('app').style.display='block';
+  montarAtalhos();
+  document.getElementById('chip-nome').textContent = currentUser.nome || '';
+  document.getElementById('chip-role').textContent = ROLES[currentUser.role] + (currentUser.setor? ' · '+currentUser.setor : '');
+  const nav = allowedNav();
+  document.getElementById('sidenav').innerHTML =
+    '<div class="navlbl">Menu</div>' +
+    nav.map(n=>`<button class="navbtn" data-id="${n.id}" onclick="showPage('${n.id}')"><span class="ic">${n.ic}</span>${n.label}</button>`).join('');
+  document.getElementById('logo-small').innerHTML = logoSVG(34);
+
+  document.getElementById('p-busca').addEventListener('input', e=>{ state.pBusca=e.target.value; renderProcessos(); });
+  document.getElementById('p-status').addEventListener('change', e=>{ state.pStatus=e.target.value; renderProcessos(); });
+  if(!podeEditar()) document.getElementById('p-novo-wrap').style.display='none';
+
+  showPage(nav[0].id);
+}
+function showPage(id){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
+  if(id==='resumo') renderResumo();
+  if(id==='processos') renderProcessos();
+  if(id==='litig') renderBase();
+}
+function montarAtalhos(){
+  const chip = document.querySelector('.topbar .userchip');
+  if(!chip || document.getElementById('btn-inicio')) return;
+  const m = currentUser.modulos || {};
+  const can = k => currentUser.admin || m[k];
+  const html = `<button class="btn-top" id="btn-inicio" onclick="location.href='index.html'">Início</button>` +
+    (can('ambulatorio')? `<button class="btn-top" onclick="location.href='ambulatorio.html'">⚕ Ambulatório</button>`:'') +
+    (can('rh')        ? `<button class="btn-top" onclick="location.href='rh.html'">👥 RH</button>`:'') +
+    (can('dp')        ? `<button class="btn-top" onclick="location.href='dp.html'">💵 DP</button>`:'') +
+    (can('facilities')? `<button class="btn-top" onclick="location.href='facilities.html'">🍽 Facilities</button>`:'');
+  chip.insertAdjacentHTML('afterbegin', html);
+}
+
+/* ================= FILTROS (resumo) ================= */
+function deptosDisponiveis(){
+  const set = new Set();
+  state.proc.forEach(p=>{ if(p.depto && p.depto!=='-') set.add(p.depto); });
+  state.litDepto.forEach(d=>{ if(d.depto) set.add(d.depto); });
+  return [...set].sort();
+}
+function filiaisDisponiveis(){
+  const set = new Set(state.proc.map(p=>p.filial).filter(Boolean));
+  if(!set.size) set.add('MATRIZ');
+  return [...set].sort();
+}
+function renderFiltros(){
+  const fil = filiaisDisponiveis();
+  for(const f of [...state.filterFiliais]) if(!fil.includes(f)) state.filterFiliais.delete(f);
+  document.getElementById('f-filiais').innerHTML =
+    `<button type="button" class="chip ${state.filterFiliais.size===0?'on':''}" data-f="__all__">Todas</button>` +
+    fil.map(f=>`<button type="button" class="chip ${state.filterFiliais.has(f)?'on':''}" data-f="${esc(f)}">${esc(f)}</button>`).join('');
+  const dep = deptosDisponiveis();
+  for(const d of [...state.filterDeptos]) if(!dep.includes(d)) state.filterDeptos.delete(d);
+  document.getElementById('f-deptos').innerHTML =
+    `<button type="button" class="chip ${state.filterDeptos.size===0?'on':''}" data-d="__all__">Todos</button>` +
+    dep.map(d=>`<button type="button" class="chip ${state.filterDeptos.has(d)?'on':''}" data-d="${esc(d)}">${esc(d)}</button>`).join('');
+  document.getElementById('f-filiais').onclick = e=>{
+    const b=e.target.closest('.chip'); if(!b) return;
+    const v=b.dataset.f; if(v==='__all__') state.filterFiliais.clear();
+    else { state.filterFiliais.has(v)? state.filterFiliais.delete(v):state.filterFiliais.add(v); }
+    renderFiltros(); renderResumo();
+  };
+  document.getElementById('f-deptos').onclick = e=>{
+    const b=e.target.closest('.chip'); if(!b) return;
+    const v=b.dataset.d; if(v==='__all__') state.filterDeptos.clear();
+    else { state.filterDeptos.has(v)? state.filterDeptos.delete(v):state.filterDeptos.add(v); }
+    renderFiltros(); renderResumo();
+  };
+}
+function passaFiltro(p){
+  if(state.filterFiliais.size && !state.filterFiliais.has(p.filial)) return false;
+  if(state.filterDeptos.size && !state.filterDeptos.has(p.depto)) return false;
+  return true;
+}
+
+/* ================= RESUMO EXECUTIVO ================= */
+function demitidosAno(y){
+  // RH ao vivo tem prioridade; senão base
+  if(state.rhDem && state.rhDem.ano && state.rhDem.ano[y]!=null) return state.rhDem.ano[y];
+  const b = state.litYear.find(x=>x.ano===y); return b? (b.demitidos||0) : 0;
+}
+function demitidosDepto(dep){
+  if(state.rhDem && state.rhDem.depto && state.rhDem.depto[dep]!=null) return state.rhDem.depto[dep];
+  const b = state.litDepto.find(x=>x.depto===dep); return b? (b.demitidos||0) : 0;
+}
+function renderResumo(){
+  if(!document.getElementById('page-resumo')) return;
+  const procF = state.proc.filter(passaFiltro);
+  const total = procF.length;
+  const ativas = procF.filter(p=>p.status==='Em andamento');
+  const valorTotal = procF.reduce((s,p)=>s+(p.valor||0),0);
+  const exposicao = ativas.reduce((s,p)=>s+(p.valor||0),0);
+  // litigiosidade: usa base (por depto se filtrado por depto, senão total por ano)
+  let demBase, ajuizBase, valBase;
+  if(state.filterDeptos.size){
+    const ds=[...state.filterDeptos];
+    demBase = ds.reduce((s,d)=>s+demitidosDepto(d),0);
+    ajuizBase = ds.reduce((s,d)=>{ const b=state.litDepto.find(x=>x.depto===d); return s+(b?b.ajuizaram||0:0); },0);
+    valBase = ds.reduce((s,d)=>{ const b=state.litDepto.find(x=>x.depto===d); return s+(b?b.valor||0:0); },0);
+  } else {
+    demBase = state.litYear.reduce((s,y)=>s+demitidosAno(y.ano),0);
+    ajuizBase = state.litYear.reduce((s,y)=>s+(y.ajuizaram||0),0);
+    valBase = (state.totais.valorConsolidado!=null && !state.filterFiliais.size)
+                ? state.totais.valorConsolidado
+                : state.litYear.reduce((s,y)=>s+(y.valor||0),0);
+  }
+  const litig = demBase? ajuizBase/demBase : 0;
+  const ticket = ajuizBase? valBase/ajuizBase : 0;
+
+  const kpi = (eye,val,meta,pill) => `<div class="kpi">${pill||''}
+      <div class="eyebrow">${eye}</div><div class="val">${val}</div><div class="meta">${meta}</div></div>`;
+  document.getElementById('resumo-kpis').innerHTML =
+    kpi('Taxa de litigiosidade', fmtPct(litig),
+        `${ajuizBase} ajuizaram · base ${demBase.toLocaleString('pt-BR')} demitidos`,
+        litig>0.05? '<span class="pill p-bad abs">atenção</span>':'<span class="pill p-ok abs">sob controle</span>') +
+    kpi('Processos recebidos', total.toLocaleString('pt-BR'), `${ativas.length} em andamento hoje`) +
+    kpi('Exposição ativa', fmtMi(exposicao), `${ativas.length} causas em andamento`) +
+    kpi('Valor total das causas', fmtMi(valBase), 'consolidado da base de litigiosidade') +
+    kpi('Custo médio / quem processou', fmtMoeda(ticket), 'ticket de risco por autor');
+
+  renderTblAno();
+  renderBarsDepto();
+  const foraFiltro = state.filterFiliais.size || state.filterDeptos.size;
+  document.getElementById('resumo-nota').innerHTML =
+    `<b>Como ler:</b> a litigiosidade usa o total de <b>demitidos</b> como base (puxado do RH quando disponível, senão do retrato inicial). `+
+    `Ações coletivas e autos de órgãos (ex.: MTE) entram na relação de processos, mas não contam como "quem processou" na litigiosidade.` +
+    (foraFiltro? ' Filtro ativo aplicado aos cartões e à tabela.' : '');
+}
+function renderTblAno(){
+  const anos = [...state.litYear].map(y=>y.ano).sort((a,b)=>a-b);
+  const procPorAno = {};
+  state.proc.filter(passaFiltro).forEach(p=>{ const a=p.ano||anoDe(p.recebimento); if(a){ procPorAno[a]=(procPorAno[a]||0)+1; } });
+  const rows = anos.map(a=>{
+    const y = state.litYear.find(x=>x.ano===a) || {};
+    const dem = demitidosAno(a);
+    const aj = y.ajuizaram||0;
+    const lit = dem? aj/dem : 0;
+    const barW = Math.min(100, lit*100*4); // escala visual
+    const bar = `<div style="height:7px;background:#edf0e6;border-radius:4px;overflow:hidden;min-width:70px"><span style="display:block;height:100%;width:${barW.toFixed(0)}%;background:${lit>0.1?'var(--erro)':'var(--folha)'}"></span></div>`;
+    const fonteRH = (state.rhDem && state.rhDem.ano && state.rhDem.ano[a]!=null);
+    return [ a, dem.toLocaleString('pt-BR')+(fonteRH?' <span class="pill p-ok" style="font-size:8.5px">RH</span>':''),
+             aj, fmtPct(lit)+bar, fmtMoeda(y.valor||0), (procPorAno[a]||0) ];
+  });
+  document.getElementById('tbl-ano').innerHTML =
+    tableHTML(['Ano','Demitidos','Ajuizaram','Litigiosidade','Valor das causas','Processos lançados'], rows);
+}
+function renderBarsDepto(){
+  let base = state.litDepto.slice();
+  if(state.filterDeptos.size) base = base.filter(d=>state.filterDeptos.has(d.depto));
+  base.sort((a,b)=>(b.valor||0)-(a.valor||0));
+  const maxVal = Math.max(1, ...base.map(d=>d.valor||0));
+  const html = base.map(d=>{
+    const dem = demitidosDepto(d.depto);
+    const lit = dem? (d.ajuizaram||0)/dem : 0;
+    const w = (d.valor||0)/maxVal*100;
+    return `<div class="cat-row">
+      <div class="cat-label">${esc(d.depto)}</div>
+      <div class="cat-bar-wrap"><span class="cat-bar ${lit>0.1?'hot':''}" style="width:${w.toFixed(1)}%"></span></div>
+      <div class="cat-val">${fmtMoeda(d.valor||0)}</div>
+      <div class="cat-pct">${fmtPct(lit)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('bars-depto').innerHTML = html || '<div class="empty">Sem base por departamento. Rode a carga inicial.</div>';
+}
+
+/* ================= PROCESSOS ================= */
+function procFiltrados(){
+  const q = stripAcc(state.pBusca).toLowerCase().trim();
+  return state.proc.filter(p=>{
+    if(state.pStatus && p.status!==state.pStatus) return false;
+    if(q){
+      const hay = stripAcc([p.processo,p.nome,p.cargo,p.depto,p.filial].join(' ')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=>{
+    // em andamento primeiro, depois por data de recebimento desc
+    if((a.status==='Em andamento')!==(b.status==='Em andamento')) return a.status==='Em andamento'?-1:1;
+    return String(b.recebimento||'').localeCompare(String(a.recebimento||''));
+  });
+}
+function statusBadge(s){
+  return s==='Em andamento'
+    ? '<span class="status-badge st-andamento">Em andamento</span>'
+    : '<span class="status-badge st-encerrado">Encerrado</span>';
+}
+function resultadoHTML(r){
+  if(!r || r==='-') return '<span style="color:var(--cinza)">—</span>';
+  const up = stripAcc(r).toUpperCase();
+  if(up.startsWith('FAV')) return `<span class="res-fav">${esc(r)}</span>`;
+  if(up.startsWith('DESF')) return `<span class="res-desf">${esc(r)}</span>`;
+  return esc(r);
+}
+function renderProcessos(){
+  if(!document.getElementById('page-processos')) return;
+  const lista = procFiltrados();
+  const emAnd = lista.filter(p=>p.status==='Em andamento').length;
+  const val = lista.reduce((s,p)=>s+(p.valor||0),0);
+  document.getElementById('p-resumo-linha').textContent =
+    `${lista.length} processo(s) · ${emAnd} em andamento · ${fmtMoeda(val)} em causas`;
+  if(!lista.length){ document.getElementById('tbl-processos').innerHTML='<div class="empty">Nenhum processo encontrado.</div>'; return; }
+  const rows = lista.map(p=>{
+    const nEt = (p.etapas&&p.etapas.length)? ` <span class="pill p-neutral" style="font-size:8.5px">${p.etapas.length} etapa(s)</span>`:'';
+    const valCls = (p.valor||0)>=VALOR_ALTO? 'valor-alto':'';
+    return `<tr class="clickable ${p.status==='Em andamento'?'ativa':''}" data-id="${esc(p.id)}">
+      <td class="wrap">${esc(p.processo)}${nEt}</td>
+      <td class="wrap">${esc(p.nome||'—')}<br><span style="color:var(--cinza);font-size:11px">${esc(p.cargo||'')}</span></td>
+      <td>${esc(p.depto||'—')}</td>
+      <td>${esc(p.filial||'—')}</td>
+      <td class="num">${fmtData(p.recebimento)}</td>
+      <td class="num ${valCls}">${fmtMoeda(p.valor||0)}</td>
+      <td>${statusBadge(p.status)}</td>
+      <td>${resultadoHTML(p.resultado)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tbl-processos').innerHTML =
+    `<table><thead><tr><th>Processo</th><th>Autor / cargo</th><th>Depto</th><th>Filial</th><th>Recebido</th><th>Valor</th><th>Status</th><th>Resultado</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.querySelectorAll('#tbl-processos tr.clickable').forEach(tr=>{
+    tr.onclick = ()=> modalDetalhe(tr.dataset.id);
+  });
+}
+
+/* ---- Modal detalhe + linha do tempo ---- */
+function modalDetalhe(id){
+  const p = state.proc.find(x=>x.id===id); if(!p) return;
+  const edit = podeEditar();
+  const etapas = (p.etapas||[]).slice().sort((a,b)=>String(a.data||'').localeCompare(String(b.data||'')));
+  const hoje = todayISO();
+  const tl = etapas.length? etapas.map((e,i)=>{
+    const cls = e.data && e.data> hoje ? 'future' : 'done';
+    const del = edit? `<button class="btn btn-danger btn-mini tl-del" onclick="delEtapa('${esc(id)}',${i})">remover</button>`:'';
+    return `<div class="tl-item ${cls}">${del}
+      <div class="tl-date">${fmtData(e.data)}${e.tipo? ' · '+esc(e.tipo):''}</div>
+      <div class="tl-title">${esc(e.titulo||e.tipo||'Etapa')}</div>
+      ${e.obs? `<div class="tl-obs">${esc(e.obs)}</div>`:''}</div>`;
+  }).join('') : '<div class="empty">Sem etapas registradas.</div>';
+
+  const addForm = edit? `
+    <div class="panel" style="margin:14px 0 0;background:var(--folha-suave);border-color:#d5e1bd">
+      <h3 style="font-size:14px">Adicionar etapa</h3>
+      <div class="form-grid">
+        <div><label>Data</label><input type="date" id="et-data" value="${hoje}"></div>
+        <div><label>Tipo</label><select id="et-tipo">${ETAPA_TIPOS.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      </div>
+      <div style="margin-top:10px"><label>Título / observação</label><input type="text" id="et-titulo" placeholder="Ex.: Audiência UNA designada"></div>
+      <div style="margin-top:10px"><label>Detalhes (opcional)</label><textarea id="et-obs" placeholder="Anotações, decisão, valor de acordo..."></textarea></div>
+      <div class="btn-row"><button class="btn btn-primary btn-mini" onclick="addEtapa('${esc(id)}')">Adicionar à linha do tempo</button></div>
+    </div>`:'';
+
+  const acoesTopo = edit? `
+    <button class="btn btn-ghost btn-mini" onclick="modalProcesso('${esc(id)}')">Editar dados</button>
+    <button class="btn btn-danger btn-mini" onclick="delProcesso('${esc(id)}')">Excluir</button>`:'';
+
+  openModal(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+      <div>
+        <h3 style="margin-bottom:2px">${esc(p.nome||'Processo')}</h3>
+        <div style="font-size:12px;color:var(--cinza)">${esc(p.processo)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${acoesTopo}</div>
+    </div>
+    <div class="form-grid" style="margin-top:14px">
+      <div><label>Cargo</label><div>${esc(p.cargo||'—')}</div></div>
+      <div><label>Departamento</label><div>${esc(p.depto||'—')}</div></div>
+      <div><label>Filial</label><div>${esc(p.filial||'—')}</div></div>
+      <div><label>Status</label><div>${statusBadge(p.status)}</div></div>
+      <div><label>Admissão</label><div>${fmtData(p.admissao)}</div></div>
+      <div><label>Demissão</label><div>${fmtData(p.demissao)}</div></div>
+      <div><label>Ação recebida</label><div>${fmtData(p.recebimento)}</div></div>
+      <div><label>Valor da causa</label><div>${fmtMoeda2(p.valor||0)}</div></div>
+      <div><label>Resultado</label><div>${resultadoHTML(p.resultado)}</div></div>
+    </div>
+    <h3 style="font-size:14px;margin:18px 0 6px">Linha do tempo</h3>
+    <div class="timeline">${tl}</div>
+    ${addForm}
+    <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, true);
+}
+async function addEtapa(id){
+  const p = state.proc.find(x=>x.id===id); if(!p) return;
+  const data = document.getElementById('et-data').value;
+  const tipo = document.getElementById('et-tipo').value;
+  const titulo = document.getElementById('et-titulo').value.trim();
+  const obs = document.getElementById('et-obs').value.trim();
+  if(!data){ toast('Informe a data da etapa.', true); return; }
+  const etapas = (p.etapas||[]).concat([{data,tipo,titulo:titulo||tipo,obs}]);
+  try{
+    await setDoc(doc(db,COL_PROC,id), {etapas, atualizadoEm:todayISO()}, {merge:true});
+    toast('Etapa adicionada ✓');
+    p.etapas = etapas; modalDetalhe(id);
+  }catch(e){ toast(authErrPT(e), true); }
+}
+async function delEtapa(id, idx){
+  const p = state.proc.find(x=>x.id===id); if(!p) return;
+  const etapas = (p.etapas||[]).slice(); etapas.splice(idx,1);
+  try{
+    await setDoc(doc(db,COL_PROC,id), {etapas, atualizadoEm:todayISO()}, {merge:true});
+    p.etapas = etapas; modalDetalhe(id);
+  }catch(e){ toast(authErrPT(e), true); }
+}
+
+/* ---- Modal novo/editar processo ---- */
+function modalProcesso(id){
+  const p = id? state.proc.find(x=>x.id===id) : null;
+  const v = p || {filial:'MATRIZ', status:'Em andamento'};
+  const opt = (arr,sel)=>arr.map(o=>`<option ${o===sel?'selected':''}>${o}</option>`).join('');
+  openModal(`
+    <h3>${p? 'Editar processo':'Novo processo'}</h3>
+    <div class="form-grid">
+      <div style="grid-column:1/-1"><label>Nº do processo *</label><input id="pr-processo" value="${esc(v.processo||'')}" ${p?'disabled':''} placeholder="0000000-00.0000.0.00.0000"></div>
+      <div style="grid-column:1/-1"><label>Nome do autor</label><input id="pr-nome" value="${esc(v.nome||'')}"></div>
+      <div><label>Cargo</label><input id="pr-cargo" value="${esc(v.cargo||'')}"></div>
+      <div><label>Departamento</label><input id="pr-depto" value="${esc(v.depto||'')}" list="dl-deptos"></div>
+      <div><label>Filial</label><input id="pr-filial" value="${esc(v.filial||'MATRIZ')}"></div>
+      <div><label>Status</label><select id="pr-status">${opt(['Em andamento','Encerrado'], v.status)}</select></div>
+      <div><label>Admissão</label><input type="date" id="pr-admissao" value="${esc(v.admissao||'')}"></div>
+      <div><label>Demissão</label><input type="date" id="pr-demissao" value="${esc(v.demissao||'')}"></div>
+      <div><label>Ação recebida</label><input type="date" id="pr-receb" value="${esc(v.recebimento||'')}"></div>
+      <div><label>Valor da causa (R$)</label><input id="pr-valor" inputmode="decimal" value="${v.valor!=null? String(v.valor).replace('.',','):''}"></div>
+      <div><label>Resultado</label><select id="pr-resultado">${opt(['','FAVORÁVEL','DESFAVORÁVEL','PARCIAL','ACORDO'], v.resultado||'')}</select></div>
+    </div>
+    <div style="margin-top:10px">
+      <label style="display:inline-flex;gap:7px;align-items:center;font-weight:600">
+        <input type="checkbox" id="pr-conta" ${v.contaLitig!==false?'checked':''} style="width:auto"> Conta na taxa de litigiosidade
+      </label>
+      <div style="font-size:11px;color:var(--cinza);margin-top:3px">Desmarque para ações coletivas ou autos de órgãos (MTE etc.), que não representam um demitido que processou.</div>
+    </div>
+    <datalist id="dl-deptos">${deptosDisponiveis().map(d=>`<option value="${esc(d)}">`).join('')}</datalist>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="salvarProcesso('${p?esc(id):''}')">Salvar</button>
+      <button class="btn btn-ghost" onclick="${p?`modalDetalhe('${esc(id)}')`:'closeModal()'}">Cancelar</button>
+    </div>
+  `, true);
+}
+async function salvarProcesso(id){
+  const np = document.getElementById('pr-processo').value.trim();
+  if(!np){ toast('Informe o número do processo.', true); return; }
+  const dados = {
+    processo: np,
+    nome: document.getElementById('pr-nome').value.trim(),
+    cargo: document.getElementById('pr-cargo').value.trim(),
+    depto: document.getElementById('pr-depto').value.trim(),
+    filial: document.getElementById('pr-filial').value.trim() || 'MATRIZ',
+    status: document.getElementById('pr-status').value,
+    admissao: document.getElementById('pr-admissao').value,
+    demissao: document.getElementById('pr-demissao').value,
+    recebimento: document.getElementById('pr-receb').value,
+    valor: num(document.getElementById('pr-valor').value),
+    resultado: document.getElementById('pr-resultado').value,
+    contaLitig: document.getElementById('pr-conta').checked,
+    ano: anoDe(document.getElementById('pr-receb').value),
+    atualizadoEm: todayISO(),
+  };
+  const docId = id || procId(np);
+  try{
+    if(!id){
+      const ex = await getDoc(doc(db,COL_PROC,docId));
+      if(ex.exists()){ toast('Já existe um processo com esse número.', true); return; }
+      dados.criadoEm = todayISO(); dados.etapas = [];
+    }
+    await setDoc(doc(db,COL_PROC,docId), dados, {merge:true});
+    toast(id? 'Processo atualizado ✓':'Processo cadastrado ✓');
+    closeModal();
+  }catch(e){ toast(authErrPT(e), true); }
+}
+function delProcesso(id){
+  const p = state.proc.find(x=>x.id===id); if(!p) return;
+  confirmModal(`Excluir o processo <b>${esc(p.processo)}</b>? Não dá pra desfazer.`, async ()=>{
+    try{ await deleteDoc(doc(db,COL_PROC,id)); toast('Processo excluído ✓'); }
+    catch(e){ toast(authErrPT(e), true); }
+  });
+}
+
+/* ================= BASE / LITIGIOSIDADE ================= */
+function renderBase(){
+  if(!document.getElementById('page-litig')) return;
+  const anos = [...state.litYear].sort((a,b)=>a.ano-b.ano);
+  const rowsAno = anos.map(y=>{
+    const rh = (state.rhDem && state.rhDem.ano && state.rhDem.ano[y.ano]!=null)? state.rhDem.ano[y.ano] : null;
+    const dem = rh!=null? rh : (y.demitidos||0);
+    const lit = dem? (y.ajuizaram||0)/dem : 0;
+    return `<tr>
+      <td class="num">${y.ano}</td>
+      <td><input data-ano="${y.ano}" data-k="demitidos" value="${dem}" style="width:90px" ${rh!=null?'title="valor atual do RH"':''}></td>
+      <td><input data-ano="${y.ano}" data-k="ajuizaram" value="${y.ajuizaram||0}" style="width:80px"></td>
+      <td><input data-ano="${y.ano}" data-k="valor" value="${(y.valor||0)}" style="width:120px"></td>
+      <td class="num">${fmtPct(lit)} ${rh!=null?'<span class="pill p-ok" style="font-size:8.5px">RH</span>':''}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tbl-litig-ano').innerHTML = anos.length?
+    `<table><thead><tr><th>Ano</th><th>Demitidos</th><th>Ajuizaram</th><th>Valor causas (R$)</th><th>Litigiosidade</th></tr></thead><tbody>${rowsAno}</tbody></table>`
+    : '<div class="empty">Sem base. Rode a carga inicial.</div>';
+
+  const deptos = [...state.litDepto].sort((a,b)=>(b.valor||0)-(a.valor||0));
+  const rowsDep = deptos.map(d=>{
+    const rh = (state.rhDem && state.rhDem.depto && state.rhDem.depto[d.depto]!=null)? state.rhDem.depto[d.depto] : null;
+    const dem = rh!=null? rh : (d.demitidos||0);
+    const lit = dem? (d.ajuizaram||0)/dem : 0;
+    return `<tr>
+      <td>${esc(d.depto)}</td>
+      <td><input data-dep="${esc(d.depto)}" data-k="demitidos" value="${dem}" style="width:90px"></td>
+      <td><input data-dep="${esc(d.depto)}" data-k="ajuizaram" value="${d.ajuizaram||0}" style="width:80px"></td>
+      <td><input data-dep="${esc(d.depto)}" data-k="valor" value="${(d.valor||0)}" style="width:120px"></td>
+      <td class="num">${fmtPct(lit)} ${rh!=null?'<span class="pill p-ok" style="font-size:8.5px">RH</span>':''}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tbl-litig-depto').innerHTML = deptos.length?
+    `<table><thead><tr><th>Departamento</th><th>Demitidos</th><th>Ajuizaram</th><th>Valor causas (R$)</th><th>Litigiosidade</th></tr></thead><tbody>${rowsDep}</tbody></table>`
+    : '<div class="empty">Sem base por departamento.</div>';
+}
+async function salvarBaseAno(){
+  const litYear = state.litYear.map(y=>({...y}));
+  document.querySelectorAll('#tbl-litig-ano input[data-ano]').forEach(inp=>{
+    const y = litYear.find(x=>x.ano===Number(inp.dataset.ano)); if(!y) return;
+    y[inp.dataset.k] = num(inp.value);
+  });
+  try{
+    await setDoc(doc(db,'config',CFG_LITIG), {litYear}, {merge:true});
+    toast('Base por ano salva ✓');
+  }catch(e){ toast(authErrPT(e), true); }
+}
+async function salvarBaseDepto(){
+  const litDepto = state.litDepto.map(d=>({...d}));
+  document.querySelectorAll('#tbl-litig-depto input[data-dep]').forEach(inp=>{
+    const d = litDepto.find(x=>x.depto===inp.dataset.dep); if(!d) return;
+    d[inp.dataset.k] = num(inp.value);
+  });
+  try{
+    await setDoc(doc(db,'config',CFG_LITIG), {litDepto}, {merge:true});
+    toast('Base por departamento salva ✓');
+  }catch(e){ toast(authErrPT(e), true); }
+}
+async function puxarDemitidosRH(){
+  const btn = document.getElementById('btn-sync-rh'); btn.disabled=true;
+  const st = document.getElementById('sync-rh-status'); st.textContent='Lendo o RH...';
+  try{
+    const snap = await getDocs(collection(db,'rh_lancamentos'));
+    const ano={}, depto={};
+    snap.docs.forEach(d=>{
+      const l = d.data();
+      const y = l.competencia? Number(String(l.competencia).slice(0,4)) : null;
+      const dem = Number(l.demitidos)||0;
+      if(y){ ano[y]=(ano[y]||0)+dem; }
+      if(l.depto){ depto[l.depto]=(depto[l.depto]||0)+dem; }
+    });
+    state.rhDem = {ano, depto};
+    const nAnos = Object.keys(ano).length;
+    st.textContent = nAnos? `RH lido: ${nAnos} ano(s) com desligamentos. Os valores marcados "RH" agora vêm de lá.` : 'O RH ainda não tem lançamentos de desligamento.';
+    renderResumo(); renderBase();
+    toast('Demitidos atualizados do RH ✓');
+  }catch(e){
+    st.textContent = 'Falha ao ler o RH: '+(e?.message||e);
+  }
+  btn.disabled=false;
+}
+
+/* ================= CARGA INICIAL ================= */
+async function rodarCarga(){
+  if(!SEED){ toast('Seed não encontrado.', true); return; }
+  const btn = document.getElementById('btn-carga'); btn.disabled=true;
+  const st = document.getElementById('carga-status'); st.textContent='Verificando o que já existe...';
+  try{
+    const existentes = new Set((await getDocs(collection(db,COL_PROC))).docs.map(d=>d.id));
+    const faltando = SEED.acoes.filter(a=>!existentes.has(procId(a.processo)));
+    let ok=0;
+    for(let i=0;i<faltando.length;i+=400){
+      const batch = writeBatch(db);
+      faltando.slice(i,i+400).forEach(a=>{
+        batch.set(doc(db,COL_PROC,procId(a.processo)), {...a, criadoEm:todayISO(), atualizadoEm:todayISO()});
+        ok++;
+      });
+      await batch.commit();
+    }
+    // base de litigiosidade — só cria se ainda não existe
+    const cfg = await getDoc(doc(db,'config',CFG_LITIG));
+    let baseMsg = 'base de litigiosidade já existia (mantida).';
+    if(!cfg.exists()){
+      await setDoc(doc(db,'config',CFG_LITIG), {litYear:SEED.litYear, litDepto:SEED.litDepto, totais:SEED.totais});
+      baseMsg = 'base de litigiosidade criada.';
+    }
+    st.textContent = `${ok} processo(s) gravado(s) · ${SEED.acoes.length-faltando.length} já existiam · ${baseMsg}`;
+    toast('Carga concluída ✓');
+  }catch(e){
+    st.textContent = 'Falha na carga: '+(e?.message||e);
+    toast('Falha na carga', true);
+  }
+  btn.disabled=false;
+}
+
+/* ================= MODAL / SENHA ================= */
+function openModal(html, lg){
+  document.getElementById('modal-box').className = 'modal'+(lg?' lg':'');
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal-bg').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+let _confirmFn = null;
+function confirmModal(msg, fn){
+  _confirmFn = fn;
+  openModal(`<h3>Confirmar</h3><p style="font-size:14px;color:#40503b;margin:0 0 16px">${msg}</p>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-primary" onclick="_runConfirm()">Confirmar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function _runConfirm(){ const f=_confirmFn; closeModal(); f && f(); }
+function openModalSenha(){
+  openModal(`<h3>Alterar minha senha</h3>
+    <label>Senha atual</label><input type="password" id="cs-old" style="margin-bottom:12px">
+    <label>Nova senha (mín. 6)</label><input type="password" id="cs-new">
+    <div class="btn-row"><button class="btn btn-primary" onclick="salvarNovaSenha()">Salvar</button>
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function salvarNovaSenha(){
+  const oldP = document.getElementById('cs-old').value;
+  const newP = document.getElementById('cs-new').value;
+  if(!oldP || !newP){ toast('Preencha as duas senhas.', true); return; }
+  try{
+    const cred = EmailAuthProvider.credential(currentUser.email, oldP);
+    await reauthenticateWithCredential(auth.currentUser, cred);
+    await updatePassword(auth.currentUser, newP);
+    closeModal(); toast('Senha alterada ✓');
+  }catch(e){ toast(authErrPT(e), true); }
+}
+
+/* ================= INIT ================= */
+Object.assign(window, {
+  logout, showPage,
+  modalProcesso, salvarProcesso, modalDetalhe, delProcesso,
+  addEtapa, delEtapa,
+  salvarBaseAno, salvarBaseDepto, puxarDemitidosRH, rodarCarga,
+  openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
+});
+</script>
+</body>
+</html>
