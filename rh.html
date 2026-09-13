@@ -245,8 +245,20 @@
           <div class="note">Calcula, por departamento: <strong>absenteísmo com abono médico</strong> (abonos legais + abonos médicos + faltas), <strong>absenteísmo sem abono médico</strong> (abonos legais + faltas, sem contar atestado) e <strong>faltas</strong> isolado — todos sobre as horas previstas. "Abonos p/ liberação" e "Atrasos/Outros" não entram em nenhum dos três. O relatório não separa por filial — uso o prefixo do código do departamento para isso: 002.01 → RAGUIFE - MATRIZ, 002.12 → FILIAL BOM DESPACHO, 029.01 → NOVA ASSESSORIA, 016.01 → M B PRONI DO AMARAL CONSTRUÇÕES E ACABAMENTOS (mesmos nomes da Relação de Funcionários). Departamentos fora dessas faixas ficam sem filial definida.</div>
         </div>
 
+        <div class="panel" id="imp-panel-deslig" style="display:none">
+          <h2>3 · Desligamentos por motivo (PDF) — opcional</h2>
+          <div class="form-grid">
+            <div>
+              <label>Relatório "Funcionários Demitidos / Admitidos" (.pdf)</label>
+              <input type="file" id="imp-file-deslig" accept=".pdf" onchange="processarDesligamentos(event)">
+            </div>
+          </div>
+          <div class="note" id="imp-status-deslig" style="display:none"></div>
+          <div class="note">Separa os desligamentos em <strong>involuntário</strong> (iniciativa do empregador — códigos 1, 2, 11), <strong>voluntário</strong> (iniciativa do empregado — códigos 4, 10) e <strong>neutro</strong> (término de contrato, acordo, falecimento, fim de estágio — contam como saída, mas fora dos dois). Transferência e mudança de CPF (5, 5C) não contam. A competência vem da própria data de demissão; o <strong>departamento</strong> é descoberto cruzando a <strong>chapa</strong> com a Relação de Funcionários enviada acima — por isso ela precisa ser enviada primeiro. Chapa não encontrada entre os efetivos fica em "(SEM DEPTO)".</div>
+        </div>
+
         <div class="panel" id="imp-preview" style="display:none">
-          <h2>3 · Conferir antes de gravar</h2>
+          <h2>4 · Conferir antes de gravar</h2>
           <div class="desc" id="imp-resumo"></div>
           <div class="table-wrap" id="imp-tbl-preview"></div>
           <div class="btn-row">
@@ -628,6 +640,7 @@ async function processarPlanilha(ev){
     renderPreviewImportacao();
     document.getElementById('imp-preview').style.display='block';
     document.getElementById('imp-panel-atestado').style.display='block';
+    document.getElementById('imp-panel-deslig').style.display='block';
     statusImport(`Arquivo lido ✓ — confira abaixo e clique em "Gravar no banco".`);
   }catch(e){ console.error(e); statusImport('Falha ao ler o arquivo: '+(e.message||e), true); }
 }
@@ -757,6 +770,86 @@ async function processarPonto(ev){
     statusImportAtestado(msg+' ✓');
   }catch(e){ console.error(e); statusImportAtestado('Falha ao ler o PDF: '+(e.message||e), true); }
 }
+function statusImportDeslig(msg, isErr){
+  const el = document.getElementById('imp-status-deslig');
+  el.style.display='block'; el.textContent = msg;
+  el.style.background = isErr? '#f7e3df' : '';
+  el.style.color = isErr? 'var(--erro)' : '';
+}
+// Código do motivo de demissão (MixFolha) -> iniciativa
+// 1,2,11 = empregador (involuntário) · 4,10 = empregado (voluntário)
+// 5,5C = transferência/mudança de CPF (não contam) · demais (T,8,12,E...) = neutro
+function classificaMotivo(code){
+  const c = String(code||'').toUpperCase().trim();
+  if(['1','2','11'].includes(c)) return 'invol';
+  if(['4','10'].includes(c)) return 'vol';
+  if(['5','5C'].includes(c)) return 'naoconta';
+  return 'neutro';
+}
+async function processarDesligamentos(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  if(!importRows || !importRows.length || !importSpellsEfetivos){
+    statusImportDeslig('Suba a Relação de Funcionários primeiro (nesta mesma sessão) — é dela que vem o departamento de cada chapa.', true);
+    ev.target.value=''; return;
+  }
+  statusImportDeslig('Lendo PDF...');
+  try{
+    const linhas = await pdfParaLinhas(file);
+    // mapa chapa -> vínculos (para achar departamento/filial de cada demitido)
+    const porChapa = new Map();
+    const addChapa = (k,s)=>{ if(!k) return; if(!porChapa.has(k)) porChapa.set(k,[]); porChapa.get(k).push(s); };
+    importSpellsEfetivos.forEach(s=>{
+      const k = String(s.chapa||'').trim();
+      addChapa(k, s); addChapa(k.replace(/^0+/,''), s);
+    });
+
+    const filRe = /Filial:\s*([\d.]+)\s*-\s*(.+)/;
+    const linRe = /^\s*(\d+)\s+(\S+)\s+.+?\s+(\d{2}\/\d{2}\/\d{4})\s+([0-9A-Za-z]{1,3})\s*-\s*(.+)$/;
+    const agg = new Map(); // id -> {competencia,filial,depto,vol,invol,neutro}
+    let filialCod=null, lidos=0, semChapa=0, naoConta=0, tVol=0, tInvol=0, tNeutro=0;
+
+    linhas.forEach(l=>{
+      const mf = l.match(filRe); if(mf){ filialCod = mf[1].trim(); return; }
+      const m = l.match(linRe); if(!m) return;
+      const chapa = m[2].trim(), data = m[3], code = m[4].trim();
+      const bucket = classificaMotivo(code);
+      if(bucket==='naoconta'){ naoConta++; return; }
+      lidos++;
+      if(bucket==='vol') tVol++; else if(bucket==='invol') tInvol++; else tNeutro++;
+      const comp = data.slice(6,10)+'-'+data.slice(3,5);
+      let depto='(SEM DEPTO)', filial = filialPorCodigo(filialCod) || (filialCod||'—');
+      const lst = porChapa.get(chapa) || porChapa.get(chapa.replace(/^0+/,''));
+      if(lst && lst.length){
+        const sp = lst.find(s=>s.dem && s.dem.slice(0,7)===comp)
+                || lst.slice().sort((a,b)=>String(b.adm).localeCompare(String(a.adm)))[0];
+        if(sp){ depto = sp.depto || depto; if(sp.filial) filial = sp.filial; }
+      } else { semChapa++; }
+      const id = chaveLanc(comp, filial, depto);
+      let a = agg.get(id);
+      if(!a){ a = {competencia:comp, filial, depto, vol:0, invol:0, neutro:0}; agg.set(id, a); }
+      a[bucket]++;
+    });
+
+    if(!lidos){ statusImportDeslig('Não encontrei linhas de desligamento nesse PDF — confira se é o relatório "Funcionários Demitidos / Admitidos".', true); ev.target.value=''; return; }
+
+    let aplicados=0, criados=0;
+    agg.forEach((a,id)=>{
+      const row = importRows.find(r=>r.id===id);
+      if(row){ row.desligInvol=a.invol; row.desligVol=a.vol; row.desligNeutro=a.neutro; aplicados++; }
+      else {
+        importRows.push({ id, competencia:a.competencia, filial:a.filial, depto:a.depto,
+          ativos:0, admitidos:0, demitidos:0, turnover:0,
+          desligInvol:a.invol, desligVol:a.vol, desligNeutro:a.neutro });
+        criados++;
+      }
+    });
+    renderPreviewImportacao();
+    let msg = `${lidos} desligamentos classificados · ${tInvol} involuntários / ${tVol} voluntários / ${tNeutro} neutros`;
+    if(naoConta) msg += ` · ${naoConta} ignorados (transferência/CPF)`;
+    if(semChapa) msg += ` · ${semChapa} sem chapa nos efetivos → "(SEM DEPTO)"`;
+    statusImportDeslig(msg + ' ✓');
+  }catch(e){ console.error(e); statusImportDeslig('Falha ao ler o PDF: '+(e.message||e), true); }
+}
 function renderPreviewImportacao(){
   if(!importRows) return;
   const mesesUsados = [...new Set(importRows.map(r=>r.competencia))].sort();
@@ -790,6 +883,9 @@ async function gravarImportacao(){
         if(r.absenteismoSemAbono!=null) dados.absenteismoSemAbono = r.absenteismoSemAbono;
         if(r.absenteismoMedico!=null) dados.absenteismoMedico = r.absenteismoMedico;
         if(r.faltasQtd!=null) dados.faltasQtd = r.faltasQtd;
+        if(r.desligInvol!=null) dados.desligInvol = r.desligInvol;
+        if(r.desligVol!=null) dados.desligVol = r.desligVol;
+        if(r.desligNeutro!=null) dados.desligNeutro = r.desligNeutro;
         batch.set(doc(db,'rh_lancamentos', r.id), dados, {merge:true});
       });
       await batch.commit();
@@ -807,8 +903,11 @@ function limparImportacao(){
   document.getElementById('imp-preview').style.display='none';
   document.getElementById('imp-panel-atestado').style.display='none';
   document.getElementById('imp-status-atestado').style.display='none';
+  document.getElementById('imp-panel-deslig').style.display='none';
+  document.getElementById('imp-status-deslig').style.display='none';
   document.getElementById('imp-file').value = '';
   document.getElementById('imp-file-ponto').value = '';
+  document.getElementById('imp-file-deslig').value = '';
 }
 
 /* ================= CONFIG ================= */
@@ -923,7 +1022,10 @@ function agregarPeriodo(rows, de, ate){
   const absenteismoSemAbono = somaAtivosLinhas ? (somaAbsSemPond/somaAtivosLinhas) : null;
   const absenteismoMedico = somaAtivosLinhas ? (somaAbsMedicoPond/somaAtivosLinhas) : null;
   const faltasQtd = f.length ? f.reduce((s,l)=>s+(l.faltasQtd||0),0) : null;
-  return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, absenteismoMedico, faltasQtd, nMeses:meses.length};
+  const desligInvol = f.reduce((s,l)=>s+(l.desligInvol||0),0);
+  const desligVol = f.reduce((s,l)=>s+(l.desligVol||0),0);
+  const desligNeutro = f.reduce((s,l)=>s+(l.desligNeutro||0),0);
+  return {headcount, admitidos, demitidos, turnover, absenteismoComAbono, absenteismoSemAbono, absenteismoMedico, faltasQtd, desligInvol, desligVol, desligNeutro, nMeses:meses.length};
 }
 // Comparativo de headcount: filial+depto nas linhas, um mês por coluna, ativos ao fim de cada mês
 function renderHeadcountPivot(){
@@ -1008,6 +1110,24 @@ function renderDashboard(){
   cards.push(kpiCard('Desligamentos no período', atual.demitidos+'', `${atual.nMeses||0} mês(es) considerado(s)`, true, 0, 0,
     anterior.nMeses? cmpLine(atual.demitidos, anterior.demitidos, false, v=>Math.round(v)+'') : semAnterior));
 
+  const totMot = atual.desligInvol + atual.desligVol + atual.desligNeutro;
+  const totMotAnt = anterior.desligInvol + anterior.desligVol + anterior.desligNeutro;
+  const comIni = atual.desligInvol + atual.desligVol; // base p/ o "% com iniciativa"
+  const pctInvol = comIni? Math.round(atual.desligInvol/comIni*100) : 0;
+  const pctVol = comIni? Math.round(atual.desligVol/comIni*100) : 0;
+
+  cards.push(kpiCard('Deslig. involuntário (empresa)',
+    totMot? atual.desligInvol+'' : '—',
+    totMot? `${pctInvol}% dos com iniciativa · dispensa pelo empregador` : 'Importe o relatório de desligamentos por motivo (PDF)',
+    true, 0, 0,
+    (totMot && totMotAnt)? cmpLine(atual.desligInvol, anterior.desligInvol, false, v=>Math.round(v)+'') : semAnterior));
+
+  cards.push(kpiCard('Deslig. voluntário (funcionário)',
+    totMot? atual.desligVol+'' : '—',
+    totMot? `${pctVol}% dos com iniciativa · ${atual.desligNeutro} neutro(s) à parte (término/acordo)` : 'Importe o relatório de desligamentos por motivo (PDF)',
+    true, 0, 0,
+    (totMot && totMotAnt)? cmpLine(atual.desligVol, anterior.desligVol, false, v=>Math.round(v)+'') : semAnterior));
+
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
   renderHistorico(base);
@@ -1018,7 +1138,9 @@ function renderHistorico(base){
   const meses = [...new Set(base.map(l=>l.competencia))].filter(Boolean).sort().slice(-12).reverse();
   const rows = meses.map(m=>{
     const r = agregarPeriodo(base, m, m);
+    const tm=(r.desligInvol+r.desligVol+r.desligNeutro)>0;
     return [ fmtMesComp(m), r.headcount, r.admitidos, r.demitidos,
+      tm?r.desligInvol:'—', tm?r.desligVol:'—',
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
       r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
@@ -1026,14 +1148,16 @@ function renderHistorico(base){
       r.faltasQtd==null?'—':r.faltasQtd+'' ];
   });
   document.getElementById('tbl-historico').innerHTML =
-    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
+    tableHTML(['Mês','Headcount','Admissões','Desligamentos','Involunt.','Volunt.','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 function renderPorFilial(){
   const base = state.lanc.filter(l=>!state.filterDeptos.size || state.filterDeptos.has(l.depto));
   const filiais = [...new Set(base.map(l=>l.filial).filter(Boolean))].sort();
   const rows = filiais.map(f=>{
     const r = agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte);
+    const tm=(r.desligInvol+r.desligVol+r.desligNeutro)>0;
     return [esc(f), r.headcount, r.admitidos, r.demitidos,
+      tm?r.desligInvol:'—', tm?r.desligVol:'—',
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
       r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
@@ -1041,14 +1165,16 @@ function renderPorFilial(){
       r.faltasQtd==null?'—':r.faltasQtd+''];
   }).sort((a,b)=>b[1]-a[1]);
   document.getElementById('tbl-filial').innerHTML =
-    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
+    tableHTML(['Filial','Headcount','Admissões','Desligamentos','Involunt.','Volunt.','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 function renderPorDepto(){
   const base = state.lanc.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
   const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
   const rows = deptos.map(d=>{
     const r = agregarPeriodo(base.filter(l=>l.depto===d), state.filterDe, state.filterAte);
+    const tm=(r.desligInvol+r.desligVol+r.desligNeutro)>0;
     return {row:[esc(d), r.headcount, r.admitidos, r.demitidos,
+      tm?r.desligInvol:'—', tm?r.desligVol:'—',
       r.turnover==null?'—':r.turnover.toFixed(1)+'%',
       r.absenteismoComAbono==null?'—':r.absenteismoComAbono.toFixed(1)+'%',
       r.absenteismoSemAbono==null?'—':r.absenteismoSemAbono.toFixed(1)+'%',
@@ -1056,7 +1182,7 @@ function renderPorDepto(){
       r.faltasQtd==null?'—':r.faltasQtd+''], t:r.turnover||0};
   }).sort((a,b)=>b.t-a.t).map(x=>x.row);
   document.getElementById('tbl-depto').innerHTML =
-    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
+    tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Involunt.','Volunt.','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 
 /* ================= MODAL ================= */
@@ -1125,7 +1251,7 @@ function montarAtalhos(){
 /* ================= INIT ================= */
 Object.assign(window, {
   logout, showPage,
-  processarPlanilha, processarPonto, gravarImportacao, limparImportacao,
+  processarPlanilha, processarPonto, processarDesligamentos, gravarImportacao, limparImportacao,
   salvarConfig, apagarTudo,
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
