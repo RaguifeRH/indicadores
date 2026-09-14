@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#024f2b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root{
     --verde:#024f2b; --verde-escuro:#013a20; --folha:#739630; --folha-suave:#e9f0dc;
@@ -102,6 +103,17 @@
   .note{font-size:12px;color:#5a684f;background:var(--folha-suave);border-radius:9px;padding:10px 13px;margin-top:12px;line-height:1.5;}
 
   .chip-group{display:flex;flex-wrap:wrap;gap:7px;}
+  /* rolagem lateral: chips numa linha só, "estante horizontal" em vez de empilhar */
+  .chip-scroll{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:7px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#cdd6c2 transparent;}
+  .chip-scroll .chip{flex:0 0 auto;}
+  .chip-scroll::-webkit-scrollbar{height:7px;}
+  .chip-scroll::-webkit-scrollbar-thumb{background:#cdd6c2;border-radius:4px;}
+  .chip-scroll::-webkit-scrollbar-track{background:transparent;}
+  .mesano{display:flex;gap:8px;}
+  .mesano select{flex:1;min-width:0;}
+  .mesano select.sel-mes{flex:1.6;}
+  .chart-wrap{position:relative;height:270px;margin-bottom:16px;}
+  .chart-wrap.tall{height:320px;}
   .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--linha);background:#fbfcf9;font-size:12px;font-weight:600;color:#40503b;cursor:pointer;user-select:none;transition:background .1s,color .1s;}
   .chip:hover{background:var(--folha-suave);}
   .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
@@ -172,38 +184,50 @@
         <h1 class="page-title">Dashboard</h1>
         <div class="page-desc">Custo de pessoal (folha e encargos) da empresa no período — filtro opcional por filial ou departamento</div>
         <div class="filter-bar">
-          <div class="fld"><label>De (mês)</label><input type="month" id="f-de"></div>
-          <div class="fld"><label>Até (mês)</label><input type="month" id="f-ate"></div>
+          <div class="fld"><label>De</label>
+            <div class="mesano">
+              <select class="sel-mes" id="de-mes" onchange="onPeriodoChange()"></select>
+              <select id="de-ano" onchange="onPeriodoChange()"></select>
+            </div>
+          </div>
+          <div class="fld"><label>Até</label>
+            <div class="mesano">
+              <select class="sel-mes" id="ate-mes" onchange="onPeriodoChange()"></select>
+              <select id="ate-ano" onchange="onPeriodoChange()"></select>
+            </div>
+          </div>
           <div class="presets">
             <button class="btn btn-ghost" onclick="setPreset('mes')">Este mês</button>
             <button class="btn btn-ghost" onclick="setPreset('trim')">Últ. 3 meses</button>
             <button class="btn btn-ghost" onclick="setPreset('ano')">Este ano</button>
           </div>
-          <button class="btn btn-leaf" onclick="applyFilter()">Aplicar</button>
+          <input type="hidden" id="f-de"><input type="hidden" id="f-ate">
         </div>
         <div class="filter-bar" style="flex-direction:column;align-items:stretch;gap:14px">
           <div>
             <label><span class="step-num">1</span> Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar; define as áreas abaixo)</span></label>
-            <div class="chip-group" id="f-filial-boxes"></div>
+            <div class="chip-group chip-scroll" id="f-filial-boxes"></div>
           </div>
           <div>
             <label><span class="step-num">2</span> Área <span style="font-weight:400;color:var(--cinza)">(as áreas dependem da filial escolhida)</span></label>
-            <div class="chip-group" id="f-area-boxes"></div>
+            <div class="chip-group chip-scroll" id="f-area-boxes"></div>
           </div>
           <div>
             <label><span class="step-num">3</span> Departamento <span style="font-weight:400;color:var(--cinza)">(dependem da filial e da área)</span></label>
-            <div class="chip-group" id="f-depto-boxes"></div>
+            <div class="chip-group chip-scroll" id="f-depto-boxes"></div>
           </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
         <div class="panel">
           <h2>Composição do custo</h2>
           <div class="desc">Os três grandes grupos — mesma divisão da sua planilha original</div>
+          <div class="chart-wrap"><canvas id="chart-grupos"></canvas></div>
           <div class="grupo-cards" id="grupo-cards"></div>
         </div>
         <div class="panel">
           <h2>Histórico mensal</h2>
           <div class="desc">Custo total mês a mês (últimos 12 meses com registro, no filtro atual) · a coluna Folha ÷ Faturamento é sempre da empresa toda, mesmo com filtro de filial</div>
+          <div class="chart-wrap tall"><canvas id="chart-historico"></canvas></div>
           <div class="table-wrap" id="tbl-historico"></div>
         </div>
         <div class="panel beneficios">
@@ -218,11 +242,13 @@
         </div>
         <div class="panel">
           <h2>Por filial</h2>
+          <div class="chart-wrap"><canvas id="chart-filial"></canvas></div>
           <div class="table-wrap" id="tbl-filial"></div>
         </div>
         <div class="panel">
           <h2>Por área</h2>
           <div class="desc">Custo por área no período, respeitando o filtro de filial · ordenado do maior para o menor</div>
+          <div class="chart-wrap"><canvas id="chart-area"></canvas></div>
           <div class="table-wrap" id="tbl-area"></div>
         </div>
         <div class="panel">
@@ -502,6 +528,7 @@ function enterApp(){
   document.getElementById('f-ate').value = monthISO();
   state.filterDe = document.getElementById('f-de').value;
   state.filterAte = document.getElementById('f-ate').value;
+  buildPeriodoSelectors();
   document.getElementById('fat-comp').value = monthISO();
   document.getElementById('cfg-meta-ff').value = state.cfg.metaFolhaFaturamento;
 
@@ -532,6 +559,7 @@ function renderFiliaisDeptos(){
     `<button type="button" class="chip ${state.filterFiliais.size===0?'on':''}" data-value="__all__">Todas</button>` +
     filiais.map(f=>`<button type="button" class="chip ${state.filterFiliais.has(f)?'on':''}" data-value="${esc(f)}">${esc(f)}</button>`).join('');
   renderAreaBoxes();
+  buildPeriodoSelectors();
 }
 function areasDisponiveis(){
   const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
@@ -921,6 +949,20 @@ function renderGrupos(atual){
       <div class="g-desc">${esc(g.desc)}</div>
     </div>`;
   }).join('');
+
+  const vals = GRUPOS.map(g=>atual.porGrupo[g.key]||0);
+  const totalG = vals.reduce((s,x)=>s+x,0);
+  mountChart('chart-grupos', {
+    type:'doughnut',
+    data:{ labels:GRUPOS.map(g=>g.label),
+      datasets:[{ data:vals, backgroundColor:['#024f2b','#739630','#d99a2b'], borderColor:'#fff', borderWidth:2 }] },
+    options:{ ...BASE_OPTS, cutout:'58%',
+      plugins:{ legend:{position:'bottom'},
+        tooltip:{callbacks:{label:ctx=>{
+          const p = totalG? (ctx.parsed/totalG*100).toFixed(1) : '0';
+          return ctx.label+': '+fmtMoeda(ctx.parsed)+' ('+p+'%)';
+        }}} } }
+  });
 }
 function renderCatBars(containerId, cats, porCategoria, denom){
   const rows = cats.map(c=>({label:c.label, val:porCategoria[c.key]||0})).sort((a,b)=>b.val-a.val);
@@ -936,33 +978,67 @@ function renderCatBars(containerId, cats, porCategoria, denom){
   document.getElementById(containerId).innerHTML = html || '<div class="empty">Sem dados</div>';
 }
 function renderHistorico(base){
-  const meses = [...new Set(base.map(l=>l.competencia))].filter(Boolean).sort().slice(-12).reverse();
-  const rows = meses.map(m=>{
-    const r = agregarPeriodo(base, m, m);
+  // ordem cronológica (antigo → recente) pro gráfico; a tabela inverte pra mostrar o mais recente no topo
+  const meses = [...new Set(base.map(l=>l.competencia))].filter(Boolean).sort().slice(-12);
+  const dados = meses.map(m=>{
+    const custo = agregarPeriodo(base, m, m).total;
     const custoEmpresa = agregarPeriodo(state.custos, m, m).total;
     const fat = somaFaturamento(m, m);
-    const razao = fat? (custoEmpresa/fat*100) : null;
-    return [ fmtMesComp(m), fmtMoeda(r.total), razao==null? '—' : razao.toFixed(1)+'%' ];
+    const razao = fat? +(custoEmpresa/fat*100).toFixed(1) : null;
+    return {m, custo, razao};
   });
+
+  mountChart('chart-historico', {
+    data:{ labels:dados.map(d=>fmtMesComp(d.m)),
+      datasets:[
+        { type:'bar', label:'Custo total', data:dados.map(d=>d.custo),
+          backgroundColor:'#739630', yAxisID:'y', order:2, borderRadius:4 },
+        { type:'line', label:'Folha ÷ Faturamento (%)', data:dados.map(d=>d.razao),
+          borderColor:'#024f2b', backgroundColor:'#024f2b', yAxisID:'y2',
+          tension:.3, spanGaps:true, pointRadius:3, order:1 }
+      ] },
+    options:{ ...BASE_OPTS, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{position:'bottom'},
+        tooltip:{callbacks:{label:ctx=> ctx.dataset.yAxisID==='y2'
+          ? (ctx.parsed.y==null? 'Folha ÷ Fat.: —' : ctx.dataset.label+': '+ctx.parsed.y+'%')
+          : ctx.dataset.label+': '+fmtMoeda(ctx.parsed.y)}} },
+      scales:{
+        y:{ position:'left', beginAtZero:true, ticks:{callback:v=>fmtMoedaCurto(v)} },
+        y2:{ position:'right', beginAtZero:true, grid:{drawOnChartArea:false}, ticks:{callback:v=>v+'%'} }
+      } }
+  });
+
+  const rows = [...dados].reverse().map(d=>
+    [ fmtMesComp(d.m), fmtMoeda(d.custo), d.razao==null? '—' : d.razao.toFixed(1)+'%' ]);
   document.getElementById('tbl-historico').innerHTML = tableHTML(['Mês','Custo total','Folha ÷ Faturamento'], rows);
 }
 function renderPorFilial(){
   const base = state.custos.filter(l=>!state.filterDeptos.size || state.filterDeptos.has(l.depto));
   const filiais = [...new Set(base.map(l=>l.filial).filter(Boolean))].sort();
-  const rows = filiais.map(f=>{
-    const r = agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte);
-    return {row:[esc(f), fmtMoeda(r.total)], t:r.total};
-  }).sort((a,b)=>b.t-a.t).map(x=>x.row);
-  document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'], rows);
+  const dados = filiais.map(f=>({label:f, t:agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte).total}))
+    .sort((a,b)=>b.t-a.t);
+  mountChart('chart-filial', barConfigH(dados));
+  document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'], dados.map(d=>[esc(d.label), fmtMoeda(d.t)]));
 }
 function renderPorArea(){
   const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
   const areas = [...new Set(base.map(l=>l.area||''))];
-  const rows = areas.map(a=>{
-    const r = agregarPeriodo(base.filter(l=>(l.area||'')===a), state.filterDe, state.filterAte);
-    return {row:[esc(a||'(Sem área)'), fmtMoeda(r.total)], t:r.total};
-  }).sort((a,b)=>b.t-a.t).map(x=>x.row);
-  document.getElementById('tbl-area').innerHTML = tableHTML(['Área','Custo no período'], rows);
+  const dados = areas.map(a=>({label:a||'(Sem área)', t:agregarPeriodo(base.filter(l=>(l.area||'')===a), state.filterDe, state.filterAte).total}))
+    .sort((a,b)=>b.t-a.t);
+  mountChart('chart-area', barConfigH(dados));
+  document.getElementById('tbl-area').innerHTML = tableHTML(['Área','Custo no período'], dados.map(d=>[esc(d.label), fmtMoeda(d.t)]));
+}
+// config reutilizável de barras horizontais em R$
+function barConfigH(dados){
+  return {
+    type:'bar',
+    data:{ labels:dados.map(d=>d.label),
+      datasets:[{ label:'Custo no período', data:dados.map(d=>d.t), backgroundColor:'#739630', borderRadius:4 }] },
+    options:{ ...BASE_OPTS, indexAxis:'y',
+      plugins:{ legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>fmtMoeda(ctx.parsed.x)}} },
+      scales:{ x:{ beginAtZero:true, ticks:{callback:v=>fmtMoedaCurto(v)} } } }
+  };
 }
 function renderPorDepto(){
   const base = state.custos.filter(l=>
@@ -1021,8 +1097,61 @@ function setPreset(p){
   else if(p==='ano') de = monthISO().slice(0,4)+'-01';
   document.getElementById('f-de').value = de;
   document.getElementById('f-ate').value = ate;
+  syncPeriodoUI();
   applyFilter();
 }
+
+/* ============ SELETORES DE MÊS/ANO ============ */
+const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function anosDisponiveis(){
+  const nowY = new Date().getFullYear();
+  const anos = state.custos.map(l=>parseInt((l.competencia||'').slice(0,4),10)).filter(Boolean);
+  const min = anos.length ? Math.min(...anos) : nowY-2;
+  const max = Math.max(nowY, anos.length ? Math.max(...anos) : nowY);
+  const out = []; for(let y=max; y>=min; y--) out.push(y); return out;
+}
+function buildPeriodoSelectors(){
+  if(!document.getElementById('de-mes')) return;
+  const optMes = MESES_NOME.map((n,i)=>`<option value="${String(i+1).padStart(2,'0')}">${n}</option>`).join('');
+  const optAno = anosDisponiveis().map(y=>`<option value="${y}">${y}</option>`).join('');
+  document.getElementById('de-mes').innerHTML = optMes;
+  document.getElementById('ate-mes').innerHTML = optMes;
+  document.getElementById('de-ano').innerHTML = optAno;
+  document.getElementById('ate-ano').innerHTML = optAno;
+  syncPeriodoUI();
+}
+function syncPeriodoUI(){
+  const de = document.getElementById('f-de').value || monthISO();
+  const ate = document.getElementById('f-ate').value || monthISO();
+  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
+  set('de-ano', de.slice(0,4));  set('de-mes', de.slice(5,7));
+  set('ate-ano', ate.slice(0,4)); set('ate-mes', ate.slice(5,7));
+}
+function onPeriodoChange(){
+  let de = document.getElementById('de-ano').value + '-' + document.getElementById('de-mes').value;
+  let ate = document.getElementById('ate-ano').value + '-' + document.getElementById('ate-mes').value;
+  if(de > ate) ate = de;               // De nunca passa do Até — ajusta o Até junto
+  document.getElementById('f-de').value = de;
+  document.getElementById('f-ate').value = ate;
+  syncPeriodoUI();
+  applyFilter();
+}
+
+/* ============ GRÁFICOS (Chart.js) ============ */
+let _charts = {};
+function fmtMoedaCurto(v){
+  v = v||0; const a = Math.abs(v);
+  if(a >= 1e6) return 'R$ ' + (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' mi';
+  if(a >= 1e3) return 'R$ ' + (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' mil';
+  return fmtMoeda(v);
+}
+function mountChart(canvasId, config){
+  if(!window.Chart) return;                 // se o Chart.js não carregou, as tabelas seguem valendo
+  const el = document.getElementById(canvasId); if(!el) return;
+  if(_charts[canvasId]) _charts[canvasId].destroy();
+  _charts[canvasId] = new Chart(el, config);
+}
+const BASE_OPTS = { responsive:true, maintainAspectRatio:false };
 
 /* ================= ATALHOS DE NAVEGAÇÃO ================= */
 function montarAtalhos(){
@@ -1044,9 +1173,12 @@ Object.assign(window, {
   processarPlanilhaCusto, gravarImportacao, limparImportacao, baixarPlanilha,
   salvarFaturamento, delFaturamento, processarPlanilhaFaturamento,
   salvarConfig, apagarTudo,
-  applyFilter, setPreset,
+  applyFilter, setPreset, onPeriodoChange,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
 });
+
+// se o Chart.js carregar depois do primeiro render, redesenha o dashboard uma vez
+window.addEventListener('load', ()=>{ if(window.Chart && currentUser) renderDashboard(); });
 </script>
 </body>
 </html>
