@@ -105,6 +105,7 @@
   .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--linha);background:#fbfcf9;font-size:12px;font-weight:600;color:#40503b;cursor:pointer;user-select:none;transition:background .1s,color .1s;}
   .chip:hover{background:var(--folha-suave);}
   .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
+  .step-num{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--verde);color:#fff;font-size:10px;font-weight:700;margin-right:5px;vertical-align:middle;}
   .dropdown-panel{position:absolute;z-index:20;background:#fff;border:1px solid var(--linha);border-radius:10px;margin-top:4px;max-height:260px;overflow-y:auto;width:100%;box-shadow:0 10px 28px rgba(0,0,0,.14);}
   .dropdown-item{padding:8px 12px;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:9px;}
   .dropdown-item:hover{background:var(--folha-suave);}
@@ -182,11 +183,15 @@
         </div>
         <div class="filter-bar" style="flex-direction:column;align-items:stretch;gap:14px">
           <div>
-            <label>Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar mais de uma)</span></label>
+            <label><span class="step-num">1</span> Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar; define as áreas abaixo)</span></label>
             <div class="chip-group" id="f-filial-boxes"></div>
           </div>
+          <div>
+            <label><span class="step-num">2</span> Área <span style="font-weight:400;color:var(--cinza)">(as áreas dependem da filial escolhida)</span></label>
+            <div class="chip-group" id="f-area-boxes"></div>
+          </div>
           <div style="position:relative;max-width:420px">
-            <label>Departamento <span style="font-weight:400;color:var(--cinza)">(busque e marque quantos quiser)</span></label>
+            <label><span class="step-num">3</span> Departamento <span style="font-weight:400;color:var(--cinza)">(dependem da filial e da área)</span></label>
             <input type="text" id="f-depto-search" placeholder="Buscar departamento..." autocomplete="off">
             <div id="f-depto-dropdown" class="dropdown-panel" style="display:none"></div>
             <div class="tag-row" id="f-depto-tags"></div>
@@ -216,6 +221,11 @@
         <div class="panel">
           <h2>Por filial</h2>
           <div class="table-wrap" id="tbl-filial"></div>
+        </div>
+        <div class="panel">
+          <h2>Por área</h2>
+          <div class="desc">Custo por área no período, respeitando o filtro de filial · ordenado do maior para o menor</div>
+          <div class="table-wrap" id="tbl-area"></div>
         </div>
         <div class="panel">
           <h2>Por departamento</h2>
@@ -265,7 +275,7 @@
             <div><label>Arquivo</label><input type="file" id="imp-file" accept=".xlsx" onchange="processarPlanilhaCusto(event)"></div>
           </div>
           <div class="note" id="imp-status" style="display:none"></div>
-          <div class="note">Espera encontrar as colunas: Competência, Filial, Departamento, e as categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed). As colunas <strong>Horas Extras</strong> e <strong>Ocorrências de Ponto</strong> são opcionais — se existirem, são guardadas como informação à parte e não entram na soma do custo (horas extras já estão embutidas no valor da Folha).</div>
+          <div class="note">Espera encontrar as colunas: Competência, Filial, <strong>Área</strong>, Departamento, e as categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed). As colunas <strong>Horas Extras</strong> e <strong>Ocorrências de Ponto</strong> são opcionais — se existirem, são guardadas como informação à parte e não entram na soma do custo (horas extras já estão embutidas no valor da Folha). A coluna <strong>Área</strong> também é opcional — se não existir na planilha, as linhas ficam agrupadas como "(Sem área)".</div>
         </div>
         <div class="panel" id="imp-preview" style="display:none">
           <h2>Conferir antes de gravar</h2>
@@ -365,7 +375,7 @@ const GRUPOS = [
 
 const DEFAULT_CFG = {metaFolhaFaturamento: 20};
 
-let state = { custos:[], faturamento:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFiliais:new Set(), filterDeptos:new Set() };
+let state = { custos:[], faturamento:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFiliais:new Set(), filterAreas:new Set(), filterDeptos:new Set() };
 let currentUser = null;
 let unsubs = [];
 
@@ -500,6 +510,9 @@ function enterApp(){
   document.getElementById('f-filial-boxes').addEventListener('click', e=>{
     const box = e.target.closest('.chip'); if(box) toggleChip(box);
   });
+  document.getElementById('f-area-boxes').addEventListener('click', e=>{
+    const box = e.target.closest('.chip'); if(box) toggleArea(box);
+  });
   const deptoSearch = document.getElementById('f-depto-search');
   deptoSearch.addEventListener('focus', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
   deptoSearch.addEventListener('input', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
@@ -533,10 +546,24 @@ function renderFiliaisDeptos(){
   document.getElementById('f-filial-boxes').innerHTML =
     `<button type="button" class="chip ${state.filterFiliais.size===0?'on':''}" data-value="__all__">Todas</button>` +
     filiais.map(f=>`<button type="button" class="chip ${state.filterFiliais.has(f)?'on':''}" data-value="${esc(f)}">${esc(f)}</button>`).join('');
+  renderAreaBoxes();
+}
+function areasDisponiveis(){
+  const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  return [...new Set(base.map(l=>l.area||''))].sort();
+}
+function renderAreaBoxes(){
+  const areas = areasDisponiveis();
+  for(const a of [...state.filterAreas]) if(!areas.includes(a)) state.filterAreas.delete(a);
+  document.getElementById('f-area-boxes').innerHTML =
+    `<button type="button" class="chip ${state.filterAreas.size===0?'on':''}" data-value="__all__">Todas</button>` +
+    areas.map(a=>`<button type="button" class="chip ${state.filterAreas.has(a)?'on':''}" data-value="${esc(a)}">${esc(a||'(Sem área)')}</button>`).join('');
   renderDeptoBoxes();
 }
 function listaDeptosDisponiveis(){
-  const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  const base = state.custos.filter(l=>
+    (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
+    (!state.filterAreas.size || state.filterAreas.has(l.area||'')));
   return [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
 }
 function renderDeptoBoxes(){
@@ -563,8 +590,17 @@ function toggleChip(box){
   const setRef = state.filterFiliais;
   if(v==='__all__') setRef.clear();
   else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
-  renderDeptoBoxes();
+  renderAreaBoxes();
   document.querySelectorAll('#f-filial-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? state.filterFiliais.size===0 : state.filterFiliais.has(c.dataset.value)));
+  applyFilter();
+}
+function toggleArea(box){
+  const v = box.dataset.value;
+  const setRef = state.filterAreas;
+  if(v==='__all__') setRef.clear();
+  else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
+  renderDeptoBoxes();
+  document.querySelectorAll('#f-area-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? state.filterAreas.size===0 : state.filterAreas.has(c.dataset.value)));
   applyFilter();
 }
 function toggleDepto(v){
@@ -594,6 +630,9 @@ function statusImport(msg, isErr){
 // compara os 14 valores de custo com o que já está gravado (tolerância de 1 centavo)
 function linhaMudou(nova, antiga){
   if(!antiga) return true;
+  const na = stripAcc(String(nova.area||'')).trim().toUpperCase();
+  const oa = stripAcc(String(antiga.area||'')).trim().toUpperCase();
+  if(na !== oa) return true;
   if(CUSTO_CATS.some(c => Math.abs((nova[c.key]||0) - (antiga[c.key]||0)) > 0.005)) return true;
   if(CAMPOS_EXTRA.some(c => Math.abs((nova[c.key]||0) - (antiga[c.key]||0)) > 0.005)) return true;
   return false;
@@ -635,6 +674,8 @@ async function processarPlanilhaCusto(ev){
     if([cComp,cFilial,cDepto].some(i=>i<0) || cCats.some(i=>i<0)){
       statusImport('Não reconheci todas as colunas esperadas nessa planilha.', true); return;
     }
+    // coluna Área — opcional, não trava a importação se não existir
+    const cArea = find(x=>x.includes('area'));
     // colunas informativas — opcionais, não travam a importação se não existirem
     const cExtras = CAMPOS_EXTRA.map(c=>{
       const lt = tokenize(c.label);
@@ -648,12 +689,13 @@ async function processarPlanilhaCusto(ev){
       const row = grid[i]; if(!row) continue;
       const filial = String(row[cFilial]||'').trim();
       const depto = String(row[cDepto]||'').trim();
+      const area = cArea>=0 ? String(row[cArea]||'').trim() : '';
       const compRaw = row[cComp];
       if(!filial || !depto || !compRaw) continue;
       let comp;
       if(compRaw instanceof Date) comp = compRaw.getFullYear()+'-'+String(compRaw.getMonth()+1).padStart(2,'0');
       else { const dd = new Date(compRaw); if(isNaN(dd)) continue; comp = dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0'); }
-      const obj = {competencia:comp, filial, depto};
+      const obj = {competencia:comp, filial, area, depto};
       CUSTO_CATS.forEach((c,k)=>{ obj[c.key] = Number(row[cCats[k]])||0; });
       CAMPOS_EXTRA.forEach((c,k)=>{ obj[c.key] = cExtras[k]>=0 ? (Number(row[cExtras[k]])||0) : 0; });
       obj.id = chaveCusto(comp, filial, depto);
@@ -676,8 +718,8 @@ async function processarPlanilhaCusto(ev){
       + (faltando.length? ` · colunas não encontradas (gravadas como 0): ${faltando.join(', ')}` : '');
     const prevRows = rows.slice(0,30).map(r=>[
       `<span class="status-badge status-${r.status}">${r.status}</span>`,
-      fmtMesComp(r.competencia), esc(r.filial), esc(r.depto), fmtMoeda(r.total)]);
-    document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Status','Mês','Filial','Departamento','Total'], prevRows) +
+      fmtMesComp(r.competencia), esc(r.filial), esc(r.area||'—'), esc(r.depto), fmtMoeda(r.total)]);
+    document.getElementById('imp-tbl-preview').innerHTML = tableHTML(['Status','Mês','Filial','Área','Departamento','Total'], prevRows) +
       (rows.length>30 ? `<div class="note">mostrando 30 de ${rows.length} linhas com diferença</div>` : '');
     document.getElementById('imp-preview').style.display='block';
     statusImport(`Arquivo lido ✓ — ${rows.length} linha(s) com diferença para gravar, ${inalterados} já estavam iguais.`);
@@ -693,7 +735,7 @@ async function gravarImportacao(){
       const chunk = importRows.slice(i, i+chunkSize);
       const batch = writeBatch(db);
       chunk.forEach(r=>{
-        const dados = {competencia:r.competencia, filial:r.filial, depto:r.depto, total:r.total, atualizadoEm: todayISO()};
+        const dados = {competencia:r.competencia, filial:r.filial, area:r.area||'', depto:r.depto, total:r.total, atualizadoEm: todayISO()};
         CUSTO_CATS.forEach(c=> dados[c.key]=r[c.key]||0);
         CAMPOS_EXTRA.forEach(c=> dados[c.key]=r[c.key]||0);
         batch.set(doc(db,'dp_custos', r.id), dados, {merge:true});
@@ -721,7 +763,7 @@ async function baixarPlanilha(){
       .map(l=>{
         const [y,m] = (l.competencia||'').split('-').map(Number);
         // dia 15 (meio do mês) evita qualquer problema de fuso-horário ao reabrir a planilha depois
-        const obj = {'Competência': (y&&m)? new Date(y, m-1, 15) : l.competencia, 'Filial': l.filial, 'Departamento': l.depto};
+        const obj = {'Competência': (y&&m)? new Date(y, m-1, 15) : l.competencia, 'Filial': l.filial, 'Área': l.area||'', 'Departamento': l.depto};
         CUSTO_CATS.forEach(c=> obj[c.label] = l[c.key]||0);
         CAMPOS_EXTRA.forEach(c=> obj[c.label] = l[c.key]||0);
         obj['Total'] = l.total||0;
@@ -825,7 +867,10 @@ async function apagarTudo(){
 
 /* ================= RENDER: DASHBOARD ================= */
 function filtroBase(rows){
-  return rows.filter(l => (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) && (!state.filterDeptos.size || state.filterDeptos.has(l.depto)));
+  return rows.filter(l =>
+    (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
+    (!state.filterAreas.size || state.filterAreas.has(l.area||'')) &&
+    (!state.filterDeptos.size || state.filterDeptos.has(l.depto)));
 }
 function agregarPeriodo(rows, de, ate){
   const f = rows.filter(l=>l.competencia>=de && l.competencia<=ate);
@@ -859,9 +904,10 @@ function renderDashboard(){
 
   const cards = [];
   const descFiliais = state.filterFiliais.size ? [...state.filterFiliais].join(', ') : 'todas as filiais';
+  const descAreas = state.filterAreas.size ? [...state.filterAreas].map(a=>a||'(Sem área)').join(', ') : 'todas as áreas';
   const descDeptos = state.filterDeptos.size ? [...state.filterDeptos].join(', ') : 'todos deptos';
   cards.push(kpiCard('Custo total do período', fmtMoeda(atual.total),
-    `Filtro: ${descFiliais} / ${descDeptos} · ${atual.nMeses} mês(es)`,
+    `Filtro: ${descFiliais} / ${descAreas} / ${descDeptos} · ${atual.nMeses} mês(es)`,
     anterior.nMeses? cmpLine(atual.total, anterior.total, false, v=>fmtMoeda(v)) : semAnterior));
   cards.push(kpiCard('Custo médio mensal', fmtMoeda(atual.nMeses? atual.total/atual.nMeses : 0),
     'Custo total ÷ meses no período', ''));
@@ -878,7 +924,7 @@ function renderDashboard(){
     'Já embutido na Folha — não soma no custo total',
     anterior.nMeses? cmpLine(atual.extras.horasExtras||0, anterior.extras.horasExtras||0, false, v=>fmtMoeda(v)) : semAnterior));
   cards.push(kpiCard('Ocorrências de Ponto', (atual.extras.ocorrenciasPonto||0)+'',
-    `Filtro: ${descFiliais} / ${descDeptos}`,
+    `Filtro: ${descFiliais} / ${descAreas} / ${descDeptos}`,
     anterior.nMeses? cmpLine(atual.extras.ocorrenciasPonto||0, anterior.extras.ocorrenciasPonto||0, false, v=>Math.round(v)+'') : semAnterior));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
@@ -887,6 +933,7 @@ function renderDashboard(){
   renderCatBars('beneficios-breakdown', CUSTO_CATS.filter(c=>c.grupo==='beneficios'), atual.porCategoria, atual.porGrupo.beneficios);
   renderCatBars('categoria-breakdown', CUSTO_CATS, atual.porCategoria, atual.total);
   renderPorFilial();
+  renderPorArea();
   renderPorDepto();
 }
 function renderGrupos(atual){
@@ -934,8 +981,19 @@ function renderPorFilial(){
   }).sort((a,b)=>b.t-a.t).map(x=>x.row);
   document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'], rows);
 }
-function renderPorDepto(){
+function renderPorArea(){
   const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  const areas = [...new Set(base.map(l=>l.area||''))];
+  const rows = areas.map(a=>{
+    const r = agregarPeriodo(base.filter(l=>(l.area||'')===a), state.filterDe, state.filterAte);
+    return {row:[esc(a||'(Sem área)'), fmtMoeda(r.total)], t:r.total};
+  }).sort((a,b)=>b.t-a.t).map(x=>x.row);
+  document.getElementById('tbl-area').innerHTML = tableHTML(['Área','Custo no período'], rows);
+}
+function renderPorDepto(){
+  const base = state.custos.filter(l=>
+    (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
+    (!state.filterAreas.size || state.filterAreas.has(l.area||'')));
   const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
   const rows = deptos.map(d=>{
     const r = agregarPeriodo(base.filter(l=>l.depto===d), state.filterDe, state.filterAte);
