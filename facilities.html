@@ -676,13 +676,14 @@ onAuthStateChanged(auth, async (user)=>{
     const d = prof.data();
     if(d.ativo === false){ await signOut(auth); location.replace('index.html?erro=inativo'); return; }
     if(!d.admin && !(d.modulos && d.modulos.facilities)){ location.replace('index.html?erro=semacesso'); return; }
-    // perfil interno: admin vê tudo; quem tem checklist atribuído é colaborador
-    const role = d.admin ? 'admin' : (d.check ? 'colaborador' : 'nutricionista');
+    // perfil interno: admin vê tudo; todo mundo com acesso ao Facilities é nutricionista.
+    // O checklist (campo "check") é adicional e NÃO define mais o cargo.
+    const role = d.admin ? 'admin' : 'nutricionista';
     currentUser = {uid:user.uid, ...d, role};
     await loadConfig();
     enterApp();
     subscribeData();
-    if(role!=='colaborador') await loadSat();
+    await loadSat();
   }catch(e){
     document.body.innerHTML = '<div style="padding:40px;font-family:Inter,sans-serif">Erro ao carregar seu perfil. <a href="index.html">Voltar ao início</a></div>';
   }
@@ -753,7 +754,7 @@ async function loadSat(){
 function allowedNav(){
   return NAV_DEF.filter(n=>{
     if(n.roles.includes(currentUser.role)) return true;
-    if(currentUser.role==='colaborador' && n.check) return currentUser.check==='ambos' || currentUser.check===n.check;
+    if(currentUser.check && n.check) return currentUser.check==='ambos' || currentUser.check===n.check;
     return false;
   });
 }
