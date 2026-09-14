@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadastro em massa — Checklists da semana</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --verde:#1d6b3a; --verde-esc:#154f2b; --lima:#8CB43E; --lima-esc:#6f942f;
+    --tinta:#20302a; --cinza:#6c7a72; --linha:#e2e8e3; --fundo:#f3f6f2;
+    --ok:#1d7a43; --erro:#c0392b; --aviso:#b8860b; --branco:#fff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,'Segoe UI',system-ui,sans-serif;background:var(--fundo);color:var(--tinta);line-height:1.5;}
+  .wrap{max-width:820px;margin:0 auto;padding:28px 18px 80px;}
+  header.top{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+  header.top svg{flex:0 0 auto;}
+  h1{font-size:22px;margin:0;color:var(--verde-esc);letter-spacing:-.2px;}
+  .sub{color:var(--cinza);font-size:13.5px;margin:2px 0 26px;}
+  .card{background:var(--branco);border:1px solid var(--linha);border-radius:14px;padding:20px 20px 22px;margin-bottom:16px;box-shadow:0 1px 2px rgba(20,60,40,.04);}
+  .card.locked{opacity:.5;pointer-events:none;}
+  .card h2{font-size:15px;margin:0 0 3px;display:flex;align-items:center;gap:9px;color:var(--verde-esc);}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;border-radius:50%;background:var(--verde);color:#fff;font-size:12px;font-weight:700;}
+  .card .hint{color:var(--cinza);font-size:12.5px;margin:0 0 14px 32px;}
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta);margin-bottom:5px;}
+  input[type=text],input[type=email],input[type=password],select{
+    width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:9px;font-size:14px;font-family:inherit;background:#fbfdfb;color:var(--tinta);}
+  input:focus,select:focus{outline:none;border-color:var(--lima);box-shadow:0 0 0 3px rgba(140,180,62,.18);}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .row>div{flex:1;min-width:180px;}
+  .btn{border:none;border-radius:9px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s;}
+  .btn:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.55;cursor:not-allowed;filter:none;}
+  .btn-primary{background:var(--verde);color:#fff;}
+  .btn-leaf{background:var(--lima);color:#173a12;}
+  .btn-ghost{background:#eef3ec;color:var(--verde-esc);}
+  .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;}
+  .status{font-size:13px;font-weight:600;}
+  .status.ok{color:var(--ok);} .status.err{color:var(--erro);} .status.warn{color:var(--aviso);}
+  .filebox{border:2px dashed var(--linha);border-radius:11px;padding:22px;text-align:center;background:#fbfdfb;cursor:pointer;transition:border-color .15s,background .15s;}
+  .filebox:hover{border-color:var(--lima);background:#f6faf2;}
+  .filebox strong{color:var(--verde-esc);}
+  .filebox small{display:block;color:var(--cinza);margin-top:5px;font-size:12px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--linha);}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--cinza);font-weight:700;}
+  .table-scroll{max-height:340px;overflow:auto;border:1px solid var(--linha);border-radius:10px;margin-top:12px;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;}
+  .p-novo{background:#e4f3e8;color:var(--ok);}
+  .p-exists{background:#eceff0;color:var(--cinza);}
+  .p-warn{background:#fbf1d8;color:var(--aviso);}
+  .p-err{background:#f8e3df;color:var(--erro);}
+  .summary{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;}
+  .summary b{font-size:19px;display:block;color:var(--verde-esc);}
+  .log{margin-top:14px;font-size:12.5px;max-height:220px;overflow:auto;border:1px solid var(--linha);border-radius:10px;padding:10px 12px;background:#fbfdfb;display:none;}
+  .log div{padding:2px 0;border-bottom:1px dashed #eef1ee;}
+  .log div:last-child{border-bottom:none;}
+  textarea{width:100%;min-height:130px;border:1px solid var(--linha);border-radius:9px;padding:10px 12px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace;background:#fbfdfb;resize:vertical;}
+  .note{background:#f6faf2;border:1px solid #dfeccb;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#3a4a3e;margin-top:14px;}
+  a{color:var(--verde);}
+  .prog{height:8px;background:#eef3ec;border-radius:6px;overflow:hidden;margin-top:14px;display:none;}
+  .prog>span{display:block;height:100%;width:0;background:var(--lima);transition:width .2s;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <svg width="40" height="34" viewBox="0 0 100 90" aria-hidden="true">
+      <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#8CB43E" stroke-width="7"/>
+      <circle cx="30" cy="27" r="6.5" fill="#8CB43E"/><circle cx="50" cy="23" r="6.5" fill="#8CB43E"/><circle cx="70" cy="27" r="6.5" fill="#8CB43E"/>
+      <path d="M27 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+      <path d="M50 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>Cadastro em massa — Checklists da semana</h1>
+    </div>
+  </header>
+  <p class="sub">Facilities · cadastra os colaboradores da planilha de uma vez. Cada pessoa entra com o checklist atribuído e passa a aparecer em "Checklists da semana". Ninguém precisa de senha — o preenchimento é pelo link pessoal.</p>
+
+  <!-- ETAPA 1 -->
+  <div class="card" id="card-login">
+    <h2><span class="num">1</span> Entrar como administrador</h2>
+    <p class="hint">Use seu próprio login de admin. É o que dá permissão para gravar as pessoas no cadastro.</p>
+    <div class="row">
+      <div><label>E-mail</label><input type="email" id="lg-email" autocomplete="username" placeholder="voce@raguife.com"></div>
+      <div><label>Senha</label><input type="password" id="lg-pass" autocomplete="current-password" placeholder="••••••••"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="lg-btn">Entrar</button>
+      <span class="status" id="lg-status"></span>
+    </div>
+  </div>
+
+  <!-- ETAPA 2 -->
+  <div class="card locked" id="card-planilha">
+    <h2><span class="num">2</span> Planilha e tipo de checklist</h2>
+    <p class="hint">Colunas esperadas: Setor, Nome, E-mail (a ordem não importa, eu identifico pelos títulos).</p>
+    <div class="row" style="margin-bottom:16px">
+      <div>
+        <label>Checklist que essas pessoas vão preencher</label>
+        <select id="tipo-check">
+          <option value="adm" selected>Limpeza Administrativa</option>
+          <option value="hig">Limpeza Higiênica</option>
+          <option value="ambos">Ambas</option>
+        </select>
+      </div>
+      <div>
+        <label>Endereço do painel (para gerar os links)</label>
+        <input type="text" id="base-link" value="https://raguiferh.github.io/facilities/">
+      </div>
+    </div>
+    <label>Planilha (.xlsx, .xls ou .csv)</label>
+    <div class="filebox" id="filebox">
+      <strong id="file-name">Clique para escolher a planilha</strong>
+      <small>ou arraste o arquivo aqui</small>
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
+    </div>
+    <div id="preview-area"></div>
+  </div>
+
+  <!-- ETAPA 3 -->
+  <div class="card locked" id="card-cadastrar">
+    <h2><span class="num">3</span> Cadastrar</h2>
+    <p class="hint">Só entram os que ainda não existem (comparo pelo e-mail). Pode rodar de novo sem duplicar.</p>
+    <div class="btn-row">
+      <button class="btn btn-leaf" id="run-btn" disabled>Cadastrar pessoas</button>
+      <span class="status" id="run-status"></span>
+    </div>
+    <div class="prog" id="prog"><span></span></div>
+    <div class="log" id="log"></div>
+    <div id="links-area"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
+  authDomain: "controlepix-cc524.firebaseapp.com",
+  projectId: "controlepix-cc524",
+  storageBucket: "controlepix-cc524.firebasestorage.app",
+  messagingSenderId: "949223824940",
+  appId: "1:949223824940:web:d56a9e04901aff35273b89"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let pessoas = [];        // linhas lidas da planilha [{setor,nome,email}]
+let emailsExistentes = new Set();
+let ehAdmin = false;
+
+const $ = id => document.getElementById(id);
+const norm = s => String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+function authErrPT(e){
+  const c=(e&&e.code)||'';
+  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'E-mail ou senha incorretos.';
+  if(c.includes('invalid-email')) return 'E-mail inválido.';
+  if(c.includes('too-many-requests')) return 'Muitas tentativas. Aguarde um pouco.';
+  if(c.includes('permission-denied')) return 'Sem permissão — confira se esse login é administrador.';
+  return (e&&e.message)||'Erro inesperado.';
+}
+
+/* ---------- ETAPA 1: login ---------- */
+$('lg-btn').addEventListener('click', entrar);
+$('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
+async function entrar(){
+  const email=$('lg-email').value.trim(), pass=$('lg-pass').value;
+  if(!email||!pass){ setStatus('lg-status','Preencha e-mail e senha.','err'); return; }
+  $('lg-btn').disabled=true; setStatus('lg-status','Entrando...','');
+  try{ await signInWithEmailAndPassword(auth,email,pass); }
+  catch(e){ setStatus('lg-status',authErrPT(e),'err'); $('lg-btn').disabled=false; }
+}
+onAuthStateChanged(auth, async user=>{
+  if(!user){ ehAdmin=false; return; }
+  try{
+    const prof=await getDoc(doc(db,'nrh_usuarios',user.uid));
+    ehAdmin = prof.exists() && prof.data().admin===true;
+    if(!ehAdmin){
+      setStatus('lg-status','Esse login não é administrador — não consigo gravar pessoas com ele.','err');
+      $('lg-btn').disabled=false; await signOut(auth); return;
+    }
+    setStatus('lg-status','Conectado como '+(prof.data().nome||user.email)+' ✓','ok');
+    $('card-planilha').classList.remove('locked');
+    await carregarExistentes();
+  }catch(e){ setStatus('lg-status',authErrPT(e),'err'); $('lg-btn').disabled=false; }
+});
+async function carregarExistentes(){
+  emailsExistentes = new Set();
+  const snap = await getDocs(collection(db,'nrh_usuarios'));
+  snap.forEach(d=>{ const em=norm(d.data().email); if(em) emailsExistentes.add(em); });
+  if(pessoas.length) montarPreview();
+}
+
+/* ---------- ETAPA 2: planilha ---------- */
+$('filebox').addEventListener('click', ()=>$('file-input').click());
+$('file-input').addEventListener('change', e=>{ if(e.target.files[0]) lerArquivo(e.target.files[0]); });
+$('filebox').addEventListener('dragover', e=>{ e.preventDefault(); });
+$('filebox').addEventListener('drop', e=>{ e.preventDefault(); if(e.dataTransfer.files[0]) lerArquivo(e.dataTransfer.files[0]); });
+
+function lerArquivo(file){
+  $('file-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let h = aoa.findIndex(r=>r.some(c=>norm(c).includes('nome')));
+      if(h<0) h=0;
+      const hdr = (aoa[h]||[]).map(norm);
+      const ci = {
+        setor: hdr.findIndex(x=>x.includes('setor')),
+        nome:  hdr.findIndex(x=>x.includes('nome')),
+        email: hdr.findIndex(x=>x.includes('mail'))
+      };
+      if(ci.nome<0){ $('preview-area').innerHTML='<div class="note" style="background:#f8e3df;border-color:#e6c3bc;color:#8a2a1e">Não achei a coluna <b>Nome</b> na planilha. Confira os títulos das colunas.</div>'; pessoas=[]; return; }
+      pessoas = aoa.slice(h+1).map(r=>({
+        setor: ci.setor>=0? String(r[ci.setor]||'').trim() : '',
+        nome:  String(r[ci.nome]||'').trim(),
+        email: ci.email>=0? String(r[ci.email]||'').trim() : ''
+      })).filter(p=>p.nome);
+      montarPreview();
+    }catch(err){
+      $('preview-area').innerHTML='<div class="note" style="background:#f8e3df;border-color:#e6c3bc;color:#8a2a1e">Não consegui ler o arquivo. Salve como .xlsx ou .csv e tente de novo.</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function statusLinha(p){
+  const em = norm(p.email);
+  if(em && emailsExistentes.has(em)) return 'exists';
+  if(!em) return 'warn';
+  return 'novo';
+}
+function montarPreview(){
+  if(!pessoas.length){ $('preview-area').innerHTML=''; return; }
+  let nNovo=0,nEx=0,nSem=0;
+  const linhas = pessoas.map(p=>{
+    const st=statusLinha(p);
+    if(st==='novo') nNovo++; else if(st==='exists') nEx++; else nSem++;
+    const pill = st==='exists'? '<span class="pill p-exists">já cadastrado</span>'
+      : st==='warn'? '<span class="pill p-warn">sem e-mail</span>'
+      : '<span class="pill p-novo">novo</span>';
+    return `<tr><td>${esc(p.setor||'—')}</td><td>${esc(p.nome)}</td><td>${esc(p.email||'—')}</td><td>${pill}</td></tr>`;
+  }).join('');
+  $('preview-area').innerHTML =
+    `<div class="table-scroll"><table><thead><tr><th>Setor</th><th>Nome</th><th>E-mail</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table></div>`+
+    `<div class="summary"><div><b>${nNovo}</b>a cadastrar</div><div><b>${nEx}</b>já existem</div>${nSem?`<div><b>${nSem}</b>sem e-mail (entram, mas sem cobrança por e-mail)</div>`:''}</div>`;
+  $('card-cadastrar').classList.remove('locked');
+  const criaveis = nNovo+nSem;
+  $('run-btn').disabled = criaveis===0;
+  $('run-btn').textContent = criaveis? `Cadastrar ${criaveis} pessoa${criaveis>1?'s':''}` : 'Nada novo para cadastrar';
+}
+
+/* ---------- ETAPA 3: cadastrar ---------- */
+$('run-btn').addEventListener('click', cadastrar);
+async function cadastrar(){
+  const tipo = $('tipo-check').value;
+  const base = $('base-link').value.trim() || 'https://raguiferh.github.io/facilities/';
+  const alvo = pessoas.filter(p=>statusLinha(p)!=='exists');
+  if(!alvo.length) return;
+  $('run-btn').disabled=true;
+  const log=$('log'); log.style.display='block'; log.innerHTML='';
+  const prog=$('prog'); prog.style.display='block'; prog.firstElementChild.style.width='0';
+  const criados=[]; let feitos=0, erros=0;
+  for(let i=0;i<alvo.length;i++){
+    const p=alvo[i];
+    try{
+      const ref = await addDoc(collection(db,'nrh_usuarios'), {
+        nome:p.nome, email:p.email, setor:p.setor,
+        admin:false, ativo:true, modulos:{facilities:true},
+        check:tipo, areasAdm:[], areasHig:[], criadoEm:todayISO()
+      });
+      if(p.email) emailsExistentes.add(norm(p.email));
+      criados.push({...p, id:ref.id});
+      logLinha(`✓ ${p.nome}${p.setor?' · '+p.setor:''}`, 'ok');
+      feitos++;
+    }catch(e){
+      logLinha(`✕ ${p.nome} — ${authErrPT(e)}`, 'err'); erros++;
+    }
+    prog.firstElementChild.style.width = Math.round((i+1)/alvo.length*100)+'%';
+  }
+  setStatus('run-status', `${feitos} cadastrada(s)`+(erros?`, ${erros} com erro`:'')+' ✓', erros?'warn':'ok');
+  montarLinks(criados, base, tipo);
+  montarPreview(); // reprocessa status (novos viram "já cadastrado")
+}
+function logLinha(txt, cls){
+  const d=document.createElement('div'); d.textContent=txt;
+  d.style.color = cls==='ok'?'var(--ok)':cls==='err'?'var(--erro)':'inherit';
+  $('log').appendChild(d); $('log').scrollTop=$('log').scrollHeight;
+}
+function montarLinks(criados, base, tipo){
+  if(!criados.length){ return; }
+  const sep = base.includes('?')?'&':'?';
+  const tipos = tipo==='ambos'? ['adm','hig'] : [tipo];
+  const linhas = criados.map(c=>{
+    return tipos.map(t=>{
+      const l = base+sep+'fill='+encodeURIComponent(c.id)+'&tipo='+t;
+      const rot = tipos.length>1? ` (${t==='adm'?'Administrativa':'Higiênica'})`:'';
+      return `${c.nome}${c.email?' <'+c.email+'>':''}${rot}: ${l}`;
+    }).join('\n');
+  }).join('\n');
+  $('links-area').innerHTML =
+    `<div style="margin-top:20px"><label>Links pessoais de preenchimento (opcional — o painel também gera com "Copiar link")</label>`+
+    `<textarea readonly id="links-txt">${esc(linhas)}</textarea>`+
+    `<div class="btn-row"><button class="btn btn-ghost" id="copy-links">Copiar todos os links</button><span class="status" id="copy-status"></span></div></div>`;
+  $('copy-links').addEventListener('click', ()=>{
+    const t=$('links-txt'); t.select();
+    navigator.clipboard.writeText(t.value).then(
+      ()=>setStatus('copy-status','Copiado ✓','ok'),
+      ()=>setStatus('copy-status','Selecione e copie manualmente.','warn'));
+  });
+}
+
+function setStatus(id,txt,cls){ const el=$(id); el.textContent=txt; el.className='status '+(cls||''); }
+</script>
+</body>
+</html>
