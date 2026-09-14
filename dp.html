@@ -104,6 +104,12 @@
 
   .chip-group{display:flex;flex-wrap:wrap;gap:7px;}
   /* rolagem lateral: chips numa linha só, "estante horizontal" em vez de empilhar */
+  .chip-scroll-wrap{position:relative;}
+  .chip-scroll-wrap::before,.chip-scroll-wrap::after{content:"";position:absolute;top:0;bottom:7px;width:34px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:2;}
+  .chip-scroll-wrap::before{left:0;background:linear-gradient(to right,var(--branco),rgba(255,255,255,0));}
+  .chip-scroll-wrap::after{right:0;background:linear-gradient(to left,var(--branco),rgba(255,255,255,0));}
+  .chip-scroll-wrap.can-left::before{opacity:1;}
+  .chip-scroll-wrap.can-right::after{opacity:1;}
   .chip-scroll{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:7px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#cdd6c2 transparent;}
   .chip-scroll .chip{flex:0 0 auto;}
   .chip-scroll::-webkit-scrollbar{height:7px;}
@@ -206,15 +212,15 @@
         <div class="filter-bar" style="flex-direction:column;align-items:stretch;gap:14px">
           <div>
             <label><span class="step-num">1</span> Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar; define as áreas abaixo)</span></label>
-            <div class="chip-group chip-scroll" id="f-filial-boxes"></div>
+            <div class="chip-scroll-wrap"><div class="chip-group chip-scroll" id="f-filial-boxes"></div></div>
           </div>
           <div>
             <label><span class="step-num">2</span> Área <span style="font-weight:400;color:var(--cinza)">(as áreas dependem da filial escolhida)</span></label>
-            <div class="chip-group chip-scroll" id="f-area-boxes"></div>
+            <div class="chip-scroll-wrap"><div class="chip-group chip-scroll" id="f-area-boxes"></div></div>
           </div>
           <div>
             <label><span class="step-num">3</span> Departamento <span style="font-weight:400;color:var(--cinza)">(dependem da filial e da área)</span></label>
-            <div class="chip-group chip-scroll" id="f-depto-boxes"></div>
+            <div class="chip-scroll-wrap"><div class="chip-group chip-scroll" id="f-depto-boxes"></div></div>
           </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
@@ -541,13 +547,15 @@ function enterApp(){
   document.getElementById('f-depto-boxes').addEventListener('click', e=>{
     const box = e.target.closest('.chip'); if(box) toggleDepto(box.dataset.value);
   });
+  document.querySelectorAll('.chip-scroll').forEach(el=> el.addEventListener('scroll', updateChipFades, {passive:true}));
+  window.addEventListener('resize', updateChipFades);
 
   showPage(nav[0].id);
 }
 function showPage(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.id===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+id));
-  if(id==='dashboard') renderDashboard();
+  if(id==='dashboard'){ renderDashboard(); requestAnimationFrame(updateChipFades); }
   if(id==='faturamento') renderFaturamentoTabela();
 }
 
@@ -585,6 +593,15 @@ function renderDeptoBoxes(){
   document.getElementById('f-depto-boxes').innerHTML =
     `<button type="button" class="chip ${state.filterDeptos.size===0?'on':''}" data-value="__all__">Todos</button>` +
     deptos.map(d=>`<button type="button" class="chip ${state.filterDeptos.has(d)?'on':''}" data-value="${esc(d)}">${esc(d)}</button>`).join('');
+  requestAnimationFrame(updateChipFades);
+}
+function updateChipFades(){
+  document.querySelectorAll('.chip-scroll').forEach(el=>{
+    const wrap = el.closest('.chip-scroll-wrap'); if(!wrap) return;
+    const max = el.scrollWidth - el.clientWidth;
+    wrap.classList.toggle('can-left', el.scrollLeft > 1);
+    wrap.classList.toggle('can-right', el.scrollLeft < max - 1);
+  });
 }
 function toggleChip(box){
   const v = box.dataset.value;
