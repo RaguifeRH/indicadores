@@ -190,11 +190,9 @@
             <label><span class="step-num">2</span> Área <span style="font-weight:400;color:var(--cinza)">(as áreas dependem da filial escolhida)</span></label>
             <div class="chip-group" id="f-area-boxes"></div>
           </div>
-          <div style="position:relative;max-width:420px">
+          <div>
             <label><span class="step-num">3</span> Departamento <span style="font-weight:400;color:var(--cinza)">(dependem da filial e da área)</span></label>
-            <input type="text" id="f-depto-search" placeholder="Buscar departamento..." autocomplete="off">
-            <div id="f-depto-dropdown" class="dropdown-panel" style="display:none"></div>
-            <div class="tag-row" id="f-depto-tags"></div>
+            <div class="chip-group" id="f-depto-boxes"></div>
           </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
@@ -513,21 +511,8 @@ function enterApp(){
   document.getElementById('f-area-boxes').addEventListener('click', e=>{
     const box = e.target.closest('.chip'); if(box) toggleArea(box);
   });
-  const deptoSearch = document.getElementById('f-depto-search');
-  deptoSearch.addEventListener('focus', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
-  deptoSearch.addEventListener('input', ()=>{ renderDeptoDropdown(deptoSearch.value); document.getElementById('f-depto-dropdown').style.display='block'; });
-  document.getElementById('f-depto-dropdown').addEventListener('mousedown', e=>{
-    const item = e.target.closest('.dropdown-item'); if(!item || !item.dataset.value) return;
-    e.preventDefault(); toggleDepto(item.dataset.value);
-  });
-  document.getElementById('f-depto-tags').addEventListener('click', e=>{
-    const btn = e.target.closest('button[data-remove]'); if(!btn) return;
-    toggleDepto(btn.dataset.remove);
-  });
-  document.addEventListener('click', e=>{
-    if(!e.target.closest('#f-depto-search') && !e.target.closest('#f-depto-dropdown')){
-      document.getElementById('f-depto-dropdown').style.display='none';
-    }
+  document.getElementById('f-depto-boxes').addEventListener('click', e=>{
+    const box = e.target.closest('.chip'); if(box) toggleDepto(box.dataset.value);
   });
 
   showPage(nav[0].id);
@@ -569,21 +554,9 @@ function listaDeptosDisponiveis(){
 function renderDeptoBoxes(){
   const deptos = listaDeptosDisponiveis();
   for(const d of [...state.filterDeptos]) if(!deptos.includes(d)) state.filterDeptos.delete(d);
-  renderDeptoTags();
-  renderDeptoDropdown(document.getElementById('f-depto-search').value);
-}
-function renderDeptoTags(){
-  document.getElementById('f-depto-tags').innerHTML = [...state.filterDeptos]
-    .map(d=>`<span class="tag">${esc(d)}<button type="button" data-remove="${esc(d)}">×</button></span>`).join('');
-}
-function renderDeptoDropdown(filtro){
-  const deptos = listaDeptosDisponiveis();
-  const f = stripAcc(filtro||'').toLowerCase().trim();
-  const list = f ? deptos.filter(d=>stripAcc(d).toLowerCase().includes(f)) : deptos;
-  const panel = document.getElementById('f-depto-dropdown');
-  panel.innerHTML = list.length
-    ? list.map(d=>`<div class="dropdown-item" data-value="${esc(d)}"><input type="checkbox" ${state.filterDeptos.has(d)?'checked':''} tabindex="-1"> ${esc(d)}</div>`).join('')
-    : '<div class="dropdown-item" style="color:var(--cinza);cursor:default">Nada encontrado</div>';
+  document.getElementById('f-depto-boxes').innerHTML =
+    `<button type="button" class="chip ${state.filterDeptos.size===0?'on':''}" data-value="__all__">Todos</button>` +
+    deptos.map(d=>`<button type="button" class="chip ${state.filterDeptos.has(d)?'on':''}" data-value="${esc(d)}">${esc(d)}</button>`).join('');
 }
 function toggleChip(box){
   const v = box.dataset.value;
@@ -604,9 +577,10 @@ function toggleArea(box){
   applyFilter();
 }
 function toggleDepto(v){
-  if(state.filterDeptos.has(v)) state.filterDeptos.delete(v); else state.filterDeptos.add(v);
-  renderDeptoTags();
-  renderDeptoDropdown(document.getElementById('f-depto-search').value);
+  const setRef = state.filterDeptos;
+  if(v==='__all__') setRef.clear();
+  else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
+  renderDeptoBoxes();
   applyFilter();
 }
 
