@@ -158,6 +158,64 @@
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--verde);color:#fff;padding:12px 22px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:90;opacity:0;transition:all .3s ease;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:90vw;}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   #toast.err{background:var(--erro);}
+
+  /* ===== filtros por nível (dropdown cascata) ===== */
+  .levels-bar{flex-direction:column;align-items:stretch;gap:10px;}
+  .levels-cap{font-size:12px;color:var(--cinza);}
+  .levels{display:flex;flex-wrap:wrap;gap:12px;}
+  .level{position:relative;flex:1;min-width:210px;}
+  .lv-btn{width:100%;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--linha);border-radius:10px;background:#fbfcf9;font-family:inherit;font-size:14px;color:#22301f;cursor:pointer;text-align:left;}
+  .lv-btn:hover:not(:disabled){border-color:var(--folha);}
+  .lv-btn.open{border-color:var(--verde);box-shadow:0 0 0 2px rgba(115,150,48,.25);}
+  .lv-btn:disabled{opacity:.55;cursor:not-allowed;background:#f2f4ee;}
+  .lv-num{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--verde);color:#fff;font-size:10px;font-weight:700;flex-shrink:0;}
+  .lv-cap{font-size:11px;color:#8a9680;font-weight:600;}
+  .lv-val{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lv-val.todos{color:var(--verde);}
+  .lv-chev{color:var(--cinza);flex-shrink:0;transition:transform .15s;}
+  .lv-btn.open .lv-chev{transform:rotate(180deg);}
+  .lv-menu{display:none;position:absolute;z-index:30;top:calc(100% + 5px);left:0;right:0;background:#fff;border:1px solid var(--linha);border-radius:12px;box-shadow:0 12px 30px rgba(2,60,25,.14);overflow:hidden;}
+  .lv-menu.open{display:block;}
+  .lv-search{padding:9px;border-bottom:1px solid var(--linha);}
+  .lv-search input{width:100%;padding:9px 11px;border:1px solid var(--linha);border-radius:8px;font-family:inherit;font-size:13.5px;background:#fbfcf9;}
+  .lv-search input:focus{outline:2px solid var(--folha);outline-offset:0;border-color:var(--folha);}
+  .lv-list{max-height:260px;overflow-y:auto;padding:5px;scrollbar-width:thin;scrollbar-color:#cdd6c2 transparent;}
+  .lv-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;}
+  .lv-opt:hover{background:var(--folha-suave);}
+  .lv-box{width:17px;height:17px;border:1.5px solid #b7c2ab;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;line-height:1;}
+  .lv-opt.sel .lv-box{background:var(--verde);border-color:var(--verde);}
+  .lv-todos{font-weight:600;color:var(--verde);border-bottom:1px solid var(--linha);border-radius:0;margin-bottom:3px;}
+  .lv-empty{padding:16px 12px;color:var(--cinza);font-size:13px;text-align:center;}
+
+  /* ===== período: calendário de intervalo ===== */
+  .fld-periodo{position:relative;min-width:230px;}
+  .per-trigger{width:100%;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--linha);border-radius:10px;background:#fbfcf9;font-family:inherit;font-size:14px;color:#22301f;cursor:pointer;text-align:left;}
+  .per-trigger:hover{border-color:var(--folha);}
+  .per-trigger.open{border-color:var(--verde);box-shadow:0 0 0 2px rgba(115,150,48,.25);}
+  .per-ico{font-size:15px;}
+  .per-txt{flex:1;font-weight:600;}
+  .per-pop{display:none;position:absolute;z-index:30;top:calc(100% + 5px);left:0;background:#fff;border:1px solid var(--linha);border-radius:12px;box-shadow:0 12px 30px rgba(2,60,25,.14);padding:12px;width:290px;}
+  .per-pop.open{display:block;}
+  .per-presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px;}
+  .preset-mini{border:1px solid var(--linha);background:#fbfcf9;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:600;color:#40503b;cursor:pointer;font-family:inherit;}
+  .preset-mini:hover{background:var(--folha-suave);}
+  .preset-mini.on{background:var(--verde);color:#fff;border-color:var(--verde);}
+  .per-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .cal-nav{width:30px;height:30px;border-radius:8px;border:1px solid var(--linha);background:#fbfcf9;cursor:pointer;font-size:16px;color:var(--verde);display:flex;align-items:center;justify-content:center;}
+  .cal-nav:hover:not(:disabled){background:var(--folha-suave);}
+  .cal-nav:disabled{opacity:.35;cursor:default;}
+  .cal-year{font-family:'Poppins',sans-serif;font-weight:600;font-size:15px;color:var(--verde);}
+  .per-months{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .per-months .m{padding:10px 4px;border-radius:8px;border:1px solid transparent;background:#f6f8f2;font-size:12.5px;font-weight:600;color:#40503b;cursor:pointer;text-align:center;}
+  .per-months .m:hover:not(.disabled){background:var(--folha-suave);}
+  .per-months .m.disabled{opacity:.3;cursor:default;background:transparent;}
+  .per-months .m.inrange{background:var(--folha-suave);border-radius:0;}
+  .per-months .m.edge{background:var(--verde);color:#fff;}
+  .per-months .m.edge.start{border-radius:8px 0 0 8px;}
+  .per-months .m.edge.end{border-radius:0 8px 8px 0;}
+  .per-months .m.edge.single{border-radius:8px;}
+  .per-foot{margin-top:11px;font-size:12.5px;color:#40503b;}
+  .per-foot b{color:var(--verde);font-family:'Poppins',sans-serif;}
 </style>
 </head>
 <body>
@@ -190,37 +248,38 @@
         <h1 class="page-title">Dashboard</h1>
         <div class="page-desc">Custo de pessoal (folha e encargos) da empresa no período — filtro opcional por filial ou departamento</div>
         <div class="filter-bar">
-          <div class="fld"><label>De</label>
-            <div class="mesano">
-              <select class="sel-mes" id="de-mes" onchange="onPeriodoChange()"></select>
-              <select id="de-ano" onchange="onPeriodoChange()"></select>
+          <div class="fld fld-periodo">
+            <label>Período</label>
+            <button type="button" class="per-trigger" id="per-trigger" aria-haspopup="true" aria-expanded="false">
+              <span class="per-ico">🗓️</span>
+              <span class="per-txt" id="per-txt">—</span>
+              <span class="lv-chev">▾</span>
+            </button>
+            <div class="per-pop" id="per-pop" role="dialog">
+              <div class="per-presets">
+                <button type="button" class="preset-mini" data-p="mes">Este mês</button>
+                <button type="button" class="preset-mini" data-p="trim">Últ. 3 meses</button>
+                <button type="button" class="preset-mini" data-p="ano">Este ano</button>
+              </div>
+              <div class="per-cal">
+                <div class="per-cal-head">
+                  <button type="button" class="cal-nav" id="per-prev" aria-label="Ano anterior">‹</button>
+                  <span class="cal-year" id="per-year"></span>
+                  <button type="button" class="cal-nav" id="per-next" aria-label="Próximo ano">›</button>
+                </div>
+                <div class="per-months" id="per-months"></div>
+                <div class="per-foot" id="per-foot"></div>
+              </div>
             </div>
-          </div>
-          <div class="fld"><label>Até</label>
-            <div class="mesano">
-              <select class="sel-mes" id="ate-mes" onchange="onPeriodoChange()"></select>
-              <select id="ate-ano" onchange="onPeriodoChange()"></select>
-            </div>
-          </div>
-          <div class="presets">
-            <button class="btn btn-ghost" onclick="setPreset('mes')">Este mês</button>
-            <button class="btn btn-ghost" onclick="setPreset('trim')">Últ. 3 meses</button>
-            <button class="btn btn-ghost" onclick="setPreset('ano')">Este ano</button>
           </div>
           <input type="hidden" id="f-de"><input type="hidden" id="f-ate">
         </div>
-        <div class="filter-bar" style="flex-direction:column;align-items:stretch;gap:14px">
-          <div>
-            <label><span class="step-num">1</span> Filial <span style="font-weight:400;color:var(--cinza)">(clique para marcar; define as áreas abaixo)</span></label>
-            <div class="chip-scroll-wrap"><div class="chip-group chip-scroll" id="f-filial-boxes"></div></div>
-          </div>
-          <div>
-            <label><span class="step-num">2</span> Área <span style="font-weight:400;color:var(--cinza)">(as áreas dependem da filial escolhida)</span></label>
-            <div class="chip-scroll-wrap"><div class="chip-group chip-scroll" id="f-area-boxes"></div></div>
-          </div>
-          <div>
-            <label><span class="step-num">3</span> Departamento <span style="font-weight:400;color:var(--cinza)">(dependem da filial e da área)</span></label>
-            <div class="chip-scroll-wrap"><div class="chip-group chip-scroll" id="f-depto-boxes"></div></div>
+        <div class="filter-bar levels-bar">
+          <div class="levels-cap">Cada seleção filtra a próxima — clique para abrir e marque quantos quiser.</div>
+          <div class="levels">
+            <div class="level" id="lv-filial"></div>
+            <div class="level" id="lv-area"></div>
+            <div class="level" id="lv-depto"></div>
           </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
@@ -538,17 +597,21 @@ function enterApp(){
   document.getElementById('fat-comp').value = monthISO();
   document.getElementById('cfg-meta-ff').value = state.cfg.metaFolhaFaturamento;
 
-  document.getElementById('f-filial-boxes').addEventListener('click', e=>{
-    const box = e.target.closest('.chip'); if(box) toggleChip(box);
+  // período — calendário de intervalo
+  document.getElementById('per-trigger').addEventListener('click', e=>{ e.stopPropagation(); togglePeriodoPop(); });
+  document.getElementById('per-pop').addEventListener('click', e=>e.stopPropagation());
+  document.getElementById('per-prev').addEventListener('click', ()=>{ const b=anosBounds(); if(calYear>b.min){ calYear--; renderPerCal(); } });
+  document.getElementById('per-next').addEventListener('click', ()=>{ const b=anosBounds(); if(calYear<b.max){ calYear++; renderPerCal(); } });
+  document.querySelector('.per-presets').addEventListener('click', e=>{ const b=e.target.closest('.preset-mini'); if(b) setPreset(b.dataset.p); });
+  document.getElementById('per-months').addEventListener('click', e=>{ const el=e.target.closest('.m'); if(el && el.dataset.m!=null && !el.classList.contains('disabled')) pickMonth({y:calYear, m:+el.dataset.m}); });
+
+  // clicar fora fecha o menu de nível aberto e o calendário
+  document.addEventListener('click', ()=>{
+    let mudou=false;
+    if(openMenu){ openMenu=null; mudou=true; }
+    if(perOpen) closePeriodoPop();
+    if(mudou) renderFiltros();
   });
-  document.getElementById('f-area-boxes').addEventListener('click', e=>{
-    const box = e.target.closest('.chip'); if(box) toggleArea(box);
-  });
-  document.getElementById('f-depto-boxes').addEventListener('click', e=>{
-    const box = e.target.closest('.chip'); if(box) toggleDepto(box.dataset.value);
-  });
-  document.querySelectorAll('.chip-scroll').forEach(el=> el.addEventListener('scroll', updateChipFades, {passive:true}));
-  window.addEventListener('resize', updateChipFades);
 
   showPage(nav[0].id);
 }
@@ -559,27 +622,13 @@ function showPage(id){
   if(id==='faturamento') renderFaturamentoTabela();
 }
 
-/* ================= FILIAL / DEPTO (filtros do dashboard) ================= */
-function renderFiliaisDeptos(){
-  const filiais = [...new Set(state.custos.map(l=>l.filial).filter(Boolean))].sort();
-  for(const f of [...state.filterFiliais]) if(!filiais.includes(f)) state.filterFiliais.delete(f);
-  document.getElementById('f-filial-boxes').innerHTML =
-    `<button type="button" class="chip ${state.filterFiliais.size===0?'on':''}" data-value="__all__">Todas</button>` +
-    filiais.map(f=>`<button type="button" class="chip ${state.filterFiliais.has(f)?'on':''}" data-value="${esc(f)}">${esc(f)}</button>`).join('');
-  renderAreaBoxes();
-  buildPeriodoSelectors();
-}
+/* ============ FILIAL / ÁREA / DEPTO — dropdown por nível (cascata) ============ */
+let openMenu = null;      // id do nível aberto (só um por vez)
+const menuQuery = {};     // texto de busca por nível
+
 function areasDisponiveis(){
   const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
   return [...new Set(base.map(l=>l.area||''))].sort();
-}
-function renderAreaBoxes(){
-  const areas = areasDisponiveis();
-  for(const a of [...state.filterAreas]) if(!areas.includes(a)) state.filterAreas.delete(a);
-  document.getElementById('f-area-boxes').innerHTML =
-    `<button type="button" class="chip ${state.filterAreas.size===0?'on':''}" data-value="__all__">Todas</button>` +
-    areas.map(a=>`<button type="button" class="chip ${state.filterAreas.has(a)?'on':''}" data-value="${esc(a)}">${esc(a||'(Sem área)')}</button>`).join('');
-  renderDeptoBoxes();
 }
 function listaDeptosDisponiveis(){
   const base = state.custos.filter(l=>
@@ -587,47 +636,73 @@ function listaDeptosDisponiveis(){
     (!state.filterAreas.size || state.filterAreas.has(l.area||'')));
   return [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
 }
-function renderDeptoBoxes(){
-  const deptos = listaDeptosDisponiveis();
-  for(const d of [...state.filterDeptos]) if(!deptos.includes(d)) state.filterDeptos.delete(d);
-  document.getElementById('f-depto-boxes').innerHTML =
-    `<button type="button" class="chip ${state.filterDeptos.size===0?'on':''}" data-value="__all__">Todos</button>` +
-    deptos.map(d=>`<button type="button" class="chip ${state.filterDeptos.has(d)?'on':''}" data-value="${esc(d)}">${esc(d)}</button>`).join('');
-  requestAnimationFrame(updateChipFades);
+function resumoNivel(setRef){
+  if(setRef.size===0) return {txt:'Todas', todas:true};
+  if(setRef.size===1) return {txt:([...setRef][0]||'(Sem área)'), todas:false};
+  return {txt:setRef.size+' selecionadas', todas:false};
 }
-function updateChipFades(){
-  document.querySelectorAll('.chip-scroll').forEach(el=>{
-    const wrap = el.closest('.chip-scroll-wrap'); if(!wrap) return;
-    const max = el.scrollWidth - el.clientWidth;
-    wrap.classList.toggle('can-left', el.scrollLeft > 1);
-    wrap.classList.toggle('can-right', el.scrollLeft < max - 1);
+function buildLevel(hostId, num, titulo, todosLabel, getOpts, setRef, fmt, disabled){
+  const host = document.getElementById(hostId); if(!host) return;
+  const aberto = openMenu===hostId && !disabled;
+  const lab = resumoNivel(setRef);
+  let curOpts = [];
+  host.innerHTML = '';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'lv-btn' + (aberto?' open':'');
+  btn.disabled = disabled;
+  btn.innerHTML = `<span class="lv-num">${num}</span><span class="lv-cap">${titulo}</span>`+
+                  `<span class="lv-val ${lab.todas?'todos':''}">${esc(lab.txt)}</span><span class="lv-chev">▾</span>`;
+  host.appendChild(btn);
+
+  const menu = document.createElement('div');
+  menu.className = 'lv-menu' + (aberto?' open':'');
+  menu.innerHTML = `<div class="lv-search"><input type="text" placeholder="Buscar ${esc(titulo.toLowerCase())}..." autocomplete="off"></div><div class="lv-list"></div>`;
+  host.appendChild(menu);
+
+  const list = menu.querySelector('.lv-list');
+  const search = menu.querySelector('input');
+  function paint(){
+    const q = (menuQuery[hostId]||'').trim().toLowerCase();
+    curOpts = getOpts().filter(o=>fmt(o).toLowerCase().includes(q));
+    let html = `<div class="lv-opt lv-todos ${setRef.size===0?'sel':''}" data-i="all"><span class="lv-box">${setRef.size===0?'✓':''}</span>${todosLabel}</div>`;
+    if(!curOpts.length) html += `<div class="lv-empty">Nada encontrado</div>`;
+    curOpts.forEach((o,i)=>{ const on=setRef.has(o); html += `<div class="lv-opt ${on?'sel':''}" data-i="${i}"><span class="lv-box">${on?'✓':''}</span>${esc(fmt(o))}</div>`; });
+    list.innerHTML = html;
+  }
+  paint();
+  if(aberto){ search.value = menuQuery[hostId]||''; setTimeout(()=>search.focus(), 20); }
+
+  btn.addEventListener('click', e=>{ e.stopPropagation(); if(disabled) return; openMenu = aberto? null : hostId; renderFiltros(); });
+  menu.addEventListener('click', e=>e.stopPropagation());
+  search.addEventListener('input', ()=>{ menuQuery[hostId]=search.value; paint(); });
+  list.addEventListener('click', e=>{
+    const opt = e.target.closest('.lv-opt'); if(!opt) return;
+    if(opt.dataset.i==='all') setRef.clear();
+    else { const v = curOpts[+opt.dataset.i]; if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
+    renderFiltros();     // reconstrói e poda a cascata, mantendo o menu aberto
+    applyFilter();
   });
 }
-function toggleChip(box){
-  const v = box.dataset.value;
-  const setRef = state.filterFiliais;
-  if(v==='__all__') setRef.clear();
-  else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
-  renderAreaBoxes();
-  document.querySelectorAll('#f-filial-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? state.filterFiliais.size===0 : state.filterFiliais.has(c.dataset.value)));
-  applyFilter();
+// re-render dos três níveis, com poda em cascata
+function renderFiltros(){
+  const filiais = [...new Set(state.custos.map(l=>l.filial).filter(Boolean))].sort();
+  for(const f of [...state.filterFiliais]) if(!filiais.includes(f)) state.filterFiliais.delete(f);
+  for(const a of [...state.filterAreas]) if(!areasDisponiveis().includes(a)) state.filterAreas.delete(a);
+  const deptos = listaDeptosDisponiveis();
+  for(const d of [...state.filterDeptos]) if(!deptos.includes(d)) state.filterDeptos.delete(d);
+
+  buildLevel('lv-filial','1','Filial','Todas', ()=>filiais, state.filterFiliais, f=>f, false);
+  buildLevel('lv-area','2','Área','Todas', ()=>areasDisponiveis(), state.filterAreas, a=>a||'(Sem área)', false);
+  buildLevel('lv-depto','3','Departamento','Todos', ()=>listaDeptosDisponiveis(), state.filterDeptos, d=>d, deptos.length===0);
 }
-function toggleArea(box){
-  const v = box.dataset.value;
-  const setRef = state.filterAreas;
-  if(v==='__all__') setRef.clear();
-  else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
-  renderDeptoBoxes();
-  document.querySelectorAll('#f-area-boxes .chip').forEach(c=>c.classList.toggle('on', c.dataset.value==='__all__'? state.filterAreas.size===0 : state.filterAreas.has(c.dataset.value)));
-  applyFilter();
+// chamado quando os dados chegam/atualizam do Firestore
+function renderFiliaisDeptos(){
+  renderFiltros();
+  buildPeriodoSelectors();
 }
-function toggleDepto(v){
-  const setRef = state.filterDeptos;
-  if(v==='__all__') setRef.clear();
-  else { if(setRef.has(v)) setRef.delete(v); else setRef.add(v); }
-  renderDeptoBoxes();
-  applyFilter();
-}
+function updateChipFades(){}   // no-op (mantido para chamadas antigas)
 
 /* ================= SINCRONIZAR PLANILHA (com diff) ================= */
 let importRows = null;
@@ -1114,12 +1189,19 @@ function setPreset(p){
   else if(p==='ano') de = monthISO().slice(0,4)+'-01';
   document.getElementById('f-de').value = de;
   document.getElementById('f-ate').value = ate;
+  calPick = 2; calYear = +ate.slice(0,4);
   syncPeriodoUI();
+  const pb = document.querySelector('.preset-mini[data-p="'+p+'"]'); if(pb) pb.classList.add('on');
   applyFilter();
 }
 
-/* ============ SELETORES DE MÊS/ANO ============ */
+/* ============ PERÍODO — CALENDÁRIO DE INTERVALO (por mês) ============ */
 const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_CURTO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+let calYear = null;   // ano visível no calendário
+let calPick = 2;      // 0/2 = próximo clique inicia novo intervalo · 1 = aguardando mês final
+let perOpen = false;
+
 function anosDisponiveis(){
   const nowY = new Date().getFullYear();
   const anos = state.custos.map(l=>parseInt((l.competencia||'').slice(0,4),10)).filter(Boolean);
@@ -1127,31 +1209,85 @@ function anosDisponiveis(){
   const max = Math.max(nowY, anos.length ? Math.max(...anos) : nowY);
   const out = []; for(let y=max; y>=min; y--) out.push(y); return out;
 }
+function anosBounds(){ const a=anosDisponiveis(); return {min:Math.min(...a), max:Math.max(...a)}; }
+function ymParse(s){ return {y:+String(s).slice(0,4), m:+String(s).slice(5,7)-1}; }
+function ymStr(o){ return o.y+'-'+String(o.m+1).padStart(2,'0'); }
+function ymCmp(a,b){ return a.y!==b.y ? a.y-b.y : a.m-b.m; }
+function periodoRange(){
+  const de = document.getElementById('f-de').value || monthISO();
+  const ate = document.getElementById('f-ate').value || de;
+  return {s:ymParse(de), e:ymParse(ate)};
+}
+// mantém o nome antigo: chamado no enterApp e quando os dados chegam
 function buildPeriodoSelectors(){
-  if(!document.getElementById('de-mes')) return;
-  const optMes = MESES_NOME.map((n,i)=>`<option value="${String(i+1).padStart(2,'0')}">${n}</option>`).join('');
-  const optAno = anosDisponiveis().map(y=>`<option value="${y}">${y}</option>`).join('');
-  document.getElementById('de-mes').innerHTML = optMes;
-  document.getElementById('ate-mes').innerHTML = optMes;
-  document.getElementById('de-ano').innerHTML = optAno;
-  document.getElementById('ate-ano').innerHTML = optAno;
+  if(!document.getElementById('per-months')) return;
+  const b = anosBounds();
+  if(calYear==null) calYear = Math.min(Math.max(periodoRange().e.y, b.min), b.max);
   syncPeriodoUI();
+}
+function renderPerCal(){
+  const host = document.getElementById('per-months'); if(!host) return;
+  const b = anosBounds();
+  calYear = Math.min(Math.max(calYear, b.min), b.max);
+  document.getElementById('per-year').textContent = calYear;
+  document.getElementById('per-prev').disabled = calYear<=b.min;
+  document.getElementById('per-next').disabled = calYear>=b.max;
+  const {s,e} = periodoRange();
+  let html='';
+  for(let m=0;m<12;m++){
+    const p={y:calYear,m}; let cls='m';
+    const isS=ymCmp(p,s)===0, isE=ymCmp(p,e)===0;
+    if(isS||isE){ cls+=' edge'; cls += ymCmp(s,e)===0 ? ' single' : (isS?' start':' end'); }
+    else if(ymCmp(p,s)>0 && ymCmp(p,e)<0){ cls+=' inrange'; }
+    html += `<div class="${cls}" data-m="${m}">${MESES_CURTO[m]}</div>`;
+  }
+  host.innerHTML = html;
+  const foot = document.getElementById('per-foot');
+  if(calPick===1) foot.innerHTML = `Início: <b>${MESES_CURTO[s.m]}/${s.y}</b> — escolha o mês final`;
+  else if(ymCmp(s,e)===0) foot.innerHTML = `<b>${MESES_NOME[s.m]} ${s.y}</b>`;
+  else foot.innerHTML = `<b>${MESES_CURTO[s.m]}/${s.y}</b> até <b>${MESES_CURTO[e.m]}/${e.y}</b>`;
 }
 function syncPeriodoUI(){
-  const de = document.getElementById('f-de').value || monthISO();
-  const ate = document.getElementById('f-ate').value || monthISO();
-  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
-  set('de-ano', de.slice(0,4));  set('de-mes', de.slice(5,7));
-  set('ate-ano', ate.slice(0,4)); set('ate-mes', ate.slice(5,7));
+  const {s,e} = periodoRange();
+  const trg = document.getElementById('per-txt');
+  if(trg){
+    trg.textContent = ymCmp(s,e)===0
+      ? `${MESES_CURTO[s.m]}/${String(s.y).slice(2)}`
+      : `${MESES_CURTO[s.m]}/${String(s.y).slice(2)} – ${MESES_CURTO[e.m]}/${String(e.y).slice(2)}`;
+  }
+  document.querySelectorAll('.preset-mini').forEach(btn=>btn.classList.remove('on'));
+  renderPerCal();
 }
-function onPeriodoChange(){
-  let de = document.getElementById('de-ano').value + '-' + document.getElementById('de-mes').value;
-  let ate = document.getElementById('ate-ano').value + '-' + document.getElementById('ate-mes').value;
-  if(de > ate) ate = de;               // De nunca passa do Até — ajusta o Até junto
-  document.getElementById('f-de').value = de;
-  document.getElementById('f-ate').value = ate;
+function pickMonth(p){
+  if(calPick===2 || calPick===0){          // inicia novo intervalo
+    document.getElementById('f-de').value = ymStr(p);
+    document.getElementById('f-ate').value = ymStr(p);
+    calPick = 1;
+  } else {                                  // fecha o intervalo
+    let s = ymParse(document.getElementById('f-de').value), e = p;
+    if(ymCmp(p,s)<0){ e=s; s=p; }
+    document.getElementById('f-de').value = ymStr(s);
+    document.getElementById('f-ate').value = ymStr(e);
+    calPick = 2;
+  }
+  calYear = p.y;
   syncPeriodoUI();
   applyFilter();
+  if(calPick===2) closePeriodoPop();
+}
+function togglePeriodoPop(){ perOpen ? closePeriodoPop() : openPeriodoPop(); }
+function openPeriodoPop(){
+  perOpen = true; calPick = 2;
+  calYear = periodoRange().e.y;
+  document.getElementById('per-pop').classList.add('open');
+  document.getElementById('per-trigger').classList.add('open');
+  document.getElementById('per-trigger').setAttribute('aria-expanded','true');
+  syncPeriodoUI();
+}
+function closePeriodoPop(){
+  perOpen = false;
+  const pop=document.getElementById('per-pop'); if(pop) pop.classList.remove('open');
+  const t=document.getElementById('per-trigger'); if(t){ t.classList.remove('open'); t.setAttribute('aria-expanded','false'); }
 }
 
 /* ============ GRÁFICOS (Chart.js) ============ */
@@ -1190,7 +1326,7 @@ Object.assign(window, {
   processarPlanilhaCusto, gravarImportacao, limparImportacao, baixarPlanilha,
   salvarFaturamento, delFaturamento, processarPlanilhaFaturamento,
   salvarConfig, apagarTudo,
-  applyFilter, setPreset, onPeriodoChange,
+  applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
 });
 
