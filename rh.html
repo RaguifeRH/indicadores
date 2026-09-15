@@ -186,7 +186,14 @@
   .per-months .m.edge.single{border-radius:8px;}
   .per-foot{margin-top:11px;font-size:12.5px;color:#40503b;}
   .per-foot b{color:var(--verde);font-family:'Poppins',sans-serif;}
+
+  /* ===== gráficos ===== */
+  .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:6px;}
+  .chart-card{border:1px solid var(--linha);border-radius:var(--radius);padding:14px 14px 8px;background:#fff;}
+  .chart-title{font-size:12.5px;font-weight:700;color:#2f3d2b;margin-bottom:10px;}
+  .chart-box{position:relative;height:230px;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -253,6 +260,16 @@
           </div>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
+        <div class="panel">
+          <h2>Indicadores em gráfico</h2>
+          <div class="desc">Mês a mês (últimos 12 meses com registro, no filtro atual)</div>
+          <div class="charts-grid">
+            <div class="chart-card"><div class="chart-title">Headcount</div><div class="chart-box"><canvas id="ch-headcount"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">Admissões × Desligamentos</div><div class="chart-box"><canvas id="ch-admdem"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">Turnover %</div><div class="chart-box"><canvas id="ch-turnover"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">Absenteísmo %</div><div class="chart-box"><canvas id="ch-absent"></canvas></div></div>
+          </div>
+        </div>
         <div class="panel">
           <h2>Histórico comparativo mensal</h2>
           <div class="desc">Headcount, admissões, desligamentos, turnover e absenteísmo mês a mês (últimos 12 meses com registro, no filtro atual)</div>
@@ -1220,6 +1237,7 @@ function renderDashboard(){
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
   renderHistorico(base);
+  renderGraficos(base);
   renderPorFilial();
   renderPorDepto();
 }
@@ -1238,6 +1256,54 @@ function renderHistorico(base){
   });
   document.getElementById('tbl-historico').innerHTML =
     tableHTML(['Mês','Headcount','Admissões','Desligamentos','Involunt.','Volunt.','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
+}
+/* ================= GRÁFICOS (Chart.js) ================= */
+let _charts = {};
+function mountChart(id, cfg){
+  if(!window.Chart) return;
+  const el = document.getElementById(id); if(!el) return;
+  if(_charts[id]) _charts[id].destroy();
+  _charts[id] = new Chart(el, cfg);
+}
+function renderGraficos(base){
+  if(!window.Chart) return;   // se o Chart.js ainda não carregou, as tabelas seguem valendo
+  const meses = [...new Set(base.map(l=>l.competencia))].filter(Boolean).sort().slice(-12);
+  const labels = meses.map(fmtMesComp);
+  const serie = meses.map(m=>agregarPeriodo(base, m, m));
+  const cfg = state.cfg;
+  const C = {folha:'#739630', verde:'#024f2b', amber:'#d99a2b', grid:'#eef0e8'};
+  const baseOpts = (pct)=>({
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index', intersect:false},
+    plugins:{
+      legend:{display:true, labels:{boxWidth:12, font:{size:11}}},
+      tooltip:{callbacks:{ label:c=> `${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toLocaleString('pt-BR')}${pct?'%':''}` }}
+    },
+    scales:{
+      x:{grid:{display:false}, ticks:{font:{size:10}}},
+      y:{beginAtZero:true, grid:{color:C.grid}, ticks:{font:{size:10}, callback:v=>pct? v+'%':v}}
+    }
+  });
+  // 1 · Headcount
+  mountChart('ch-headcount', { type:'line', data:{labels, datasets:[
+    {label:'Headcount', data:serie.map(r=>r.headcount), borderColor:C.folha, backgroundColor:'rgba(115,150,48,.12)', fill:true, tension:.3, pointRadius:3}
+  ]}, options:baseOpts(false) });
+  // 2 · Admissões × Desligamentos
+  mountChart('ch-admdem', { type:'bar', data:{labels, datasets:[
+    {label:'Admissões', data:serie.map(r=>r.admitidos), backgroundColor:C.folha, borderRadius:4},
+    {label:'Desligamentos', data:serie.map(r=>r.demitidos), backgroundColor:C.amber, borderRadius:4}
+  ]}, options:baseOpts(false) });
+  // 3 · Turnover % + meta
+  mountChart('ch-turnover', { type:'line', data:{labels, datasets:[
+    {label:'Turnover', data:serie.map(r=>r.turnover==null?null:+r.turnover.toFixed(1)), borderColor:C.verde, backgroundColor:'rgba(2,79,43,.10)', fill:true, tension:.3, pointRadius:3, spanGaps:true},
+    {label:`Meta (${cfg.metaTurnover}%)`, data:labels.map(()=>cfg.metaTurnover), borderColor:C.amber, borderDash:[6,4], pointRadius:0, fill:false}
+  ]}, options:baseOpts(true) });
+  // 4 · Absenteísmo % + meta
+  mountChart('ch-absent', { type:'line', data:{labels, datasets:[
+    {label:'C/ abono méd.', data:serie.map(r=>r.absenteismoComAbono==null?null:+r.absenteismoComAbono.toFixed(1)), borderColor:C.verde, tension:.3, pointRadius:3, spanGaps:true},
+    {label:'S/ abono méd.', data:serie.map(r=>r.absenteismoSemAbono==null?null:+r.absenteismoSemAbono.toFixed(1)), borderColor:C.folha, tension:.3, pointRadius:3, spanGaps:true},
+    {label:`Meta (${cfg.metaAbsenteismo}%)`, data:labels.map(()=>cfg.metaAbsenteismo), borderColor:C.amber, borderDash:[6,4], pointRadius:0, fill:false}
+  ]}, options:baseOpts(true) });
 }
 function renderPorFilial(){
   const base = state.lanc.filter(l=>!state.filterDeptos.size || state.filterDeptos.has(l.depto));
@@ -1443,6 +1509,9 @@ Object.assign(window, {
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
 });
+
+// se o Chart.js carregar depois do primeiro render, redesenha uma vez
+window.addEventListener('load', ()=>{ if(window.Chart && currentUser) renderDashboard(); });
 </script>
 </body>
 </html>
