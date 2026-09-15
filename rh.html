@@ -192,6 +192,15 @@
   .chart-card{border:1px solid var(--linha);border-radius:var(--radius);padding:14px 14px 8px;background:#fff;}
   .chart-title{font-size:12.5px;font-weight:700;color:#2f3d2b;margin-bottom:10px;}
   .chart-box{position:relative;height:230px;}
+
+  /* ===== cadastro de áreas ===== */
+  .areas-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .areas-toolbar #areas-busca{flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--linha);border-radius:9px;font-family:inherit;font-size:14px;background:#fbfcf9;}
+  .areas-cont{font-size:12.5px;color:var(--cinza);}
+  #areas-tabela table td .area-in{width:100%;padding:7px 9px;border:1px solid var(--linha);border-radius:8px;font-family:inherit;font-size:13.5px;background:#fbfcf9;}
+  #areas-tabela table td .area-in:focus{outline:2px solid var(--folha);outline-offset:0;border-color:var(--folha);}
+  #areas-tabela table td{text-align:left;}
+  #areas-tabela .semarea{color:var(--amber);font-weight:600;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -256,6 +265,7 @@
           <div class="levels-cap">Cada seleção filtra a próxima — clique para abrir e marque quantos quiser.</div>
           <div class="levels">
             <div class="level" id="lv-filial"></div>
+            <div class="level" id="lv-area"></div>
             <div class="level" id="lv-depto"></div>
           </div>
         </div>
@@ -379,6 +389,21 @@
         </div>
       </div>
 
+      <!-- CADASTRO DE ÁREAS -->
+      <div class="page" id="page-areas">
+        <h1 class="page-title">Áreas</h1>
+        <div class="page-desc">Defina a área de cada departamento. O Dashboard passa a filtrar por Filial › Área › Departamento (igual ao DP). Digite ou escolha na lista — as mesmas áreas do DP já aparecem como sugestão.</div>
+        <div class="panel">
+          <div class="areas-toolbar">
+            <input type="text" id="areas-busca" placeholder="Buscar departamento..." autocomplete="off">
+            <span class="areas-cont" id="areas-cont"></span>
+            <button class="btn btn-primary" onclick="salvarAreas()">Salvar áreas</button>
+          </div>
+          <div class="table-wrap" id="areas-tabela"></div>
+          <datalist id="areas-datalist"></datalist>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
@@ -416,10 +441,13 @@ const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
   {id:'dashboard',    label:'Dashboard',       ic:'▦', roles:['admin','operador']},
   {id:'headcount',    label:'Comparativo Headcount', ic:'📅', roles:['admin','operador']},
+  {id:'areas',        label:'Áreas',           ic:'🗂️', roles:['admin']},
   {id:'importar',     label:'Importar',        ic:'📤', roles:['admin']},
   {id:'config',       label:'Metas & Config',  ic:'⚙', roles:['admin']},
 ];
 const DEFAULT_CFG = {metaTurnover:5, metaAbsenteismo:3};
+// sugestões de área (as mesmas do DP) — só alimentam o autocomplete; você pode digitar qualquer uma
+const AREAS_SUGERIDAS = ['ADMINISTRATIVO','APOIO','CALDEIRA','COMPRAS','ESCRITA FISCAL','EXPEDICAO','EXTRUSORA','GRAXARIA','LIMPEZA','LOGÍSTICA EXTERNA','LOGÍSTICA INTERNA','MANUTENCAO','PRODUCAO','QUALIDADE','SEGURANCA','TI','VENDAS'];
 // status "ainda empregado" que NÃO contam no headcount do mês atual (licença/afastamento)
 // status "ainda empregado" que CONTAM como ativo (mesma lista do sistema de referência da empresa)
 const ATIVOS_STATUS = new Set(['ativo','ferias','licenca maternidade']);
@@ -436,7 +464,7 @@ function categoriaCargo(cargo){
   return 'Efetivo';
 }
 
-let state = { lanc:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFiliais:new Set(), filterDeptos:new Set() };
+let state = { lanc:[], cfg:{...DEFAULT_CFG}, areaMap:{}, areas:[], filterDe:'', filterAte:'', filterFiliais:new Set(), filterAreas:new Set(), filterDeptos:new Set() };
 let currentUser = null;
 let unsubs = [];
 
@@ -532,7 +560,16 @@ async function loadConfig(){
     const m = await getDoc(doc(db,'config','rh_metas'));
     state.cfg = m.exists()? {...DEFAULT_CFG, ...m.data()} : {...DEFAULT_CFG};
   }catch(e){ state.cfg = {...DEFAULT_CFG}; }
+  try{
+    const a = await getDoc(doc(db,'config','rh_areas'));
+    const pares = a.exists() ? (a.data().pares || []) : [];
+    state.areaMap = {};
+    pares.forEach(p=>{ if(p && p.d) state.areaMap[p.d] = p.a || ''; });
+    state.areas = [...new Set(Object.values(state.areaMap).filter(Boolean))].sort();
+  }catch(e){ state.areaMap = {}; state.areas = []; }
 }
+// área de um departamento (mapa cadastrado na aba Áreas)
+function areaDe(depto){ return state.areaMap[depto] || ''; }
 function sub(colName, target, after){
   const u = onSnapshot(collection(db,colName), snap=>{
     state[target] = snap.docs.map(d=>({id:d.id, ...d.data()}));
@@ -594,6 +631,7 @@ function showPage(id){
   if(id==='dashboard') renderDashboard();
   if(id==='headcount') renderHeadcountPivot();
   if(id==='importar') renderLancamentos();
+  if(id==='areas') renderAreasCadastro();
 }
 
 /* ================= IMPORTAR PLANILHA ================= */
@@ -1021,23 +1059,80 @@ async function apagarTudo(){
   });
 }
 
+/* ================= CADASTRO DE ÁREAS ================= */
+let areasEdit = {};   // buffer de edição depto -> área (não perde o que foi digitado ao filtrar)
+function renderAreasCadastro(){
+  const deptos = [...new Set(state.lanc.map(l=>l.depto).filter(Boolean))].sort();
+  areasEdit = {}; deptos.forEach(d=> areasEdit[d] = areaDe(d));
+  const sug = [...new Set([...AREAS_SUGERIDAS, ...state.areas])].sort();
+  document.getElementById('areas-datalist').innerHTML = sug.map(a=>`<option value="${esc(a)}"></option>`).join('');
+  const busca = document.getElementById('areas-busca');
+  busca.value = '';
+  busca.oninput = ()=> drawAreasTabela(deptos, busca.value);
+  // um único listener (idempotente) para capturar as edições
+  document.getElementById('areas-tabela').oninput = e=>{
+    const inp = e.target.closest('.area-in'); if(!inp) return;
+    areasEdit[inp.dataset.depto] = inp.value;
+  };
+  drawAreasTabela(deptos, '');
+}
+function drawAreasTabela(deptos, filtro){
+  const q = stripAcc(filtro||'').toLowerCase().trim();
+  const lista = q ? deptos.filter(d=>stripAcc(d).toLowerCase().includes(q)) : deptos;
+  const semArea = deptos.filter(d=>!(areasEdit[d]||'').trim()).length;
+  document.getElementById('areas-cont').textContent =
+    `${deptos.length} deptos · ${deptos.length-semArea} com área · ${semArea} sem área`;
+  if(!deptos.length){ document.getElementById('areas-tabela').innerHTML = '<div class="empty">Importe a Relação de Funcionários primeiro — os departamentos aparecem aqui.</div>'; return; }
+  if(!lista.length){ document.getElementById('areas-tabela').innerHTML = '<div class="empty">Nenhum departamento encontrado</div>'; return; }
+  const filiaisDe = d => [...new Set(state.lanc.filter(l=>l.depto===d).map(l=>l.filial).filter(Boolean))].join(', ') || '—';
+  const rows = lista.map(d=>{
+    const val = areasEdit[d] || '';
+    return `<tr>
+      <td${val?'':' class="semarea"'}>${esc(d)}</td>
+      <td style="color:var(--cinza)">${esc(filiaisDe(d))}</td>
+      <td><input class="area-in" list="areas-datalist" data-depto="${esc(d)}" value="${esc(val)}" placeholder="— sem área —"></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('areas-tabela').innerHTML =
+    `<table><thead><tr><th style="text-align:left">Departamento</th><th style="text-align:left">Filial(is)</th><th style="text-align:left">Área</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+async function salvarAreas(){
+  const pares = Object.entries(areasEdit).map(([d,a])=>({d, a:(a||'').trim()})).filter(p=>p.a);
+  try{
+    await setDoc(doc(db,'config','rh_areas'), {pares, atualizadoEm: todayISO()});
+    state.areaMap = {}; pares.forEach(p=> state.areaMap[p.d] = p.a);
+    state.areas = [...new Set(pares.map(p=>p.a))].sort();
+    toast(`Áreas salvas ✓ (${pares.length} departamentos)`);
+    renderFiltros(); renderDashboard();
+    renderAreasCadastro();
+  }catch(e){ console.error(e); toast('Falha ao salvar áreas.', true); }
+}
+
 /* ============ FILIAL / DEPTO — dropdown por nível (cascata) ============ */
 let openMenu = null;      // id do nível aberto (só um por vez)
 const menuQuery = {};     // texto de busca por nível
 
-function listaDeptosDisponiveis(){
+function areasDisponiveis(){
   const base = state.lanc.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  return [...new Set(base.map(l=>areaDe(l.depto)))].sort();
+}
+function listaDeptosDisponiveis(){
+  const base = state.lanc.filter(l=>
+    (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
+    (!state.filterAreas.size || state.filterAreas.has(areaDe(l.depto))));
   return [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
 }
-function resumoNivel(setRef, todosLabel){
+function resumoNivel(setRef, todosLabel, fmt){
+  fmt = fmt || (o=>o);
   if(setRef.size===0) return {txt:todosLabel, todas:true};
-  if(setRef.size===1) return {txt:[...setRef][0], todas:false};
+  if(setRef.size===1) return {txt:fmt([...setRef][0]), todas:false};
   return {txt:setRef.size+' selecionados', todas:false};
 }
-function buildLevel(hostId, num, titulo, todosLabel, getOpts, setRef, disabled){
+function buildLevel(hostId, num, titulo, todosLabel, getOpts, setRef, disabled, fmt){
+  fmt = fmt || (o=>o);
   const host = document.getElementById(hostId); if(!host) return;
   const aberto = openMenu===hostId && !disabled;
-  const lab = resumoNivel(setRef, todosLabel);
+  const lab = resumoNivel(setRef, todosLabel, fmt);
   let curOpts = [];
   host.innerHTML = '';
 
@@ -1056,10 +1151,10 @@ function buildLevel(hostId, num, titulo, todosLabel, getOpts, setRef, disabled){
   const search = menu.querySelector('input');
   function paint(){
     const q = stripAcc(menuQuery[hostId]||'').toLowerCase().trim();
-    curOpts = getOpts().filter(o=>stripAcc(o).toLowerCase().includes(q));
+    curOpts = getOpts().filter(o=>stripAcc(fmt(o)).toLowerCase().includes(q));
     let html = `<div class="lv-opt lv-todos ${setRef.size===0?'sel':''}" data-i="all"><span class="lv-box">${setRef.size===0?'✓':''}</span>${todosLabel}</div>`;
     if(!curOpts.length) html += `<div class="lv-empty">Nada encontrado</div>`;
-    curOpts.forEach((o,i)=>{ const on=setRef.has(o); html += `<div class="lv-opt ${on?'sel':''}" data-i="${i}"><span class="lv-box">${on?'✓':''}</span>${esc(o)}</div>`; });
+    curOpts.forEach((o,i)=>{ const on=setRef.has(o); html += `<div class="lv-opt ${on?'sel':''}" data-i="${i}"><span class="lv-box">${on?'✓':''}</span>${esc(fmt(o))}</div>`; });
     list.innerHTML = html;
   }
   paint();
@@ -1080,10 +1175,13 @@ function buildLevel(hostId, num, titulo, todosLabel, getOpts, setRef, disabled){
 function renderFiltros(){
   const filiais = [...new Set(state.lanc.map(l=>l.filial).filter(Boolean))].sort();
   for(const f of [...state.filterFiliais]) if(!filiais.includes(f)) state.filterFiliais.delete(f);
+  const areas = areasDisponiveis();
+  for(const a of [...state.filterAreas]) if(!areas.includes(a)) state.filterAreas.delete(a);
   const deptos = listaDeptosDisponiveis();
   for(const d of [...state.filterDeptos]) if(!deptos.includes(d)) state.filterDeptos.delete(d);
   buildLevel('lv-filial','1','Filial','Todas', ()=>filiais, state.filterFiliais, false);
-  buildLevel('lv-depto','2','Departamento','Todos', ()=>listaDeptosDisponiveis(), state.filterDeptos, deptos.length===0);
+  buildLevel('lv-area','2','Área','Todas', ()=>areasDisponiveis(), state.filterAreas, false, a=>a||'(Sem área)');
+  buildLevel('lv-depto','3','Departamento','Todos', ()=>listaDeptosDisponiveis(), state.filterDeptos, deptos.length===0);
 }
 // chamado quando os dados chegam/atualizam do Firestore
 function renderFiliaisDeptos(){
@@ -1104,7 +1202,10 @@ function renderLancamentos(){
 
 /* ================= RENDER: DASHBOARD ================= */
 function filtroBase(rows){
-  return rows.filter(l => (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) && (!state.filterDeptos.size || state.filterDeptos.has(l.depto)));
+  return rows.filter(l =>
+    (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
+    (!state.filterAreas.size   || state.filterAreas.has(areaDe(l.depto))) &&
+    (!state.filterDeptos.size  || state.filterDeptos.has(l.depto)));
 }
 // agrega uma lista de lançamentos (já filtrada por filial/depto) num intervalo de meses
 function agregarPeriodo(rows, de, ate){
@@ -1506,7 +1607,7 @@ Object.assign(window, {
   logout, showPage,
   processarPlanilha, processarPonto, processarDesligamentos, gravarImportacao, limparImportacao,
   salvarConfig, apagarTudo,
-  applyFilter, setPreset,
+  applyFilter, setPreset, salvarAreas,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
 });
 
