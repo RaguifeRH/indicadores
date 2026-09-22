@@ -484,6 +484,18 @@
           <h2>Base de funcionários</h2>
           <div class="desc">Inclua e exclua conforme admissões e demissões. Só funcionários ativos entram na chamada e nos indicadores.</div>
           <div id="gl-seed-box"></div>
+          <div class="note" style="background:#eef3fb;color:#2a3a52">
+            <b>Carga de CPF em massa (sem perder nada):</b> envie uma planilha (.xlsx ou .csv) com as colunas <b>Nome</b> e <b>CPF</b>. O sistema casa pelo nome e grava só o CPF — presenças e demais dados ficam intactos. Dica: baixe o modelo com os nomes atuais e só preencha o CPF ao lado.
+            <div class="btn-row" style="margin-top:8px">
+              <button class="btn btn-ghost btn-mini" onclick="exportarModeloCpf()">Baixar modelo (nomes atuais)</button>
+              <label class="btn btn-leaf btn-mini" style="cursor:pointer;color:#fff">Enviar planilha de CPF
+                <input type="file" id="gl-cpf-file" accept=".xlsx,.csv" onchange="processarCargaCpf(event)" style="display:none">
+              </label>
+            </div>
+            <div id="gl-cpf-status" style="display:none;padding:8px 10px;border-radius:8px;margin-top:8px;font-size:13px"></div>
+            <div class="table-wrap" id="gl-cpf-preview" style="margin-top:8px"></div>
+            <div class="btn-row" id="gl-cpf-actions" style="display:none"><button class="btn btn-primary" onclick="gravarCargaCpf()">Gravar CPFs na base</button></div>
+          </div>
           <div class="form-grid" style="grid-template-columns:2fr 1.4fr 1.2fr auto;align-items:end">
             <div><label>Nome</label><input type="text" id="gl-nome" placeholder="nome completo"></div>
             <div><label>Departamento</label><input type="text" id="gl-depto" list="gl-deplist" placeholder="departamento"><datalist id="gl-deplist"></datalist></div>
@@ -1921,6 +1933,103 @@ async function glSalvarEdit(id){
   try{ await setDoc(doc(db,'amb_gl_funcionarios',id), {nome, depto, cpf}, {merge:true}); closeModal(); toast('Atualizado ✓'); }
   catch(e){ toast('Falha ao salvar.', true); }
 }
+
+// ---- carga de CPF em massa (casa por nome, grava só o cpf com merge) ----
+let cargaCpfBuffer = null;
+function glNorm(s){ return String(s??'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' '); }
+function glLimpaCpf(v){
+  if(typeof v==='number' && isFinite(v)) return String(Math.round(v)).padStart(11,'0');
+  return String(v??'').replace(/\D/g,'');
+}
+function cpfStatus(msg, isErr){
+  const el=document.getElementById('gl-cpf-status'); if(!el) return;
+  el.style.display='block'; el.innerHTML=msg;
+  el.style.background=isErr?'#f7e3df':'#e7f3ec'; el.style.color=isErr?'var(--erro)':'#1d3a24';
+}
+function exportarModeloCpf(){
+  const ativos = glAtivos().slice().sort((a,b)=>(a.depto||'').localeCompare(b.depto||'')||(a.nome||'').localeCompare(b.nome||''));
+  if(!ativos.length){ toast('Base vazia — carregue os funcionários primeiro.', true); return; }
+  const linhas = [['nome','cpf','departamento']].concat(ativos.map(f=>[f.nome||'', (f.cpf||''), f.depto||'']));
+  const csv = linhas.map(r=>r.map(csvCell).join(';')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='modelo_cpf_ginastica.csv'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  toast('Modelo baixado ✓ — preencha o CPF e reenvie');
+}
+async function processarCargaCpf(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  cargaCpfBuffer = null;
+  document.getElementById('gl-cpf-actions').style.display='none';
+  document.getElementById('gl-cpf-preview').innerHTML='';
+  cpfStatus('Lendo planilha...');
+  try{
+    let grid;
+    if(/\.csv$/i.test(file.name)){
+      const text = await file.text();
+      const head0 = (text.replace(/\r/g,'').split('\n')[0]||'');
+      const delim = (head0.split(';').length >= head0.split(',').length) ? ';' : ',';
+      grid = text.replace(/\r/g,'').split('\n').filter(l=>l.trim().length).map(l=>l.split(delim));
+    } else {
+      await carregarSheetJS();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    }
+    if(!grid.length){ cpfStatus('Planilha vazia.', true); return; }
+    const head = grid[0].map(h=>String(h??'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''));
+    const find = alts => head.findIndex(h=>alts.some(a=>h.includes(a)));
+    let iNome = find(['nome','funcionario','colaborador']);
+    let iCpf  = find(['cpf']);
+    let start = 1;
+    if(iNome<0 && iCpf<0){ iNome=0; iCpf=1; start=0; }      // sem cabeçalho: col0=nome, col1=cpf
+    else if(iNome<0){ iNome = (iCpf===0?1:0); }
+    else if(iCpf<0){ iCpf = (iNome===0?1:0); }
+    // índice da base por nome normalizado (detecta nomes duplicados)
+    const idx={}, dup=new Set();
+    state.glFunc.forEach(f=>{ const k=glNorm(f.nome); if(idx[k]!==undefined) dup.add(k); else idx[k]=f; });
+    const atualizar=[], naoEnc=[], ambiguos=[], vistos=new Set();
+    for(let r=start;r<grid.length;r++){
+      const row=grid[r]; if(!row) continue;
+      const nomeRaw=row[iNome]; const cpf=glLimpaCpf(row[iCpf]); const nm=glNorm(nomeRaw);
+      if(!nm || !cpf) continue;
+      if(dup.has(nm)){ ambiguos.push(String(nomeRaw)); continue; }
+      const f=idx[nm];
+      if(!f){ naoEnc.push(String(nomeRaw)); continue; }
+      if(vistos.has(f.id)) continue; vistos.add(f.id);
+      atualizar.push({id:f.id, nome:f.nome, cpf, tinha:!!(f.cpf||'').trim()});
+    }
+    cargaCpfBuffer = atualizar;
+    const novos=atualizar.filter(a=>!a.tinha).length, subs=atualizar.filter(a=>a.tinha).length;
+    const rows=atualizar.slice(0,300).map(a=>[esc(a.nome), a.cpf, a.tinha?'<span class="pill p-warn">substitui</span>':'<span class="pill p-ok">novo</span>']);
+    document.getElementById('gl-cpf-preview').innerHTML = tableHTML(['Funcionário','CPF a gravar','—'], rows);
+    if(!atualizar.length){ cpfStatus('Nenhum nome da planilha bateu com a base. Confira se os nomes estão escritos igual (dica: use o modelo).', true); return; }
+    document.getElementById('gl-cpf-actions').style.display='flex';
+    let msg = '<b>'+atualizar.length+'</b> funcionário(s) receberão CPF ('+novos+' novos, '+subs+' substituídos).';
+    if(naoEnc.length) msg += ' <b>'+naoEnc.length+'</b> não encontrados na base.';
+    if(ambiguos.length) msg += ' '+ambiguos.length+' com nome duplicado (ignorados — ajuste no Editar).';
+    cpfStatus(msg);
+  }catch(e){ console.error(e); cpfStatus('Falha ao ler a planilha: '+e.message, true); }
+}
+async function gravarCargaCpf(){
+  if(!cargaCpfBuffer || !cargaCpfBuffer.length){ cpfStatus('Nada para gravar.', true); return; }
+  const lista = cargaCpfBuffer;
+  cpfStatus('Gravando...');
+  try{
+    for(let i=0;i<lista.length;i+=400){
+      const batch = writeBatch(db);
+      lista.slice(i,i+400).forEach(a=> batch.set(doc(db,'amb_gl_funcionarios',a.id), {cpf:a.cpf}, {merge:true}));
+      await batch.commit();
+    }
+    cargaCpfBuffer=null;
+    document.getElementById('gl-cpf-actions').style.display='none';
+    document.getElementById('gl-cpf-preview').innerHTML='';
+    document.getElementById('gl-cpf-file').value='';
+    cpfStatus('CPFs gravados ✓ '+lista.length+' funcionário(s) atualizado(s).');
+    toast('CPFs carregados ✓');
+  }catch(e){ console.error(e); cpfStatus('Falha ao gravar: '+e.message, true); toast('Falha ao gravar.', true); }
+}
 function glToggleAtivo(id){
   const f = state.glFunc.find(x=>x.id===id); if(!f) return;
   const novo = f.ativo===false; // reativar se estava inativo
@@ -2206,6 +2315,7 @@ Object.assign(window, {
   pesqAdd, pesqRemove, pesqEdit, salvarPesquisas,
   glSeedBase, glAddFunc, glEditFunc, glSalvarEdit, glToggleAtivo, glDelFunc, renderGlBase,
   gerarListaMensal, imprimirListaMensal, exportarDossie, copyGlLink, imprimirGlQR,
+  exportarModeloCpf, processarCargaCpf, gravarCargaCpf,
   glPubToggle, glPubConcluir,
 });
 init();
