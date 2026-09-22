@@ -469,12 +469,13 @@
         </div>
 
         <div class="panel">
-          <h2>Lista mensal para assinatura</h2>
-          <div class="desc">Escolha o mês e gere a lista geral: cada pessoa e os dias em que participou. Imprima para coletar as assinaturas de todos.</div>
+          <h2>Fechamento do mês</h2>
+          <div class="desc">Escolha o mês e gere a lista geral: cada pessoa e os dias em que participou. <b>Imprimir</b> para coletar assinaturas · <b>Baixar CSV</b> para importar no dossiê.</div>
           <div class="gl-toolbar">
             <div class="fld"><label>Mês</label><input type="month" id="gl-mes"></div>
             <button class="btn btn-leaf" onclick="gerarListaMensal()">Gerar lista</button>
             <button class="btn btn-primary" id="gl-btn-print" style="display:none" onclick="imprimirListaMensal()">Imprimir</button>
+            <button class="btn btn-ghost" id="gl-btn-csv" style="display:none" onclick="exportarDossie()">Baixar CSV p/ dossiê</button>
           </div>
           <div class="table-wrap" id="gl-lista-preview"></div>
         </div>
@@ -483,9 +484,10 @@
           <h2>Base de funcionários</h2>
           <div class="desc">Inclua e exclua conforme admissões e demissões. Só funcionários ativos entram na chamada e nos indicadores.</div>
           <div id="gl-seed-box"></div>
-          <div class="form-grid" style="grid-template-columns:2fr 2fr auto;align-items:end">
+          <div class="form-grid" style="grid-template-columns:2fr 1.4fr 1.2fr auto;align-items:end">
             <div><label>Nome</label><input type="text" id="gl-nome" placeholder="nome completo"></div>
             <div><label>Departamento</label><input type="text" id="gl-depto" list="gl-deplist" placeholder="departamento"><datalist id="gl-deplist"></datalist></div>
+            <div><label>CPF (opcional)</label><input type="text" id="gl-cpf" placeholder="com ou sem pontuação"></div>
             <div><button class="btn btn-leaf" onclick="glAddFunc()">+ Adicionar</button></div>
           </div>
           <div class="gl-toolbar" style="margin-top:14px">
@@ -1891,14 +1893,33 @@ async function glSeedBase(){
 async function glAddFunc(){
   const nome = document.getElementById('gl-nome').value.trim();
   const depto = document.getElementById('gl-depto').value.trim();
+  const cpf = document.getElementById('gl-cpf').value.trim();
   if(nome.length<2){ toast('Informe o nome.', true); return; }
   if(state.glFunc.some(f=>(f.nome||'').toLowerCase()===nome.toLowerCase() && f.ativo!==false)){ toast('Esse funcionário já está na base.', true); return; }
   try{
-    await addDoc(collection(db,'amb_gl_funcionarios'), {nome, depto, ativo:true, criadoEm:todayISO()});
+    await addDoc(collection(db,'amb_gl_funcionarios'), {nome, depto, cpf, ativo:true, criadoEm:todayISO()});
     document.getElementById('gl-nome').value='';
     document.getElementById('gl-depto').value='';
+    document.getElementById('gl-cpf').value='';
     toast('Funcionário adicionado ✓');
   }catch(e){ toast('Falha ao salvar.', true); }
+}
+function glEditFunc(id){
+  const f = state.glFunc.find(x=>x.id===id); if(!f) return;
+  openModal(`<h3>Editar funcionário</h3>
+    <label>Nome</label><input type="text" id="ed-nome" value="${esc(f.nome||'')}" style="margin-bottom:10px">
+    <label>Departamento</label><input type="text" id="ed-depto" value="${esc(f.depto||'')}" style="margin-bottom:10px">
+    <label>CPF</label><input type="text" id="ed-cpf" value="${esc(f.cpf||'')}" placeholder="com ou sem pontuação">
+    <div class="btn-row"><button class="btn btn-primary" onclick="glSalvarEdit('${id}')">Salvar</button>
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function glSalvarEdit(id){
+  const nome = document.getElementById('ed-nome').value.trim();
+  const depto = document.getElementById('ed-depto').value.trim();
+  const cpf = document.getElementById('ed-cpf').value.trim();
+  if(nome.length<2){ toast('Informe o nome.', true); return; }
+  try{ await setDoc(doc(db,'amb_gl_funcionarios',id), {nome, depto, cpf}, {merge:true}); closeModal(); toast('Atualizado ✓'); }
+  catch(e){ toast('Falha ao salvar.', true); }
 }
 function glToggleAtivo(id){
   const f = state.glFunc.find(x=>x.id===id); if(!f) return;
@@ -1925,14 +1946,16 @@ function renderGlBase(){
   else if(st==='inativos') lista = lista.filter(f=>f.ativo===false);
   if(busca) lista = lista.filter(f=>(f.nome||'').toLowerCase().includes(busca) || (f.depto||'').toLowerCase().includes(busca));
   lista.sort((a,b)=>(a.depto||'').localeCompare(b.depto||'') || (a.nome||'').localeCompare(b.nome||''));
+  const semCpf = state.glFunc.filter(f=>f.ativo!==false && !(f.cpf||'').trim()).length;
   const cnt = document.getElementById('gl-base-count');
-  if(cnt) cnt.textContent = lista.length+' de '+state.glFunc.length+' na base';
+  if(cnt) cnt.textContent = lista.length+' de '+state.glFunc.length+' na base' + (semCpf? (' · '+semCpf+' ativo(s) sem CPF') : '');
   const rows = lista.map(f=>[
     esc(f.nome), esc(f.depto||'—'),
+    (f.cpf||'').trim()? esc(f.cpf) : '<span style="color:var(--cinza)">—</span>',
     f.ativo===false? '<span class="pill p-bad">inativo</span>' : '<span class="pill p-ok">ativo</span>',
-    `<button class="btn btn-ghost btn-mini" onclick="glToggleAtivo('${f.id}')">${f.ativo===false?'Reativar':'Inativar'}</button> <button class="btn btn-danger btn-mini" onclick="glDelFunc('${f.id}')">×</button>`
+    `<button class="btn btn-ghost btn-mini" onclick="glEditFunc('${f.id}')">Editar</button> <button class="btn btn-ghost btn-mini" onclick="glToggleAtivo('${f.id}')">${f.ativo===false?'Reativar':'Inativar'}</button> <button class="btn btn-danger btn-mini" onclick="glDelFunc('${f.id}')">×</button>`
   ]);
-  el.innerHTML = tableHTML(['Nome','Departamento','Status',''], rows);
+  el.innerHTML = tableHTML(['Nome','Departamento','CPF','Status',''], rows);
 }
 function renderGlHist(){
   const el = document.getElementById('gl-hist-tbl'); if(!el) return;
@@ -1961,7 +1984,7 @@ function gerarListaMensal(){
   glListaCache = {mes, dias, funcs};
   const btn = document.getElementById('gl-btn-print');
   const prev = document.getElementById('gl-lista-preview');
-  if(!dias.length){ prev.innerHTML = '<div class="empty">Nenhuma chamada registrada em '+fmtMesComp(mes)+'.</div>'; if(btn) btn.style.display='none'; return; }
+  if(!dias.length){ prev.innerHTML = '<div class="empty">Nenhuma chamada registrada em '+fmtMesComp(mes)+'.</div>'; if(btn) btn.style.display='none'; const cb=document.getElementById('gl-btn-csv'); if(cb) cb.style.display='none'; return; }
   const presentMap = {}; dias.forEach(p=>(p.presentes||[]).forEach(id=>{ (presentMap[id]=presentMap[id]||new Set()).add(p.data); }));
   const headers = ['Nome','Depto', ...dias.map(p=>p.data.slice(8,10)), 'Total'];
   const rows = funcs.map(f=>{
@@ -1970,6 +1993,37 @@ function gerarListaMensal(){
   });
   prev.innerHTML = tableHTML(headers, rows);
   if(btn) btn.style.display='inline-block';
+  const csvb = document.getElementById('gl-btn-csv'); if(csvb) csvb.style.display='inline-block';
+}
+// Exporta as presenças do mês no layout do dossiê (Nova.RH): cpf;nome;data;situacao;titulo;observacao;responsavel
+function csvCell(v){ v = String(v==null?'':v); return /[;"\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function exportarDossie(){
+  const mes = document.getElementById('gl-mes').value;
+  if(!mes){ toast('Escolha o mês.', true); return; }
+  const dias = glDiasDoMes(mes);
+  if(!dias.length){ toast('Nenhuma chamada nesse mês.', true); return; }
+  const fmap = glFmap();
+  const linhas = [['cpf','nome','data','situacao','titulo','observacao','responsavel']];
+  let total=0, semCpf=0;
+  dias.forEach(p=>{
+    (p.presentes||[]).forEach(id=>{
+      const f = fmap[id]; if(!f) return;
+      const cpf = (f.cpf||'').trim();
+      if(!cpf) semCpf++;
+      total++;
+      linhas.push([cpf, f.nome||'', p.data, 'PRESENTE', 'Ginástica Laboral', '', '']);
+    });
+  });
+  if(!total){ toast('Nenhuma presença nesse mês.', true); return; }
+  const csv = linhas.map(r=>r.map(csvCell).join(';')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ginastica_dossie_'+mes+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  if(semCpf) toast(total+' presença(s) exportada(s) · '+semCpf+' sem CPF (vão por nome)', false);
+  else toast(total+' presença(s) exportada(s) ✓');
 }
 function imprimirListaMensal(){
   if(!glListaCache){ toast('Gere a lista primeiro.', true); return; }
@@ -2150,8 +2204,8 @@ Object.assign(window, {
   applyFilter, setPreset, copyLink, abrirWhats, imprimirQR,
   enviarSurvey, openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
   pesqAdd, pesqRemove, pesqEdit, salvarPesquisas,
-  glSeedBase, glAddFunc, glToggleAtivo, glDelFunc, renderGlBase,
-  gerarListaMensal, imprimirListaMensal, copyGlLink, imprimirGlQR,
+  glSeedBase, glAddFunc, glEditFunc, glSalvarEdit, glToggleAtivo, glDelFunc, renderGlBase,
+  gerarListaMensal, imprimirListaMensal, exportarDossie, copyGlLink, imprimirGlQR,
   glPubToggle, glPubConcluir,
 });
 init();
