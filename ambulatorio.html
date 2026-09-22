@@ -174,6 +174,29 @@
     .panel{padding:16px;}
   }
 
+  /* GINÁSTICA LABORAL */
+  .gl-toolbar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;}
+  .gl-toolbar .fld{min-width:150px;}
+  .gl-count{font-family:'Poppins',sans-serif;font-weight:700;font-size:14px;color:var(--verde);}
+  .gl-deptgrp h4{font-family:'Poppins',sans-serif;font-size:12.5px;color:var(--cinza);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px;border-bottom:1px solid var(--linha);padding-bottom:5px;}
+  .gl-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;}
+  .gl-person{display:flex;align-items:center;gap:10px;border:1px solid var(--linha);border-radius:11px;padding:10px 12px;cursor:pointer;background:#fbfcf9;user-select:none;font-size:13.5px;transition:all .12s;}
+  .gl-person .chk{width:20px;height:20px;border-radius:6px;border:2px solid var(--linha);flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;}
+  .gl-person.on{background:var(--folha-suave);border-color:var(--folha);font-weight:600;color:#2f4417;}
+  .gl-person.on .chk{background:var(--folha);border-color:var(--folha);}
+
+  /* Público ginástica */
+  #gl-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:60;overflow-y:auto;}
+  .glp-top{background:linear-gradient(160deg,var(--verde),var(--verde-escuro));color:#fff;padding:18px 20px;position:sticky;top:0;z-index:5;}
+  .glp-top .wordmark{font-family:'Poppins',sans-serif;font-weight:700;font-size:19px;}
+  .glp-top h1{font-size:16px;margin-top:2px;font-weight:600;}
+  .glp-controls{max-width:960px;margin:0 auto;padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+  .glp-controls .fld{flex:1;min-width:140px;}
+  .glp-body{max-width:960px;margin:0 auto;padding:0 16px 130px;}
+  .glp-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--linha);padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;box-shadow:0 -4px 16px rgba(0,0,0,.06);flex-wrap:wrap;z-index:10;}
+  .glp-bar .cnt{font-family:'Poppins',sans-serif;font-weight:700;color:var(--verde);font-size:16px;}
+  .gl-status{font-size:12px;font-weight:700;padding:4px 11px;border-radius:99px;}
+
   /* MODAL / TOAST */
   #modal-bg{display:none;position:fixed;inset:0;background:rgba(15,25,12,.45);z-index:80;align-items:center;justify-content:center;padding:20px;}
   #modal-bg.open{display:flex;}
@@ -195,6 +218,35 @@
       <div id="survey-body-wrap"></div>
     </div>
     <div id="survey-questions"></div>
+  </div>
+</div>
+
+<!-- ===================== CHAMADA GINÁSTICA (público) ===================== -->
+<div id="gl-screen">
+  <div class="glp-top">
+    <div style="max-width:960px;margin:0 auto;display:flex;align-items:center;gap:12px">
+      <div id="logo-gl"></div>
+      <div>
+        <div class="wordmark">raguife</div>
+        <h1>Chamada — Ginástica Laboral</h1>
+      </div>
+    </div>
+  </div>
+  <div class="glp-controls">
+    <div class="fld"><label>Dia da ginástica</label><input type="date" id="glp-data"></div>
+    <div class="fld"><label>Departamento</label><select id="glp-dep"></select></div>
+    <div class="fld" style="flex:2"><label>Buscar pessoa</label><input type="text" id="glp-busca" placeholder="digite um nome..."></div>
+  </div>
+  <div class="glp-body">
+    <div id="glp-status" style="margin-bottom:10px"></div>
+    <div id="glp-list"></div>
+  </div>
+  <div class="glp-bar">
+    <span class="cnt" id="glp-cnt">0 presentes</span>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <span id="glp-saved" style="font-size:12px;color:var(--cinza)"></span>
+      <button class="btn btn-primary" id="glp-concluir" onclick="glPubConcluir()">Concluir o dia</button>
+    </div>
   </div>
 </div>
 
@@ -238,6 +290,7 @@
           <button class="btn btn-leaf" onclick="applyFilter()">Aplicar</button>
         </div>
         <div class="grid-kpi" id="kpi-grid"></div>
+        <div class="grid-kpi" id="gl-kpi"></div>
         <div class="panel">
           <h2>Histórico comparativo mensal</h2>
           <div class="desc">Os cinco indicadores mês a mês (últimos 12 meses com registro)</div>
@@ -257,6 +310,11 @@
           <h2>DSP — top performers</h2>
           <div class="desc">Responsáveis que mais conduziram diálogos no período</div>
           <div class="table-wrap" id="tbl-dsp-top"></div>
+        </div>
+        <div class="panel">
+          <h2>Ginástica laboral por departamento</h2>
+          <div class="desc">Adesão à ginástica por departamento no período (presenças ÷ ativos × dias realizados)</div>
+          <div class="table-wrap" id="tbl-gl-dept"></div>
         </div>
       </div>
 
@@ -389,6 +447,62 @@
         </div>
       </div>
 
+      <!-- GINÁSTICA LABORAL -->
+      <div class="page" id="page-ginastica">
+        <h1 class="page-title">Ginástica Laboral</h1>
+        <div class="page-desc">Chamada digital de presença, base de funcionários e lista mensal para assinatura</div>
+
+        <div class="panel">
+          <h2>Link da chamada</h2>
+          <div class="desc">Abra este link (ou o QR) no celular/tablet no local da ginástica para marcar a presença do dia. Não precisa de login.</div>
+          <div class="link-box">
+            <input type="text" id="gl-link" readonly>
+            <button class="btn btn-ghost" onclick="copyGlLink()">Copiar link</button>
+          </div>
+          <div class="qr-wrap">
+            <img id="gl-qr" alt="QR Code da chamada de ginástica">
+            <div>
+              <button class="btn btn-primary" onclick="imprimirGlQR()">Imprimir cartaz do QR</button>
+              <div class="note" style="max-width:280px">Como funciona: abra o link, escolha o dia, toque nas pessoas presentes e clique em <b>Concluir o dia</b>. Quem não for marcado fica como ausente.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Lista mensal para assinatura</h2>
+          <div class="desc">Escolha o mês e gere a lista geral: cada pessoa e os dias em que participou. Imprima para coletar as assinaturas de todos.</div>
+          <div class="gl-toolbar">
+            <div class="fld"><label>Mês</label><input type="month" id="gl-mes"></div>
+            <button class="btn btn-leaf" onclick="gerarListaMensal()">Gerar lista</button>
+            <button class="btn btn-primary" id="gl-btn-print" style="display:none" onclick="imprimirListaMensal()">Imprimir</button>
+          </div>
+          <div class="table-wrap" id="gl-lista-preview"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Base de funcionários</h2>
+          <div class="desc">Inclua e exclua conforme admissões e demissões. Só funcionários ativos entram na chamada e nos indicadores.</div>
+          <div id="gl-seed-box"></div>
+          <div class="form-grid" style="grid-template-columns:2fr 2fr auto;align-items:end">
+            <div><label>Nome</label><input type="text" id="gl-nome" placeholder="nome completo"></div>
+            <div><label>Departamento</label><input type="text" id="gl-depto" list="gl-deplist" placeholder="departamento"><datalist id="gl-deplist"></datalist></div>
+            <div><button class="btn btn-leaf" onclick="glAddFunc()">+ Adicionar</button></div>
+          </div>
+          <div class="gl-toolbar" style="margin-top:14px">
+            <div class="fld"><label>Buscar</label><input type="text" id="gl-fbusca" oninput="renderGlBase()" placeholder="nome ou depto..."></div>
+            <div class="fld"><label>Mostrar</label><select id="gl-fstatus" onchange="renderGlBase()"><option value="ativos">Só ativos</option><option value="todos">Todos</option><option value="inativos">Só inativos</option></select></div>
+            <span class="gl-count" id="gl-base-count"></span>
+          </div>
+          <div class="table-wrap" id="gl-base-tbl"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Histórico de chamadas</h2>
+          <div class="desc">Dias já registrados dentro do período do filtro do Dashboard</div>
+          <div class="table-wrap" id="gl-hist-tbl"></div>
+        </div>
+      </div>
+
       <!-- PESQUISAS -->
       <div class="page" id="page-pesquisas">
         <h1 class="page-title">Pesquisas de satisfação</h1>
@@ -436,6 +550,7 @@
             <div><label>Meta exames no prazo (mín. %)</label><input type="number" step="1" id="cfg-exames"></div>
             <div><label>Meta satisfação consulta (/5)</label><input type="number" step="0.1" id="cfg-satmed"></div>
             <div><label>Meta satisfação ambulatório (/5)</label><input type="number" step="0.1" id="cfg-satamb"></div>
+            <div><label>Meta adesão ginástica (mín. %)</label><input type="number" step="1" id="cfg-gl"></div>
           </div>
           <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar metas</button></div>
         </div>
@@ -531,10 +646,11 @@ const NAV_DEF = [
   {id:'exames',      label:'Exames periódicos', ic:'🩺', roles:['admin','operador']},
   {id:'agenda',      label:'Agenda médicos', ic:'📅', roles:['admin','operador']},
   {id:'dsp',         label:'DSP',            ic:'🗣', roles:['admin','operador']},
+  {id:'ginastica',   label:'Ginástica',      ic:'🤸', roles:['admin','operador']},
   {id:'pesquisas',   label:'Pesquisas',      ic:'★', roles:['admin','operador']},
   {id:'config',      label:'Metas & Config', ic:'⚙', roles:['admin']},
 ];
-const DEFAULT_CFG = {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, efetivo:0};
+const DEFAULT_CFG = {metaAbs:3, metaExames:95, metaSatMed:4.5, metaSatAmb:4.5, metaGL:70, efetivo:0};
 // Categorias de exame ocupacional (chave interna + rótulo exibido)
 const EXAME_CATS = [
   {k:'audiometria',  t:'Audiometria'},
@@ -544,13 +660,13 @@ const EXAME_CATS = [
 ];
 const catLabel = k => (EXAME_CATS.find(c=>c.k===k)||{}).t || k;
 
-let state = { users:[], rhLanc:[], exames:[], agenda:[], medicos:[], dsp:[], dspEv:[], satMed:[], satAmb:[], satMedPrev:[], satAmbPrev:[], satHist:{}, cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
+let state = { users:[], rhLanc:[], exames:[], agenda:[], medicos:[], dsp:[], dspEv:[], glFunc:[], glPres:[], satMed:[], satAmb:[], satMedPrev:[], satAmbPrev:[], satHist:{}, cfg:{...DEFAULT_CFG}, pesqMedico:[...SAT_MEDICO], pesqAmb:[...SAT_AMB], filterDe:'', filterAte:'' };
 // rascunho de categorias marcadas no formulário de cadastro
 let novoExameCats = {};
 let currentUser = null;
 let surveyAnswers = {}, surveyDef = null, surveyKind = null, surveyMed = '';
 let unsubs = [];
-const surveyParam = new URLSearchParams(location.search).get('p'); // 'medico' | 'amb'
+const surveyParam = new URLSearchParams(location.search).get('p'); // 'medico' | 'amb' | 'gl'
 
 /* ================= HELPERS ================= */
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -711,6 +827,8 @@ function subscribeData(){
   sub('amb_agenda','agenda', ()=>{ renderAgenda(); });
   sub('amb_dsp','dsp', ()=>{ renderDsp(); renderDashboard(); });
   sub('amb_dsp_eventos','dspEv', ()=>{ renderDspRankings(); renderDashboard(); });
+  sub('amb_gl_funcionarios','glFunc', ()=>{ renderGlBase(); renderDashboard(); });
+  sub('amb_gl_presencas','glPres', ()=>{ renderGlHist(); renderDashboard(); });
 }
 async function loadSat(){
   const de = state.filterDe || todayISO().slice(0,8)+'01';
@@ -782,14 +900,22 @@ function enterApp(){
   document.getElementById('link-amb').value = baseURL()+'?p=amb';
   document.getElementById('qr-amb').src = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=8&data='+encodeURIComponent(baseURL()+'?p=amb');
 
+  // Ginástica laboral
+  document.getElementById('gl-mes').value = todayISO().slice(0,7);
+  document.getElementById('gl-link').value = baseURL()+'?p=gl';
+  document.getElementById('gl-qr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=8&data='+encodeURIComponent(baseURL()+'?p=gl');
+
   document.getElementById('cfg-abs').value = state.cfg.metaAbs;
   document.getElementById('cfg-exames').value = state.cfg.metaExames;
   document.getElementById('cfg-satmed').value = state.cfg.metaSatMed;
   document.getElementById('cfg-satamb').value = state.cfg.metaSatAmb;
+  document.getElementById('cfg-gl').value = state.cfg.metaGL;
   renderPesqEditor();
   renderCatPicker();
   renderMedicos();
   preencherSelectsMedico();
+  renderGlBase();
+  renderGlHist();
 
   showPage(nav[0].id);
 }
@@ -800,6 +926,7 @@ function showPage(id){
   if(id==='absenteismo') renderAbs();
   if(id==='agenda') renderAgenda();
   if(id==='pesquisas') renderSatDetalhe();
+  if(id==='ginastica'){ renderGlBase(); renderGlHist(); }
 }
 
 /* ================= MÉDICOS CADASTRADOS ================= */
@@ -1093,6 +1220,7 @@ async function salvarConfig(){
     metaExames: Number(document.getElementById('cfg-exames').value)||DEFAULT_CFG.metaExames,
     metaSatMed: Number(document.getElementById('cfg-satmed').value)||DEFAULT_CFG.metaSatMed,
     metaSatAmb: Number(document.getElementById('cfg-satamb').value)||DEFAULT_CFG.metaSatAmb,
+    metaGL: Number(document.getElementById('cfg-gl').value)||DEFAULT_CFG.metaGL,
   };
   try{ await setDoc(doc(db,'config','amb_metas'), state.cfg); toast('Configuração salva ✓'); renderDashboard(); }
   catch(e){ toast('Falha ao salvar.', true); }
@@ -1181,7 +1309,7 @@ function dspImpStatus(msg, isErr){
   el.style.background = isErr? '#f7e3df' : '#e7f3ec';
   el.style.color = isErr? 'var(--erro)' : '';
 }
-function normHdr(s){ return String(s??'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function normHdr(s){ return String(s??'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
 function parseDataDsp(v){
   if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
   const s = String(v??'').trim();
@@ -1431,6 +1559,7 @@ function renderDashboard(){
     .map(([k,v],i)=>[(i+1)+'º', esc(k), v.sess.size, v.part]);
   document.getElementById('tbl-dsp-top').innerHTML = tableHTML(['#','Responsável','Sessões','Participantes'], dspTopRows);
 
+  renderGl();
   renderHistorico();
 }
 
@@ -1442,6 +1571,7 @@ function renderHistorico(){
   state.exames.forEach(e=>{ if(e.prevista) meses.add(e.prevista.slice(0,7)); });
   state.dsp.forEach(d=>{ if(d.data) meses.add(d.data.slice(0,7)); });
   (state.dspEv||[]).forEach(e=>{ if(e.comp) meses.add(e.comp); });
+  (state.glPres||[]).forEach(p=>{ if(p.data) meses.add(p.data.slice(0,7)); });
   Object.keys(state.satHist||{}).forEach(m=>meses.add(m));
   const lista = [...meses].filter(Boolean).sort().slice(-12).reverse();
   const rows = lista.map(m=>{
@@ -1459,10 +1589,11 @@ function renderHistorico(){
     const sc = h.medN? (h.medSum/h.medN):0;
     const sa = h.ambN? (h.ambSum/h.ambN):0;
     const dspM = new Set((state.dspEv||[]).filter(e=>e.comp===m).map(e=>e.data+'|'+e.titulo+'|'+e.resp)).size;
-    return [ fmtMesComp(m), absTxt, exTxt, sc?sc.toFixed(2):'—', sa?sa.toFixed(2):'—', dspM+'' ];
+    const glTxt = glAdesaoMes(m);
+    return [ fmtMesComp(m), absTxt, exTxt, sc?sc.toFixed(2):'—', sa?sa.toFixed(2):'—', dspM+'', glTxt ];
   });
   document.getElementById('tbl-historico').innerHTML =
-    tableHTML(['Mês','Absenteísmo','Exames no prazo','Sat. consulta','Sat. ambulatório','DSPs'], rows);
+    tableHTML(['Mês','Absenteísmo','Exames no prazo','Sat. consulta','Sat. ambulatório','DSPs','Ginástica'], rows);
 }
 
 function renderSatDetalhe(){
@@ -1654,6 +1785,7 @@ function applyFilter(){
   renderDashboard();
   renderAbs();
   renderDspRankings();
+  renderGlHist();
 }
 function setPreset(p){
   let de, ate = todayISO();
@@ -1676,10 +1808,315 @@ function montarAtalhos(){
   chip.insertAdjacentHTML('afterbegin', html);
 }
 
+/* ================= GINÁSTICA LABORAL ================= */
+// Base inicial vinda da planilha atual (nome, departamento). Usada só no botão "Carregar base inicial".
+const GL_SEED=[['DAVID EDSON MARQUES','ABASTECIMENTO'],['DIOGO DA SILVA SANTANA','ABASTECIMENTO'],['GERALDO DE ARRUDA MORATO','ABASTECIMENTO'],['IRUA MATEUS MARCOS DE OLIVEIRA','ABASTECIMENTO'],['ISRAEL FERNANDES DOS SANTOS','ABASTECIMENTO'],['ITAMAR DA SILVA MARTINS','ABASTECIMENTO'],['JOSE WILLIAM DA SILVA JARDIM','ABASTECIMENTO'],['JUSCELINO PONCE GOMES ARANTES JUNIOR','ABASTECIMENTO'],['LUIS FELIPE SOUZA MOTTA','ABASTECIMENTO'],['RAFAEL MATHIAS DA SILVA','ABASTECIMENTO'],['RAFAEL VINICIUS DA SILVA','ABASTECIMENTO'],['RODRIGO GASPARETTO GARCIA','ABASTECIMENTO'],['VITOR ESPERANCA GOMES','ABASTECIMENTO'],['WENDER LEONCIO SERGIO','ABASTECIMENTO'],['JOAO CLEBER RODRIGUES DA SILVA','ABASTECIMENTO'],['DANIEL DE PADUA FRANCO','ALMOXARIFADO'],['LUAN VINICIUS OLIVEIRA LOPES','ALMOXARIFADO'],['LUIS ANTONIO DE OLIVEIRA SANTOS','ALMOXARIFADO'],['MARCIO FERNANDO FRANCA LOURENCO','ALMOXARIFADO'],['MATHEUS GUILHERME DA SILVA MENDES','ALMOXARIFADO'],['HELLYTA MAYARA XAVIER MUNIZ','AMBULATORIO'],['LIVIA MARIA CRUZ MELFA','AMBULATORIO'],['FELIPE VEIGA SALES','BALANCA'],['MARCIA JUCIELE SOUSA DA SILVA','BALANCA'],['VINICIUS MARCATO BOCCHI','BALANCA'],['BRUNO LEONARDO DA SILVA SANTOS','COMERCIAL'],['BRUNO MARQUES DA SILVA','COMERCIAL'],['CANIGGIA LACERDA ANDRADE','COMERCIAL'],['GABRIEL HENRIQUE SANITA DE ANDRADE','COMERCIAL'],['GUSTAVO HENRIQUE PINATTI PODENCIANO','COMERCIAL'],['JOAO VICTOR GAMA MATTA','COMERCIAL'],['MURILO PIETRO TROMBETA DIAS CORREA','COMERCIAL'],['SUELLEN DE ARAUJO NASCIMENTO','COMERCIAL'],['THIAGO KOYANAGI PEREIRA','COMERCIAL'],['MILENA BELLOTO PRONI DO AMARAL','COMERCIAL'],['ANDERSON FIDALGO MARQUES','COMERCIAL PET'],['CAIO MIRANDA ALVES','COMERCIAL PET'],['CAMILA DA SILVA TAVEIRA','COMERCIAL PET'],['CARLOS ALBERTO CASTREQUINI','COMERCIAL PET'],['ELAINE DA SILVA RIBEIRO','COMERCIAL PET'],['GLEISON WELLINGTON DE OLIVEIRA','COMERCIAL PET'],['JAIRO EDELSIO GONCALVES PEREIRA','COMERCIAL PET'],['JULIANO DE MARQUI SORATI','COMERCIAL PET'],['KLEIBY NEVES DE LIMA','COMERCIAL PET'],['LUCAS MATHEUS DE OLIVEIRA LIMA','COMERCIAL PET'],['NELSON PEREIRA DA SILVA','COMERCIAL PET'],['REINALDO DE FIRMO DE LIMA','COMERCIAL PET'],['SAMARA DE OLIVEIRA BRINO','COMERCIAL PET'],['SAULO CARREL SILVEIRA','COMERCIAL PET'],['THIAGO CHARLES ZUCOLO','COMERCIAL PET'],['WILSON RONALDO DESSUNTE','COMERCIAL PET'],['GILMAR JOSE BELLOTO','COMPRAS DE INSUMOS'],['PAULO CESAR RUI','COMPRAS DE INSUMOS'],['VICTOR SOARES RASTEIRO','COMPRAS DE INSUMOS'],['ADILSON JOSE FILLUS','COMPRAS E AQUISICOES'],['HARON SANTANA FRANCISCO BERNARDES','COMPRAS E AQUISICOES'],['LUAN HENRIQUE CONDE','COMPRAS E AQUISICOES'],['MATEUS GABRIEL GASPARETO PINHEIRO','COMPRAS E AQUISICOES'],['JULIO ANTONIO SAGIONETTE MARAIA','CONTABILIDADE'],['WELLEVI RIBEIRO CRUZ','CONTABILIDADE'],['GABRIELA PEREIRA NETO TROVO','CONTROLADORIA'],['VALERIA CRISTINA ROTA DE MELLO','CONTROLADORIA'],['ARTHUR JOSE LUCENA','CONTROLE DE QUALIDADE'],['DANILO CRISTIANO SCAPIN','CONTROLE DE QUALIDADE'],['FABIO LEANDRO GOMES','CONTROLE DE QUALIDADE'],['JOAO GABRYEL ALVES DE OLIVEIRA MATTOS','CONTROLE DE QUALIDADE'],['JOAO MAIC ARAUJO TAVARES','CONTROLE DE QUALIDADE'],['KAUA HENRIQUE CEZARE MELO GALINDO VIANA','CONTROLE DE QUALIDADE'],['LORHAYNY DE FATIMA ALVES RIBEIRO','CONTROLE DE QUALIDADE'],['LUCAS NOBREGA MARQUES','CONTROLE DE QUALIDADE'],['NAIR GASPARETO MARTINS PINHEIRO','CONTROLE DE QUALIDADE'],['RAFAELA CELINE GONCALVES PEREIRA','CONTROLE DE QUALIDADE'],['RODRIGO GODOI GUARNIERI','CONTROLE DE QUALIDADE'],['SANDRA APARECIDA ASSONI','CONTROLE DE QUALIDADE'],['TATIANA CARLA BRANDINI CARMONA','CONTROLE DE QUALIDADE'],['VITOR SIMOES DOS SANTOS','CONTROLE DE QUALIDADE'],['AMANDA NEVES QUEIROZ DO AMARAL','DIRETORIA'],['ANIZIA MARIA DA SILVA ZONTA','DIRETORIA'],['BRUNO DE FIGUEIREDO URACH','DIRETORIA'],['VINICIUS ALVES DE LIMA','DIRETORIA'],['FELIPE GEORGES AMBAR DO AMARAL','DIRETORIA'],['ARLICIO JOSE DA SILVA OLIVEIRA','E.T.E.'],['UESLEI VIEIRA DA SILVA','E.T.E.'],['BRENON FERREIRA PARISOTO','ENSAQUE'],['CAIQUE CARVALHO ARAUJO','ENSAQUE'],['CICERO ALVES DE ANDRADE','ENSAQUE'],['CLAUDIMIR CORREA GOMES JUNIOR','ENSAQUE'],['DANIEL PEREIRA MARTINS','ENSAQUE'],['EDIVAL CRISTIANO BATISTA LEITE','ENSAQUE'],['ERICA DAMIAO PEREIRA','ENSAQUE'],['GUILHERME VIEIRA BEZERRA','ENSAQUE'],['HUDSON GOMES DE LIMA','ENSAQUE'],['HUIGOR GOMES DE LIMA','ENSAQUE'],['JHENIFER BIANCA SAMPAIO CARDOSO','ENSAQUE'],['JUSSARA APARECIDA SIQUEIRA','ENSAQUE'],['MATHEUS ALVES DA SILVA','ENSAQUE'],['RENAN GARCIA ROSSIN','ENSAQUE'],['RENATO KURODA','ENSAQUE'],['SIMAO AGABO BATISTA REIS','ENSAQUE'],['VENICIUS NUNES MORAES','ENSAQUE'],['WELTON LEITE FALCAO','ENSAQUE'],['ALBERTO FERREIRA FAUSTINO','ENSAQUE PET'],['DAVI SILVERIO TEDESCHI','ENSAQUE PET'],['ERIK MARLLON NOGUEIRA RANDAZZO MATIAS DA SILVA','ENSAQUE PET'],['LUCAS OTAVIO MARTINS BORGES','ENSAQUE PET'],['LUIS FELIPE NOGUEIRA VICOZO','ENSAQUE PET'],['LUIS HENRIQUE DE OLIVEIRA TOMAZ','ENSAQUE PET'],['MANRIQUE AUGUSTO DA SILVA SANTOS','ENSAQUE PET'],['ALEXANDRE BARBOSA','ESTOQUE AQUA'],['DERIK DA SILVA LOPES COSTA','ESTOQUE AQUA'],['EVANDRO JOSE ALVES','ESTOQUE AQUA'],['JACIRA ELOISA GIOVANINI','ESTOQUE AQUA'],['JOSE CARLOS OLIVEIRA DO AMARAL','ESTOQUE AQUA'],['NELSON VITAL DE SALES','ESTOQUE AQUA'],['NYCKOLAS VIEIRA DA SILVA','ESTOQUE AQUA'],['ODAIR LEANDRO DE MATOS','ESTOQUE AQUA'],['DEVANIL APARECIDO DE ALMEIDA','ESTOQUE MP'],['ANA JULIA SILVA MIRANDA','ESTOQUE PET'],['CESAR BATAGIN FERNANDES','ESTOQUE PET'],['GIOVANNA MACHADO DE SOUZA RIBEIRO','ESTOQUE PET'],['MATHEUS HENRIQUE GONCALVES BONIFACIO','ESTOQUE PET'],['DONIZETE JOSE DOS SANTOS','ETIQUETAGEM'],['FABRICIO DE OLIVEIRA ASSONI','ETIQUETAGEM'],['GYLBER DE JESUS STEEWER PEREZ MORILLO','ETIQUETAGEM'],['PAULO ALEXANDRE ORLANDINI DO NASCIMENTO','ETIQUETAGEM'],['BRENO HENRIQUE FERREIRA DOS SANTOS','ETIQUETAGEM'],['ADENIR EDUARDO DA ROCHA JUNIOR','EXPEDICAO'],['CRISTIANO LUIS DE JESUS','EXPEDICAO'],['DAVILSON LOUIS','EXPEDICAO'],['DANILO TAVARES DE SOUZA','EXPEDICAO'],['ELICELIO SMARRA DA SILVA','EXPEDICAO'],['ELIO ELEOTERIO CAVALCANTE','EXPEDICAO'],['FLAVIO ALBERTO VIEIRA DE BRITO','EXPEDICAO'],['GABRIEL VINICIOS DE FREITAS SOUZA','EXPEDICAO'],['JEAN CARLOS QUINAGLIA','EXPEDICAO'],['JESSICA LARISSA DOS SANTOS','EXPEDICAO'],['JUCIMAR JOSE DOS SANTOS','EXPEDICAO'],['JULIANA PEREIRA SARMENTO','EXPEDICAO'],['KAIO BRUNO RIBEIRO NAVES','EXPEDICAO'],['LEANDRO VIEIRA SIMAO','EXPEDICAO'],['LEONARDO JACOMO DE SOUZA','EXPEDICAO'],['LUCIMAURO DIAS DA ROCHA','EXPEDICAO'],['LUIS FERNANDO DOS SANTOS','EXPEDICAO'],['MAURICIO OLIVEIRA DA SILVA','EXPEDICAO'],['MIGUEL PEREIRA DA SILVA','EXPEDICAO'],['RAHUNY CARLOS COSTA CAMILO','EXPEDICAO'],['RODRIGO MORAES LUIZ','EXPEDICAO'],['SEBASTIAO FIALHO GARCIA','EXPEDICAO'],['YASMIN DE SOUZA PRADO','EXPEDICAO'],['ALDO NERY','EXPEDICAO PET'],['ALEXSANDRO VICENTE DA SILVA','EXPEDICAO PET'],['BRUNO CARLOS DE OLIVEIRA','EXPEDICAO PET'],['CLAUDEMIR APARECIDO PINHEIRO','EXPEDICAO PET'],['DOUGLAS CAMPOS GUIMARAES','EXPEDICAO PET'],['GABRIEL STAHNKE VARELLA','EXPEDICAO PET'],['ITALO CESAR RIBEIRO CRISPIM','EXPEDICAO PET'],['JHONATA HENRIQUES PACHECO','EXPEDICAO PET'],['MARCOS VALERIO VERMELHO','EXPEDICAO PET'],['RODRIGO CASSIANO MENEZES FILHO','EXPEDICAO PET'],['VITOR SANTOS MATTOS','EXPEDICAO PET'],['WESLEY FERNANDO MACHADO DOMINGOS','EXPEDICAO PET'],['WESLLEY ARAUJO DE ALMEIDA','EXPEDICAO PET'],['WEVERTON BRUNO MARIANO','EXPEDICAO PET'],['CLAUDINEI TELLES ALVES','EXTRUSORA'],['CLEISON ANTONIO DOS SANTOS','EXTRUSORA'],['DEIVID THIAGO DO NASCIMENTO','EXTRUSORA'],['DIVANIL ROGERIO BIANCARDI','EXTRUSORA'],['EDER MACHADO DE SOUZA','EXTRUSORA'],['EDER MORALES PEDRAO','EXTRUSORA'],['FABIANO APARECIDO DOS SANTOS','EXTRUSORA'],['GABRIEL AUGUSTO BINHELI SILVA','EXTRUSORA'],['GERALDO SILVESTRE DA COSTA','EXTRUSORA'],['JOAQUIM CARDOSO SOBRINHO','EXTRUSORA'],['KENNEDY FELIPE CELESTINO RODRIGUES','EXTRUSORA'],['LUCAS MATHEUS DE JESUS','EXTRUSORA'],['MARCOS HONORATO RADIGHIERI','EXTRUSORA'],['RAUL ANDRE SATURNINO','EXTRUSORA'],['RICARDO AUGUSTO BARRETTA','EXTRUSORA'],['ROBERT HENRIQUE TREVISAN SIQUEIRA','EXTRUSORA'],['ROGERIO MARTINS DE PAULA','EXTRUSORA'],['VINICIUS DE OLIVEIRA MAZANARO','EXTRUSORA'],['GUSTAVO HENRIQUE ALVAREZ','FATURAMENTO'],['LETICIA LENHAVERDE GUIMARAES','FATURAMENTO'],['LORENA OLIVEIRA DE ALMEIDA SOUZA','FATURAMENTO'],['RAYMILA KAYLANE PEREIRA PESSOPANI','FATURAMENTO'],['DIEGO HENRIQUE DA SILVA GOMES','FFO'],['EDIELSO COSMO DANTAS','FFO'],['HELIO BERNARDINO DA SILVA','FFO'],['HUGO DE SOUZA RIBEIRO','FFO'],['IRINEU ARAUJO LACERDA','FFO'],['LUIZ CARLOS MARCATO','FFO'],['NICOLAS DA SILVA DOS SANTOS','FFO'],['FRANCIS RODRIGO CANDIDO HERNANDES','FINANCEIRO'],['LAIS TELLES DE OLIVEIRA','FINANCEIRO'],['LILIANE CAZAROTO DA SILVA','FINANCEIRO'],['PAULA SHIKANAI BELUCCI BEMME','FINANCEIRO'],['THIAGO DOMINGUES GABRIEL DE SOUZA','FINANCEIRO'],['BEATRIZ FARIA DELMONDES','FISCAL'],['CAMILA FERREIRA DE FARIA FERREGUTI','FISCAL'],['GIOVANA CAROLINA LEITE SANTANA','FISCAL'],['THAISA DA FONSECA OLIVEIRA','FISCAL'],['JEFERSON TIAGO CAVALCANTE AYRES','GERENCIA INDUSTRIAL'],['RENATO LUIS TADEU','GERENCIA INDUSTRIAL'],['STENIO LINDOLPHO DUARTE DE LUCENA','GERENCIA INDUSTRIAL'],['WEVERTON BERTIPAGLIA QUIRINO DA SILVA','GERENCIA INDUSTRIAL'],['ALESSANDRA FERMINO DA SILVA','HIGIENIZACAO'],['ANDREIA XAVIER DE OLIVEIRA','HIGIENIZACAO'],['EDSON ROBERTO TOFANELLI','HIGIENIZACAO'],['GHAEL PHELLIPE NAZARIO BATISTA','HIGIENIZACAO'],['JOAO FERREIRA','HIGIENIZACAO'],['LUCINEIA MARIA FERREIRA','HIGIENIZACAO'],['PRISCILA MORATO AZEVEDO','HIGIENIZACAO'],['TAINA PEREIRA RACHAM','HIGIENIZACAO'],['THAIS RAFAELLA DE CAMARGO','HIGIENIZACAO'],['ADRIANA DE FATIMA TROLEZI','HIGIENIZACAO INDUSTRIAL'],['ANA CAROLINA DE MACENA DA MAIA','HIGIENIZACAO INDUSTRIAL'],['ANA PAULA BARBOSA','HIGIENIZACAO INDUSTRIAL'],['ANTONIO FARIA JUNIOR','HIGIENIZACAO INDUSTRIAL'],['JOSE CARLOS DA SILVA','HIGIENIZACAO INDUSTRIAL'],['LUIZ ANTONIO LEITE','HIGIENIZACAO INDUSTRIAL'],['RONALDO MARTINS DE SOUZA','HIGIENIZACAO INDUSTRIAL'],['SILVANA PINHEIRO DA SILVA E SILVA','HIGIENIZACAO INDUSTRIAL'],['WASHINGTON LUIZ DA COSTA RAMOS','HIGIENIZACAO INDUSTRIAL'],['ELISANDRA ROMAO MUNIZ','LABORATORIO'],['LUAN PEREIRA DOS SANTOS','LABORATORIO'],['BRHENO FERNANDO MARTINS','LOGISTICA'],['LUCAS DE MARQUI SORATI','LOGISTICA'],['NEWTON CARLOS DOURADO','LOGISTICA'],['TAISA MENDES','LOGISTICA'],['VALCIR MARTINS PINHEIRO','LOGISTICA'],['BRENDA DA SILVA PRADO','MANUTENCAO'],['BRUNO DE PAULA PRADA','MANUTENCAO'],['BRUNO LIMA DE SOUZA','MANUTENCAO'],['CAIRU VINICIUS DE PAULA SILVA','MANUTENCAO'],['CARLOS EDUARDO DA SILVA NASCIMENTO','MANUTENCAO'],['EBANO PEREIRA','MANUTENCAO'],['EDMILSON DOUGLAS ENGEL','MANUTENCAO'],['FABRICIO NOGUEIRA LIMA','MANUTENCAO'],['FELIPE RODRIGUES DOS SANTOS','MANUTENCAO'],['GABRIEL DA COSTA VESPAZIANO PEREIRA','MANUTENCAO'],['GUILHERME OLIVEIRA DOMINGOS','MANUTENCAO'],['HEDUARDO CORDEIRO DOS SANTOS','MANUTENCAO'],['JAIRO PEREIRA','MANUTENCAO'],['JOAO ISAC PEREIRA NETO','MANUTENCAO'],['JOAO VICTOR ANDRADE MECHI','MANUTENCAO'],['JOSE BENEDITO BRAGA','MANUTENCAO'],['JOSUE COSTA DOS SANTOS','MANUTENCAO'],['LUCAS GARCIA JACOMASSI','MANUTENCAO'],['LUIS FELIPE SOUZA CARVALHO','MANUTENCAO'],['MATHEUS PEGAIANI MIGUEL','MANUTENCAO'],['MAURICIO BORGES DE CARVALHO','MANUTENCAO'],['MAURO SERGIO DOS SANTOS','MANUTENCAO'],['MIGUEL OLIVEIRA ALEIXO DOS SANTOS','MANUTENCAO'],['PAULO HENRIQUE RIBEIRO DE LIMA','MANUTENCAO'],['RANIEL CARLOS SOARES MAGALHAES','MANUTENCAO'],['ROBSON DE OLIVEIRA SOUZA','MANUTENCAO'],['RUAN EMANUEL DA SILVA','MANUTENCAO'],['SERGIO HENRIQUE FALGUETI','MANUTENCAO'],['UEVERTON BRANDAO GONCALVES','MANUTENCAO'],['VALDECI BARBOSA DE SOUSA','MANUTENCAO'],['VICTOR FERREIRA DE SOUSA','MANUTENCAO'],['VINICIUS PITARO GUIMARAES','MANUTENCAO'],['VITOR CESAR CARTA QUEIROZ','MANUTENCAO'],['VITOR NOGUEIRA BUZINARO','MANUTENCAO'],['WILLER NIEDO RIBEIRO','MANUTENCAO'],['VICTOR SILVESTRE CALDEIRA','MANUTENCAO'],['CLAUDINO ROGERIO TROMBETA','MANUTENCAO AUTOMOTIVA'],['MARCELO HENRIQUE DE SOUZA NERIS','MANUTENCAO AUTOMOTIVA'],['MIGUEL ANTONIO ZANOVELLI IZIDORO DE SOUZA','MANUTENCAO AUTOMOTIVA'],['LEONAM APARECIDO DE SOUZA','MANUTENCAO AUTOMOTIVA'],['ARTHUR RIBEIRO PINHA RODRIGUES','MARKETING'],['CRISTIANO RODRIGUES MARTINS','MARKETING'],['PEDRO CASSIO DA SILVA OLIVEIRA','MARKETING'],['THACYANE FRIGERIO GABRIEL','MARKETING'],['DIONE SALES DA SILVA','PCP'],['EMILY SARA DONADI MAZOTTI MANO','PCP'],['VANESSA MODESTO JUSTI','PCP'],['JOAO ADOLFO GUIMARAES DA SILVA','PLANEJAMENTO E GESTAO'],['RICARDO BATISTA PANGARDI','PLANEJAMENTO E GESTAO'],['VICTOR HUGO GIANASI SCHREINER','PLANEJAMENTO E GESTAO'],['AMARILDO RODRIGUES SILVA','PORTARIA'],['BRUNO VIEIRA DOS SANTOS','PROJETOS'],['EDIVALDO PEREIRA DOS SANTOS','PROJETOS'],['ELCIO BENEDITO SALA','PROJETOS'],['LUIZ HENRIQUE DE PAULA','PROJETOS'],['ALTAIR BORGES','RECEBIMENTO'],['CELSO RICARDO DE LACERDA','RECEBIMENTO'],['CLEBER VALERIO DA SILVA','RECEBIMENTO'],['DANIEL ROSA DOS SANTOS','RECEBIMENTO'],['DOLVANIR GUIRARDI','RECEBIMENTO'],['FERNANDO COSTA DA SILVA','RECEBIMENTO'],['GILMAR SALES','RECEBIMENTO'],['JULIANA BATISTA PANGARDI RODRIGUES','RECEBIMENTO'],['LUCIANO DA SILVA OLIVEIRA','RECEBIMENTO'],['LUIS ANTONIO ZULIN','RECEBIMENTO'],['MANOEL JUSTINO DE FREITAS','RECEBIMENTO'],['MAURICIO DE OLIVEIRA','RECEBIMENTO'],['OTAMIR BARBOSA CAPARROZ','RECEBIMENTO'],['PAULO SERGIO DE MELO CAVALCANTE','RECEBIMENTO'],['RICARDO THEODORO GUIMARAES','RECEBIMENTO'],['ROGERIO LOPES DA SILVA','RECEBIMENTO'],['YAN PABLO OLIVEIRA DA ROCHA LISBOA','RECEBIMENTO'],['CARLOS HENRIQUE DA SILVA GALO','RECURSOS HUMANOS'],['CIANE FERNANDA ZARPELAO MARAIA','RECURSOS HUMANOS'],['CLAYTON DUARTE DA GRACA','RECURSOS HUMANOS'],['ELTON ANTONIO MORALES PEREIRA','RECURSOS HUMANOS'],['GUILHERME QUEIROZ MALTA MARTINS','RECURSOS HUMANOS'],['MARIANA VIEIRA FERREIRA','RECURSOS HUMANOS'],['RICHARD SAMUEL DE JESUS VICENTE','RECURSOS HUMANOS'],['TAYNA FREITAS DIANA','RECURSOS HUMANOS'],['ALECIR CARLA DOS SANTOS','RESTAURANTE'],['ALEXANDRE VEIGA','RESTAURANTE'],['ALINE FRANCISCA RIBEIRO','RESTAURANTE'],['ANA RAMOS LOPES','RESTAURANTE'],['CLAUDINEIA MARINA GOES','RESTAURANTE'],['EDIVANA ARAUJO DOS SANTOS','RESTAURANTE'],['FERNANDA FAELEN MARTINS','RESTAURANTE'],['MARIA JOSE ASSUNCAO','RESTAURANTE'],['SILVIA CRISTIANE SOUSA SILVA','RESTAURANTE'],['AIRTON CACEB DA SILVA','SALA DE MICRO'],['ALDAIR CHINI','SALA DE MICRO'],['GUILHERME HENRIQUE QUEIROZ DE ARAUJO','SALA DE MICRO'],['JOAO DONIZETI ASSONI','SALA DE MICRO'],['KAYNA VITOR DA SILVA SALES','SALA DE MICRO'],['LUCAS FERREIRA LIMA','SALA DE MICRO'],['GUSTAVO GALANTE GOMES','SESMT'],['RICARDO BRIZZANTE GIBERTONI','SESMT'],['RIVIA CARLA SILVEIRA DOS SANTOS','SESMT'],['RODRIGO BONFIM DE LIMA','SESMT'],['GABRIEL GOMES DE OLIVEIRA','TI'],['JOAO PEDRO PRATES BARBOSA','TI'],['JULIANO ROSSI DA SILVA','TI'],['ADEMILSON FERREIRA','TRANSPORTE'],['ADENIR BATISTA DA SILVA FILHO','TRANSPORTE'],['ADRIANO DE JESUS FERRARI','TRANSPORTE'],['ALCEMIR REIS VALCE','TRANSPORTE'],['ALENIR MARTINS DOS SANTOS','TRANSPORTE'],['ALESSANDRO BALTAZAR MOLINA SANCHES','TRANSPORTE'],['ALEX FABIANO BARCELOS GOMES QUEIROZ','TRANSPORTE'],['ALEXANDRE LARANJO','TRANSPORTE'],['ALEXANDRO APARECIDO POLVERE','TRANSPORTE'],['ANDERSON VIEIRA LIMA','TRANSPORTE'],['ANDRE LUIZ FRANCISCO LIBERT','TRANSPORTE'],['ANTONIO HENRIQUE MARCONCINI','TRANSPORTE'],['ANTONIO MARCOS DE SOUZA PINTO','TRANSPORTE'],['CARLOS NERIS LIMEIRA','TRANSPORTE'],['CLAUDECIR PINHEIRO','TRANSPORTE'],['CLAUDEMIR MACHADO VIDAL','TRANSPORTE'],['CLEBER DALESSIO COMBINATO','TRANSPORTE'],['DANIEL HENRIQUE ALVES DA SILVA','TRANSPORTE'],['DANIELA DE CASSIA SOARES','TRANSPORTE'],['DEGMAR ALVES DE JESUS','TRANSPORTE'],['DOUGLAS JOSE','TRANSPORTE'],['EDCLEI ROGERIO ALVES DA SILVA','TRANSPORTE'],['EDER ALVES DOS SANTOS','TRANSPORTE'],['EDGAR NOVAIS MARTINS DE SOUZA','TRANSPORTE'],['EDSON BATISTA DOS SANTOS','TRANSPORTE'],['EVANDRO LEITE DA SILVA MELO','TRANSPORTE'],['FABIO PERES DE SOUZA','TRANSPORTE'],['FABIO ROSA FERREIRA','TRANSPORTE'],['FLAVIO ANTONIO POLVERE','TRANSPORTE'],['FRANCISCO CESAR SULATO','TRANSPORTE'],['HARLEI AYRES','TRANSPORTE'],['JEAN LUCAS RABETI DE OLIVEIRA','TRANSPORTE'],['JEFFERSON ANDRE BALDONI','TRANSPORTE'],['JEFFERSON RENZETE','TRANSPORTE'],['JOSUE ISIDIO DA SILVA JUNIOR','TRANSPORTE'],['JULIANO EGIDIO DA SILVA PEREIRA','TRANSPORTE'],['JULIO CESAR NAKAMURA YASUKI','TRANSPORTE'],['JULIO CEZAR BISCAZI DE OLIVEIRA','TRANSPORTE'],['LEANDRO DIAS DA SILVA','TRANSPORTE'],['MARCO ANTONIO FERREIRA','TRANSPORTE'],['MARCOS ANTONIO CROCIARI','TRANSPORTE'],['NILO JUNQUEIRA FILHO','TRANSPORTE'],['NATALICIO LUIZ','TRANSPORTE'],['PAULO CESAR SENICIATO','TRANSPORTE'],['PAULO LEITAO DE LIMA','TRANSPORTE'],['PAULO MARCOLINO DA PAIXAO','TRANSPORTE'],['PEDRO NETO MIRANDA','TRANSPORTE'],['RAFAEL DINIZ DE CARVALHO FRANCO','TRANSPORTE'],['RODRIGO BATISTA','TRANSPORTE'],['ROGERIO GONCALVES FRANZOTI','TRANSPORTE'],['RONALDO ADRIANO DIAS TRINDADE','TRANSPORTE'],['SERGIO AUGUSTO LAINE','TRANSPORTE'],['THONPSON GALDINO DOS SANTOS','TRANSPORTE'],['TIAGO DE ASSIS FEITOSA','TRANSPORTE'],['VAGNER LUIS LONGO','TRANSPORTE'],['VALMIR QUEIROZ PANIAGUA','TRANSPORTE'],['WELINGTON MARTINIANO DIONISIO DE SOUZA','TRANSPORTE'],['ANTONIO CARLOS SA ALEXANDRE','TRANSPORTE'],['PAULO ROBERTO TORRES TUNES','TRANSPORTE'],['VALDINEI ROBERTO DE OLIVEIRA','TRANSPORTE'],['ALIGUEITON FELIPE RAMOS','TRANSPORTE PET'],['CARLOS EDUARDO FROZONI','TRANSPORTE PET'],['EDER RODRIGO DOMINGUES','TRANSPORTE PET'],['HELTON PEREIRA DE SOUZA','TRANSPORTE PET'],['KAHOE FERNANDO SILVA ARAUJO','TRANSPORTE PET'],['LEANDRO DA SILVEIRA SANTOS','TRANSPORTE PET'],['LUIZ EDUARDO RODRIGUES AMARAL','TRANSPORTE PET'],['REGINALDO ALVES DOS SANTOS','TRANSPORTE PET'],['ADEMIR LUIZ SIQUEIRA DE MELO','UTILIDADES'],['ALEX TALANSKAS TEIXEIRA','UTILIDADES'],['ANTONIO CARLOS ZARPELAO','UTILIDADES'],['EDNILSON GONCALVES DE SOUZA','UTILIDADES'],['EDUARDO DOS SANTOS','UTILIDADES'],['FABIO ANTONIO PACHECO','UTILIDADES'],['HECTOR AUGUSTO ARAUJO DA SILVA','UTILIDADES'],['LAERCIO RIBEIRO LEITE','UTILIDADES'],['REGINALDO PEREIRA DE SOUZA','UTILIDADES'],['SELMO FERREIRA MARTINS','UTILIDADES'],['LUIZ FERNANDO SIQUEIRA DOMICIANO','UTILIDADES']];
+
+function glAtivos(){ return state.glFunc.filter(f=>f.ativo!==false); }
+function glFmap(){ const m={}; state.glFunc.forEach(f=>m[f.id]=f); return m; }
+function glDeps(){ return [...new Set(glAtivos().map(f=>f.depto||'—'))].sort(); }
+
+// ---- indicador (dashboard) ----
+function glMetrics(filterFn){
+  const dias = state.glPres.filter(p=>p.data && filterFn(p.data));
+  const ativosHoje = glAtivos().length;
+  let pres=0, den=0;
+  dias.forEach(p=>{ pres += (p.presentes||[]).length; den += (p.totalAtivos!=null && p.totalAtivos>0 ? p.totalAtivos : ativosHoje); });
+  return { sessoes:dias.length, presencas:pres, adesao: den? (pres/den*100) : null };
+}
+function glAdesaoMes(m){
+  const dias = state.glPres.filter(p=>(p.data||'').slice(0,7)===m);
+  if(!dias.length) return '—';
+  const ativosHoje = glAtivos().length;
+  let pres=0, den=0;
+  dias.forEach(p=>{ pres += (p.presentes||[]).length; den += (p.totalAtivos!=null && p.totalAtivos>0 ? p.totalAtivos : ativosHoje); });
+  return den? Math.round(pres/den*100)+'%' : '—';
+}
+function renderGl(){
+  const kel = document.getElementById('gl-kpi');
+  if(kel){
+    const cur = glMetrics(inRange);
+    const pr = prevRange(state.filterDe, state.filterAte);
+    const prev = glMetrics(d=>inPrev(d,pr));
+    const meta = state.cfg.metaGL || 70;
+    const cmp = (cur.adesao!=null && prev.adesao!=null)
+      ? cmpLine(cur.adesao, prev.adesao, true, v=>v.toFixed(0)+'%')
+      : '<div class="cmp cmp-flat">— sem período anterior</div>';
+    kel.innerHTML = kpiCard('Ginástica laboral',
+      cur.adesao==null ? '—' : cur.adesao.toFixed(0)+'%',
+      `${cur.sessoes} sessões · ${cur.presencas} presenças · meta ≥ ${meta}%`,
+      cur.adesao==null ? true : cur.adesao>=meta, cur.adesao||0, 100, cmp);
+  }
+  const tel = document.getElementById('tbl-gl-dept');
+  if(tel){
+    const dias = state.glPres.filter(p=>inRange(p.data));
+    const fmap = glFmap();
+    const ativosDept = {}; glAtivos().forEach(f=>{ const d=f.depto||'—'; ativosDept[d]=(ativosDept[d]||0)+1; });
+    const presDept = {}; dias.forEach(p=>(p.presentes||[]).forEach(id=>{ const f=fmap[id]; const d=(f&&f.depto)||'—'; presDept[d]=(presDept[d]||0)+1; }));
+    const rows = Object.keys(ativosDept).map(d=>{
+      const den = (ativosDept[d]||0)*dias.length;
+      const pres = presDept[d]||0;
+      const ad = den? (pres/den*100) : null;
+      return { d, ativos:ativosDept[d]||0, pres, ad };
+    }).sort((a,b)=>(b.ad==null?-1:b.ad)-(a.ad==null?-1:a.ad))
+      .map(x=>[esc(x.d), x.ativos, x.pres, x.ad==null?'—':x.ad.toFixed(0)+'%']);
+    tel.innerHTML = tableHTML(['Departamento','Ativos','Presenças','Adesão'], dias.length? rows : []);
+  }
+}
+
+// ---- base de funcionários (módulo) ----
+function renderGlSeedBox(){
+  const box = document.getElementById('gl-seed-box'); if(!box) return;
+  if(state.glFunc.length){ box.innerHTML=''; return; }
+  box.innerHTML = `<div class="note">A base está vazia. Você pode carregar de uma vez os ${GL_SEED.length} funcionários da planilha atual.
+    <div class="btn-row"><button class="btn btn-primary" onclick="glSeedBase()">Carregar base inicial (${GL_SEED.length} funcionários)</button></div></div>`;
+}
+async function glSeedBase(){
+  confirmModal(`Carregar ${GL_SEED.length} funcionários na base? Nomes que já existem serão ignorados.`, async()=>{
+    const existentes = new Set(state.glFunc.map(f=>(f.nome||'').toUpperCase().trim()));
+    const novos = GL_SEED.filter(([n])=>!existentes.has(n.toUpperCase().trim()));
+    if(!novos.length){ toast('Nada novo para carregar.'); return; }
+    try{
+      for(let i=0;i<novos.length;i+=400){
+        const batch = writeBatch(db);
+        novos.slice(i,i+400).forEach(([nome,depto])=>{
+          batch.set(doc(collection(db,'amb_gl_funcionarios')), {nome, depto, ativo:true, criadoEm:todayISO()});
+        });
+        await batch.commit();
+      }
+      toast(novos.length+' funcionários carregados ✓');
+    }catch(e){ console.error(e); toast('Falha ao carregar a base.', true); }
+  });
+}
+async function glAddFunc(){
+  const nome = document.getElementById('gl-nome').value.trim();
+  const depto = document.getElementById('gl-depto').value.trim();
+  if(nome.length<2){ toast('Informe o nome.', true); return; }
+  if(state.glFunc.some(f=>(f.nome||'').toLowerCase()===nome.toLowerCase() && f.ativo!==false)){ toast('Esse funcionário já está na base.', true); return; }
+  try{
+    await addDoc(collection(db,'amb_gl_funcionarios'), {nome, depto, ativo:true, criadoEm:todayISO()});
+    document.getElementById('gl-nome').value='';
+    document.getElementById('gl-depto').value='';
+    toast('Funcionário adicionado ✓');
+  }catch(e){ toast('Falha ao salvar.', true); }
+}
+function glToggleAtivo(id){
+  const f = state.glFunc.find(x=>x.id===id); if(!f) return;
+  const novo = f.ativo===false; // reativar se estava inativo
+  setDoc(doc(db,'amb_gl_funcionarios',id), {ativo:novo}, {merge:true})
+    .then(()=>toast(novo?'Reativado ✓':'Inativado ✓'))
+    .catch(()=>toast('Falha ao salvar.', true));
+}
+function glDelFunc(id){
+  const f = state.glFunc.find(x=>x.id===id); if(!f) return;
+  confirmModal(`Excluir <b>${esc(f.nome)}</b> da base? O histórico de presenças é mantido.`, async()=>{
+    try{ await deleteDoc(doc(db,'amb_gl_funcionarios',id)); toast('Excluído ✓'); }catch(e){ toast('Falha ao excluir.', true); }
+  });
+}
+function renderGlBase(){
+  renderGlSeedBox();
+  const dl = document.getElementById('gl-deplist');
+  if(dl) dl.innerHTML = [...new Set(state.glFunc.map(f=>f.depto).filter(Boolean))].sort().map(d=>`<option value="${esc(d)}">`).join('');
+  const el = document.getElementById('gl-base-tbl'); if(!el) return;
+  const busca = ((document.getElementById('gl-fbusca')||{}).value||'').toLowerCase().trim();
+  const st = (document.getElementById('gl-fstatus')||{}).value||'ativos';
+  let lista = [...state.glFunc];
+  if(st==='ativos') lista = lista.filter(f=>f.ativo!==false);
+  else if(st==='inativos') lista = lista.filter(f=>f.ativo===false);
+  if(busca) lista = lista.filter(f=>(f.nome||'').toLowerCase().includes(busca) || (f.depto||'').toLowerCase().includes(busca));
+  lista.sort((a,b)=>(a.depto||'').localeCompare(b.depto||'') || (a.nome||'').localeCompare(b.nome||''));
+  const cnt = document.getElementById('gl-base-count');
+  if(cnt) cnt.textContent = lista.length+' de '+state.glFunc.length+' na base';
+  const rows = lista.map(f=>[
+    esc(f.nome), esc(f.depto||'—'),
+    f.ativo===false? '<span class="pill p-bad">inativo</span>' : '<span class="pill p-ok">ativo</span>',
+    `<button class="btn btn-ghost btn-mini" onclick="glToggleAtivo('${f.id}')">${f.ativo===false?'Reativar':'Inativar'}</button> <button class="btn btn-danger btn-mini" onclick="glDelFunc('${f.id}')">×</button>`
+  ]);
+  el.innerHTML = tableHTML(['Nome','Departamento','Status',''], rows);
+}
+function renderGlHist(){
+  const el = document.getElementById('gl-hist-tbl'); if(!el) return;
+  const dias = state.glPres.filter(p=>inRange(p.data)).sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  const rows = dias.map(p=>[
+    fmtBR(p.data),
+    (p.presentes||[]).length+' presentes',
+    p.concluido? '<span class="pill p-ok">concluído</span>' : '<span class="pill p-warn">aberto</span>',
+    p.concluidoEm? fmtBR(p.concluidoEm) : '—'
+  ]);
+  el.innerHTML = tableHTML(['Dia','Presenças','Status','Concluído em'], rows);
+}
+
+// ---- lista mensal para assinatura ----
+let glListaCache = null;
+function glDiasDoMes(mes){ return state.glPres.filter(p=>(p.data||'').slice(0,7)===mes).sort((a,b)=>(a.data||'').localeCompare(b.data||'')); }
+function gerarListaMensal(){
+  const mes = document.getElementById('gl-mes').value;
+  if(!mes){ toast('Escolha o mês.', true); return; }
+  const dias = glDiasDoMes(mes);
+  const fmap = glFmap();
+  const ids = new Set(glAtivos().map(f=>f.id));
+  dias.forEach(p=>(p.presentes||[]).forEach(id=>ids.add(id)));
+  const funcs = [...ids].map(id=>fmap[id]).filter(Boolean)
+    .sort((a,b)=>(a.depto||'').localeCompare(b.depto||'') || (a.nome||'').localeCompare(b.nome||''));
+  glListaCache = {mes, dias, funcs};
+  const btn = document.getElementById('gl-btn-print');
+  const prev = document.getElementById('gl-lista-preview');
+  if(!dias.length){ prev.innerHTML = '<div class="empty">Nenhuma chamada registrada em '+fmtMesComp(mes)+'.</div>'; if(btn) btn.style.display='none'; return; }
+  const presentMap = {}; dias.forEach(p=>(p.presentes||[]).forEach(id=>{ (presentMap[id]=presentMap[id]||new Set()).add(p.data); }));
+  const headers = ['Nome','Depto', ...dias.map(p=>p.data.slice(8,10)), 'Total'];
+  const rows = funcs.map(f=>{
+    const set = presentMap[f.id]||new Set();
+    return [esc(f.nome), esc(f.depto||'—'), ...dias.map(p=>set.has(p.data)?'✓':'·'), String(set.size)];
+  });
+  prev.innerHTML = tableHTML(headers, rows);
+  if(btn) btn.style.display='inline-block';
+}
+function imprimirListaMensal(){
+  if(!glListaCache){ toast('Gere a lista primeiro.', true); return; }
+  const {mes, dias, funcs} = glListaCache;
+  const presentMap = {}; dias.forEach(p=>(p.presentes||[]).forEach(id=>{ (presentMap[id]=presentMap[id]||new Set()).add(p.data); }));
+  const diaCols = dias.map(p=>`<th>${p.data.slice(8,10)}</th>`).join('');
+  const body = funcs.map(f=>{
+    const set = presentMap[f.id]||new Set();
+    const cells = dias.map(p=>`<td class="c">${set.has(p.data)?'X':''}</td>`).join('');
+    return `<tr><td>${esc(f.nome)}</td><td>${esc(f.depto||'')}</td>${cells}<td class="c">${set.size}</td><td></td></tr>`;
+  }).join('');
+  const html = `<html><head><title>Ginástica Laboral — ${fmtMesComp(mes)}</title>
+    <style>@page{size:landscape;margin:10mm}body{font-family:Arial,sans-serif;padding:6px;color:#111}
+    h1{font-size:16px;color:#024f2b;margin:0 0 2px}.sub{font-size:10px;color:#555;margin-bottom:10px}
+    table{width:100%;border-collapse:collapse;font-size:9.5px}th,td{border:1px solid #999;padding:2px 4px}
+    th{background:#e9f0dc}td.c,th{text-align:center}td:first-child{white-space:nowrap;text-align:left}
+    .ass{width:150px}</style></head><body>
+    <h1>GINÁSTICA LABORAL — ${fmtMesComp(mes).toUpperCase()}</h1>
+    <div class="sub">Dias realizados: ${dias.map(p=>fmtBR(p.data)).join(' · ')} &nbsp;|&nbsp; X = participou</div>
+    <table><thead><tr><th style="text-align:left">Nome</th><th style="text-align:left">Depto</th>${diaCols}<th>Total</th><th class="ass">Assinatura</th></tr></thead>
+    <tbody>${body}</tbody></table></body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html); w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 500);
+}
+
+// ---- link / QR da chamada ----
+function copyGlLink(){
+  const i = document.getElementById('gl-link'); i.select();
+  try{ navigator.clipboard && navigator.clipboard.writeText(i.value); }catch(e){}
+  try{ document.execCommand('copy'); }catch(e){}
+  toast('Link copiado ✓');
+}
+function imprimirGlQR(){
+  const url = baseURL()+'?p=gl';
+  const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=520x520&margin=12&data='+encodeURIComponent(url);
+  const html = `<div style="text-align:center;font-family:'Poppins',sans-serif;padding:40px">
+    <div style="font-size:30px;font-weight:700;color:#024f2b">raguife · Ginástica Laboral</div>
+    <div style="font-size:38px;font-weight:700;margin:26px 0 6px;color:#22301f">Chamada de presença</div>
+    <div style="font-size:18px;color:#666;margin-bottom:24px">Aponte a câmera · marque quem está presente hoje</div>
+    <img src="${qr}" style="width:360px;height:360px"></div>`;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Cartaz QR — Ginástica</title></head><body>'+html+'</body></html>');
+  w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 400);
+}
+
+/* ================= CHAMADA PÚBLICA (?p=gl) ================= */
+let glPubSet = new Set();
+let glPubDoc = null;
+let glPubSaveTimer = null;
+async function glPubInit(){
+  document.getElementById('gl-screen').style.display='block';
+  document.getElementById('logo-gl').innerHTML = logoSVG(46);
+  try{ await signInAnonymously(auth); }
+  catch(e){
+    document.getElementById('glp-list').innerHTML = '<div class="empty">Não foi possível conectar. Habilite o login "Anônimo" no Firebase Authentication.</div>';
+    return;
+  }
+  try{
+    const snap = await getDocs(collection(db,'amb_gl_funcionarios'));
+    state.glFunc = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(f=>f.ativo!==false);
+  }catch(e){ state.glFunc = []; }
+  const dataInp = document.getElementById('glp-data');
+  dataInp.value = todayISO();
+  const dep = document.getElementById('glp-dep');
+  dep.innerHTML = '<option value="">Todos os setores</option>' + glDeps().map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  dataInp.addEventListener('change', glPubLoadDay);
+  dep.addEventListener('change', glPubRenderList);
+  document.getElementById('glp-busca').addEventListener('input', glPubRenderList);
+  await glPubLoadDay();
+}
+async function glPubLoadDay(){
+  const data = document.getElementById('glp-data').value; if(!data) return;
+  glPubSet = new Set();
+  try{
+    const d = await getDoc(doc(db,'amb_gl_presencas', data));
+    glPubDoc = d.exists()? d.data() : null;
+    if(glPubDoc && Array.isArray(glPubDoc.presentes)) glPubDoc.presentes.forEach(id=>glPubSet.add(id));
+  }catch(e){ glPubDoc = null; }
+  glPubRenderList(); glPubStatus();
+  const s = document.getElementById('glp-saved'); if(s) s.textContent='';
+}
+function glPubStatus(){
+  const el = document.getElementById('glp-status');
+  const btn = document.getElementById('glp-concluir');
+  if(glPubDoc && glPubDoc.concluido){
+    el.innerHTML = '<span class="gl-status" style="background:#e5f1db;color:#3d7a26">✓ Dia concluído</span> <span style="color:var(--cinza);font-size:12px">Você ainda pode ajustar e concluir de novo.</span>';
+    if(btn) btn.textContent = 'Concluir novamente';
+  } else {
+    el.innerHTML = '<span class="gl-status" style="background:#f9efd9;color:#996c14">Em aberto</span> <span style="color:var(--cinza);font-size:12px">Toque nas pessoas presentes e clique em Concluir o dia.</span>';
+    if(btn) btn.textContent = 'Concluir o dia';
+  }
+}
+function glPubRenderList(){
+  const busca = (document.getElementById('glp-busca').value||'').toLowerCase().trim();
+  const depf = document.getElementById('glp-dep').value||'';
+  let lista = glAtivos().filter(f=>(!depf || (f.depto||'—')===depf) && (!busca || (f.nome||'').toLowerCase().includes(busca)));
+  lista.sort((a,b)=>(a.depto||'').localeCompare(b.depto||'') || (a.nome||'').localeCompare(b.nome||''));
+  const grupos = {}; lista.forEach(f=>{ const d=f.depto||'—'; (grupos[d]=grupos[d]||[]).push(f); });
+  const html = Object.keys(grupos).sort().map(d=>{
+    const ppl = grupos[d].map(f=>{
+      const on = glPubSet.has(f.id);
+      return `<div class="gl-person ${on?'on':''}" onclick="glPubToggle('${f.id}')"><span class="chk">${on?'✓':''}</span>${esc(f.nome)}</div>`;
+    }).join('');
+    return `<div class="gl-deptgrp"><h4>${esc(d)} · ${grupos[d].length}</h4><div class="gl-people">${ppl}</div></div>`;
+  }).join('') || '<div class="empty">Nenhum funcionário ativo na base. Cadastre no módulo do ambulatório.</div>';
+  document.getElementById('glp-list').innerHTML = html;
+  glPubCount();
+}
+function glPubCount(){ document.getElementById('glp-cnt').textContent = glPubSet.size + ' presente' + (glPubSet.size===1?'':'s'); }
+function glPubToggle(id){
+  if(glPubSet.has(id)) glPubSet.delete(id); else glPubSet.add(id);
+  glPubRenderList();
+  glPubSaveSoon();
+}
+function glPubSaveSoon(){
+  const s = document.getElementById('glp-saved'); if(s) s.textContent='salvando...';
+  clearTimeout(glPubSaveTimer);
+  glPubSaveTimer = setTimeout(()=>glPubSave(false), 700);
+}
+async function glPubSave(concluir){
+  const data = document.getElementById('glp-data').value; if(!data) return;
+  const payload = { data, presentes:[...glPubSet], totalAtivos: glAtivos().length, atualizadoEm: new Date().toISOString() };
+  if(concluir){ payload.concluido = true; payload.concluidoEm = todayISO(); }
+  try{
+    await setDoc(doc(db,'amb_gl_presencas', data), payload, {merge:true});
+    const s = document.getElementById('glp-saved'); if(s) s.textContent='salvo ✓';
+    glPubDoc = {...(glPubDoc||{}), ...payload};
+    if(concluir) glPubStatus();
+  }catch(e){ const s = document.getElementById('glp-saved'); if(s) s.textContent='falha ao salvar'; }
+}
+async function glPubConcluir(){
+  clearTimeout(glPubSaveTimer);
+  await glPubSave(true);
+  toast('Dia concluído ✓ — quem não foi marcado fica como ausente.');
+}
+
 /* ================= INIT ================= */
 async function init(){
   document.getElementById('logo-small').innerHTML = logoSVG(34);
   document.getElementById('logo-survey').innerHTML = logoSVG(64);
+
+  if(surveyParam==='gl'){
+    await glPubInit();
+    return;
+  }
 
   if(surveyParam==='medico' || surveyParam==='amb'){
     surveyKind = surveyParam;
@@ -1713,6 +2150,9 @@ Object.assign(window, {
   applyFilter, setPreset, copyLink, abrirWhats, imprimirQR,
   enviarSurvey, openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
   pesqAdd, pesqRemove, pesqEdit, salvarPesquisas,
+  glSeedBase, glAddFunc, glToggleAtivo, glDelFunc, renderGlBase,
+  gerarListaMensal, imprimirListaMensal, copyGlLink, imprimirGlQR,
+  glPubToggle, glPubConcluir,
 });
 init();
 </script>
