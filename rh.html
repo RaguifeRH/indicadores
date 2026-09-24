@@ -201,6 +201,22 @@
   #areas-tabela table td .area-in:focus{outline:2px solid var(--folha);outline-offset:0;border-color:var(--folha);}
   #areas-tabela table td{text-align:left;}
   #areas-tabela .semarea{color:var(--amber);font-weight:600;}
+
+  /* ===== pesquisa de satisfação ===== */
+  .ps-aviso{background:#f9efd9;color:#7a5610;border:1px solid #efdcb0;border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.5;}
+  .ps-barra{display:inline-block;width:64px;height:6px;border-radius:4px;background:#edf0e6;vertical-align:middle;margin-left:8px;overflow:hidden;}
+  .ps-barra span{display:block;height:100%;border-radius:4px;}
+  .ps-coment{border:1px solid var(--linha);border-radius:10px;padding:11px 13px;margin-bottom:8px;font-size:13px;line-height:1.55;background:#fbfcf9;white-space:pre-wrap;}
+  .ps-coment .ps-set{font-size:10.5px;color:var(--cinza);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;white-space:normal;}
+  .ps-sub{display:block;font-size:10.5px;color:var(--cinza);font-weight:400;}
+  details.ps-rod{padding:0;}
+  details.ps-rod > summary{list-style:none;cursor:pointer;padding:18px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  details.ps-rod > summary::-webkit-details-marker{display:none;}
+  details.ps-rod > summary h2{margin:0;}
+  details.ps-rod > summary .ps-chev{margin-left:auto;color:var(--cinza);transition:transform .15s;}
+  details.ps-rod[open] > summary .ps-chev{transform:rotate(180deg);}
+  details.ps-rod .ps-rod-body{padding:0 22px 22px;}
+  .ps-link-in{font-size:11.5px;padding:6px 8px;min-width:230px;color:#40503b;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -370,6 +386,63 @@
         </div>
       </div>
 
+      <!-- PESQUISA DE SATISFAÇÃO — RESULTADOS -->
+      <div class="page" id="page-pesquisa">
+        <h1 class="page-title">Pesquisa de Satisfação</h1>
+        <div class="page-desc" id="ps-desc">Resultados da pesquisa anônima dos colaboradores (escala de 1 a 5). Setores com poucas respostas ficam ocultos para proteger o anonimato.</div>
+        <div class="filter-bar">
+          <div class="fld"><label>Rodada</label><select id="ps-rodada"></select></div>
+          <div class="fld"><label>Comparar com</label><select id="ps-comparar"></select></div>
+          <div class="fld"><label>Filial</label><select id="ps-filial"></select></div>
+          <div class="fld"><label>Área</label><select id="ps-area"></select></div>
+          <div class="fld"><label>Departamento</label><select id="ps-depto"></select></div>
+          <div class="fld"><label>Tabela de setores por</label><select id="ps-agrupar">
+            <option value="depto">Departamento</option><option value="area">Área</option><option value="filial">Filial</option>
+          </select></div>
+        </div>
+        <div id="ps-aviso"></div>
+        <div class="grid-kpi" id="ps-kpis"></div>
+        <div id="ps-conteudo">
+          <div class="panel">
+            <h2>Média por bloco</h2>
+            <div class="desc" id="ps-desc-blocos">Média de todas as perguntas de cada bloco</div>
+            <div class="chart-box" style="height:260px"><canvas id="ch-ps-blocos"></canvas></div>
+          </div>
+          <div class="panel">
+            <h2>Média por pergunta</h2>
+            <div class="desc">% favorável = quem marcou 4 (Bom) ou 5 (Muito bom)</div>
+            <div class="table-wrap" id="ps-tbl-perguntas"></div>
+          </div>
+          <div class="panel">
+            <h2>Por setor</h2>
+            <div class="desc" id="ps-desc-setores"></div>
+            <div class="table-wrap" id="ps-tbl-setores"></div>
+          </div>
+          <div class="panel">
+            <h2>Comentários</h2>
+            <div class="desc">"O que você gostaria que a Raguife melhorasse?" — em ordem aleatória e sem data, para não identificar quem escreveu</div>
+            <div id="ps-comentarios"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESQUISA DE SATISFAÇÃO — RODADAS E LINKS -->
+      <div class="page" id="page-rodadas">
+        <h1 class="page-title">Rodadas da Pesquisa</h1>
+        <div class="page-desc">Abra a rodada de março ou de setembro e envie os links. Cada departamento recebe um link próprio: o setor já vem preenchido e o colaborador não consegue trocá-lo. O link não identifica quem respondeu.</div>
+        <div class="panel">
+          <h2>Abrir nova rodada</h2>
+          <div class="desc">Os links são gerados a partir dos departamentos com ativos na última Relação de Funcionários importada. O headcount de cada um é guardado na rodada para calcular a taxa de resposta.</div>
+          <div class="form-grid">
+            <div><label>Mês</label><select id="rd-mes"><option value="03">Março</option><option value="09">Setembro</option></select></div>
+            <div><label>Ano</label><input type="number" id="rd-ano" min="2024" max="2100" step="1"></div>
+          </div>
+          <div class="note" id="rd-info"></div>
+          <div class="btn-row"><button class="btn btn-primary" id="rd-btn-criar" onclick="criarRodada()">Abrir rodada e gerar links</button></div>
+        </div>
+        <div id="rd-lista"></div>
+      </div>
+
       <!-- CONFIG -->
       <div class="page" id="page-config">
         <h1 class="page-title">Metas &amp; Configurações</h1>
@@ -379,6 +452,7 @@
           <div class="form-grid">
             <div><label>Meta turnover (máx. % ao mês)</label><input type="number" step="0.1" id="cfg-turnover"></div>
             <div><label>Meta absenteísmo (máx. %)</label><input type="number" step="0.1" id="cfg-absenteismo"></div>
+            <div><label>Pesquisa: mín. de respostas p/ exibir um setor</label><input type="number" step="1" min="3" id="cfg-ps-min"></div>
           </div>
           <div class="btn-row"><button class="btn btn-primary" onclick="salvarConfig()">Salvar metas</button></div>
         </div>
@@ -441,17 +515,19 @@ const ROLES = {admin:'Administrador', operador:'Operador'};
 const NAV_DEF = [
   {id:'dashboard',    label:'Dashboard',       ic:'▦', roles:['admin','operador']},
   {id:'headcount',    label:'Comparativo Headcount', ic:'📅', roles:['admin','operador']},
+  {id:'pesquisa',     label:'Pesquisa de Satisfação', ic:'💬', roles:['admin','operador']},
+  {id:'rodadas',      label:'Rodadas da Pesquisa', ic:'🔗', roles:['admin']},
   {id:'areas',        label:'Áreas',           ic:'🗂️', roles:['admin']},
   {id:'importar',     label:'Importar',        ic:'📤', roles:['admin']},
   {id:'config',       label:'Metas & Config',  ic:'⚙', roles:['admin']},
 ];
-const DEFAULT_CFG = {metaTurnover:5, metaAbsenteismo:3};
+const DEFAULT_CFG = {metaTurnover:5, metaAbsenteismo:3, pesquisaMinRespostas:5};
 // sugestões de área (as mesmas do DP) — só alimentam o autocomplete; você pode digitar qualquer uma
 const AREAS_SUGERIDAS = ['ADMINISTRATIVO','APOIO','CALDEIRA','COMPRAS','ESCRITA FISCAL','EXPEDICAO','EXTRUSORA','GRAXARIA','LIMPEZA','LOGÍSTICA EXTERNA','LOGÍSTICA INTERNA','MANUTENCAO','PRODUCAO','QUALIDADE','SEGURANCA','TI','VENDAS'];
 // status "ainda empregado" que NÃO contam no headcount do mês atual (licença/afastamento)
 // status "ainda empregado" que CONTAM como ativo (mesma lista do sistema de referência da empresa)
 const ATIVOS_STATUS = new Set(['ativo','ferias','licenca maternidade']);
-function stripAcc(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function stripAcc(s){ return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,''); }
 function normStatus(s){ return stripAcc(s).toLowerCase().trim(); }
 function normNome(s){ return stripAcc(String(s||'')).toUpperCase().replace(/\s+/g,' ').trim(); }
 function isAtivoStatus(st){ return ATIVOS_STATUS.has(normStatus(st)); }
@@ -464,7 +540,9 @@ function categoriaCargo(cargo){
   return 'Efetivo';
 }
 
-let state = { lanc:[], cfg:{...DEFAULT_CFG}, areaMap:{}, areas:[], filterDe:'', filterAte:'', filterFiliais:new Set(), filterAreas:new Set(), filterDeptos:new Set() };
+let state = { lanc:[], cfg:{...DEFAULT_CFG}, areaMap:{}, areas:[], filterDe:'', filterAte:'', filterFiliais:new Set(), filterAreas:new Set(), filterDeptos:new Set(),
+  psRodadas:[], psLinks:[], psResp:[],
+  psF:{rodada:'', comparar:'', filial:'', area:'', depto:'', agrupar:'depto'} };
 let currentUser = null;
 let unsubs = [];
 
@@ -579,7 +657,11 @@ function sub(colName, target, after){
 }
 function subscribeData(){
   unsubs.forEach(u=>u()); unsubs=[];
-  sub('rh_lancamentos','lanc', ()=>{ renderFiliaisDeptos(); renderLancamentos(); renderDashboard(); });
+  sub('rh_lancamentos','lanc', ()=>{ renderFiliaisDeptos(); renderLancamentos(); renderDashboard(); psAtualizarTelas(); });
+  // pesquisa de satisfação
+  sub('rh_pesquisa_rodadas','psRodadas', psAtualizarTelas);
+  sub('rh_pesquisa_links','psLinks', psAtualizarTelas);
+  sub('rh_pesquisa_respostas','psResp', psAtualizarTelas);
 }
 
 /* ================= NAV / SHELL ================= */
@@ -604,6 +686,8 @@ function enterApp(){
 
   document.getElementById('cfg-turnover').value = state.cfg.metaTurnover;
   document.getElementById('cfg-absenteismo').value = state.cfg.metaAbsenteismo;
+  document.getElementById('cfg-ps-min').value = psMin();
+  psInitControles();
 
   buildPeriodo();
 
@@ -632,6 +716,8 @@ function showPage(id){
   if(id==='headcount') renderHeadcountPivot();
   if(id==='importar') renderLancamentos();
   if(id==='areas') renderAreasCadastro();
+  if(id==='pesquisa') renderPesquisa();
+  if(id==='rodadas') renderRodadas();
 }
 
 /* ================= IMPORTAR PLANILHA ================= */
@@ -1038,8 +1124,10 @@ async function salvarConfig(){
   state.cfg = {
     metaTurnover: Number(document.getElementById('cfg-turnover').value)||DEFAULT_CFG.metaTurnover,
     metaAbsenteismo: Number(document.getElementById('cfg-absenteismo').value)||DEFAULT_CFG.metaAbsenteismo,
+    pesquisaMinRespostas: Math.max(3, parseInt(document.getElementById('cfg-ps-min').value,10)||DEFAULT_CFG.pesquisaMinRespostas),
   };
-  try{ await setDoc(doc(db,'config','rh_metas'), state.cfg); toast('Configuração salva ✓'); renderDashboard(); }
+  document.getElementById('cfg-ps-min').value = state.cfg.pesquisaMinRespostas;
+  try{ await setDoc(doc(db,'config','rh_metas'), state.cfg); toast('Configuração salva ✓'); renderDashboard(); psAtualizarTelas(); }
   catch(e){ toast('Falha ao salvar.', true); }
 }
 async function apagarTudo(){
@@ -1441,6 +1529,431 @@ function renderPorDepto(){
     tableHTML(['Departamento','Headcount','Admissões','Desligamentos','Involunt.','Volunt.','Turnover','Absent. c/ abono','Absent. s/ abono','Absent. médico','Faltas'], rows);
 }
 
+/* =====================================================================
+   PESQUISA DE SATISFAÇÃO
+   Coleções no Firestore:
+   · rh_pesquisa_rodadas/{AAAA-MM}   nome, status (aberta|encerrada), perguntas (cópia congelada)
+   · rh_pesquisa_links/{token}       rodadaId, filial, depto, headcount — um por departamento
+   · rh_pesquisa_respostas/{auto}    rodadaId, linkId, filial, depto, respostas{q1..}, comentario
+   A resposta não guarda nome, e-mail, aparelho nem horário. Quem responde usa pesquisa.html (sem login).
+   ===================================================================== */
+const PS_BLOCOS = [
+  {id:'A', nome:'Gestão', perguntas:[
+    'Como você avalia seu relacionamento com seu gestor?',
+    'Seu gestor trata as pessoas com respeito?',
+    'Seu gestor explica bem o que precisa ser feito?',
+    'Quando você precisa de ajuda, seu gestor está disponível?',
+    'Você recebe orientação quando faz algo errado?',
+    'Você sente que seu gestor ouve as opiniões e sugestões da equipe?']},
+  {id:'B', nome:'Ambiente do setor', perguntas:[
+    'Como você se sente trabalhando no seu setor?',
+    'Como é o relacionamento entre as pessoas do seu setor?',
+    'Você sente que as pessoas do seu setor se ajudam?',
+    'Você se sente respeitado pelas pessoas com quem trabalha?',
+    'Você se sente seguro para falar quando tem um problema no trabalho?',
+    'Como você avalia as condições do seu local de trabalho?']},
+  {id:'C', nome:'Empresa e cultura', perguntas:[
+    'Você sente orgulho de trabalhar na Raguife?',
+    'Você sente que a Raguife trata os colaboradores com respeito?',
+    'Você entende o que a empresa espera de você no seu trabalho?',
+    'Você recebe as informações necessárias para fazer seu trabalho?',
+    'Você sente que seu trabalho é importante para a empresa?',
+    'Você vê oportunidades para aprender e crescer dentro da Raguife?']},
+  {id:'D', nome:'Satisfação geral', perguntas:[
+    'De forma geral, como você avalia seu trabalho na Raguife?']},
+];
+const PS_ESCALA = [['1','Muito ruim'],['2','Ruim'],['3','Regular'],['4','Bom'],['5','Muito bom']];
+const PS_MES_NOME = {'03':'Março','09':'Setembro'};
+function psModelo(){
+  let n=0; const perguntas=[];
+  PS_BLOCOS.forEach(b=>b.perguntas.forEach(t=>{ n++; perguntas.push({k:'q'+n, bloco:b.id, texto:t}); }));
+  return {blocos:PS_BLOCOS.map(b=>({id:b.id, nome:b.nome})), perguntas, chaves:perguntas.map(p=>p.k), escala:PS_ESCALA};
+}
+function psMin(){ return Math.max(3, parseInt(state.cfg.pesquisaMinRespostas,10)||5); }
+function psRodadasOrd(){ return [...state.psRodadas].sort((a,b)=>b.id.localeCompare(a.id)); }
+function psRodada(id){ return state.psRodadas.find(r=>r.id===id) || null; }
+function psPaginaAtiva(id){ const p=document.getElementById('page-'+id); return !!(p && p.classList.contains('active')); }
+function psAtualizarTelas(){
+  if(!currentUser) return;
+  if(psPaginaAtiva('pesquisa')) renderPesquisa();
+  if(psPaginaAtiva('rodadas')) renderRodadas();
+}
+function psToken(){
+  const alfa='abcdefghijkmnpqrstuvwxyz23456789', a=new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return Array.from(a, b=>alfa[b%32]).join('');   // 16 chars · 80 bits — impossível de adivinhar
+}
+function psUrl(linkId){ return new URL('pesquisa.html?l='+linkId, location.href).href; }
+async function psCopiar(txt){
+  try{ await navigator.clipboard.writeText(txt); return true; }
+  catch(e){
+    const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    let ok=false; try{ ok=document.execCommand('copy'); }catch(_){}
+    ta.remove(); return ok;
+  }
+}
+function psNota(v){ return v==null ? '—' : v.toFixed(2); }
+function psPct(v){ return v==null ? '—' : Math.round(v)+'%'; }
+function psCor(v){ return v==null ? 'var(--cinza)' : v>=4 ? 'var(--ok)' : v>=3 ? 'var(--amber)' : 'var(--erro)'; }
+function psNotaBarra(v){
+  if(v==null) return '—';
+  return `${v.toFixed(2)}<span class="ps-barra"><span style="width:${(v/5*100).toFixed(0)}%;background:${psCor(v)}"></span></span>`;
+}
+function psDelta(atual, ant, casas){
+  if(atual==null || ant==null) return '—';
+  const d = atual-ant, c = casas==null?2:casas;
+  if(Math.abs(d) < 0.005) return '<span class="cmp-flat">＝</span>';
+  return `<span class="${d>0?'cmp-up':'cmp-down'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(c)}</span>`;
+}
+
+/* ---------- setores do cadastro (último mês importado com ativos) ---------- */
+function psSetoresCadastro(){
+  const meses = [...new Set(state.lanc.filter(l=>(l.ativos||0)>0).map(l=>l.competencia).filter(Boolean))].sort();
+  const comp = meses[meses.length-1];
+  if(!comp) return {comp:null, setores:[]};
+  const setores = state.lanc.filter(l=>l.competencia===comp && (l.ativos||0)>0)
+    .map(l=>({filial:l.filial, depto:l.depto, headcount:l.ativos}))
+    .sort((a,b)=>(a.filial+a.depto).localeCompare(b.filial+b.depto));
+  return {comp, setores};
+}
+
+/* ---------- RODADAS (admin) ---------- */
+const psRodAbertas = new Set();   // quais cartões de rodada estão expandidos
+let psRodInit = false;
+function renderRodadas(){
+  const {comp, setores} = psSetoresCadastro();
+  const anoIn = document.getElementById('rd-ano');
+  if(!anoIn.value){
+    const hoje = new Date(), m = hoje.getMonth()+1;
+    anoIn.value = m>9 ? hoje.getFullYear()+1 : hoje.getFullYear();
+    document.getElementById('rd-mes').value = (m<=3 || m>9) ? '03' : '09';
+  }
+  const hcTotal = setores.reduce((s,x)=>s+(x.headcount||0),0);
+  document.getElementById('rd-info').innerHTML = comp
+    ? `Serão gerados <strong>${setores.length} links</strong> (um por departamento), com base na Relação de Funcionários de <strong>${fmtMesComp(comp)}</strong> · ${hcTotal} colaboradores efetivos.`
+    : 'Importe a Relação de Funcionários primeiro (aba Importar) — é dela que vêm os departamentos e o headcount.';
+  document.getElementById('rd-btn-criar').disabled = !comp;
+
+  const rods = psRodadasOrd();
+  if(!psRodInit && rods.length){ psRodAbertas.add(rods[0].id); psRodInit = true; }
+  const host = document.getElementById('rd-lista');
+  if(!rods.length){ host.innerHTML = '<div class="panel"><div class="empty">Nenhuma rodada aberta ainda</div></div>'; return; }
+
+  host.innerHTML = rods.map(r=>{
+    const links = state.psLinks.filter(l=>l.rodadaId===r.id)
+      .sort((a,b)=>(a.filial+a.depto).localeCompare(b.filial+b.depto));
+    const resp = state.psResp.filter(x=>x.rodadaId===r.id);
+    const porLink = {}; resp.forEach(x=>{ porLink[x.linkId]=(porLink[x.linkId]||0)+1; });
+    const hc = links.reduce((s,l)=>s+(l.headcount||0),0);
+    const taxa = hc ? resp.length/hc*100 : null;
+    const aberta = r.status==='aberta';
+    const pill = aberta ? '<span class="pill p-ok">Aberta</span>' : '<span class="pill p-neutral">Encerrada</span>';
+    const linhas = links.map(l=>{
+      const n = porLink[l.id]||0;
+      return `<tr>
+        <td>${esc(l.filial)}</td><td>${esc(l.depto)}</td><td>${esc(areaDe(l.depto)||'—')}</td>
+        <td class="num">${l.headcount||0}</td><td class="num">${n}</td>
+        <td class="num">${l.headcount? Math.round(n/l.headcount*100)+'%' : '—'}</td>
+        <td><input class="ps-link-in" readonly value="${esc(psUrl(l.id))}" onclick="this.select()"></td>
+        <td><button class="btn btn-ghost btn-mini" data-acao="copiar" data-link="${esc(l.id)}">Copiar</button></td>
+      </tr>`;
+    }).join('');
+    return `<details class="panel ps-rod" data-rod="${esc(r.id)}" ${psRodAbertas.has(r.id)?'open':''}>
+      <summary><h2>${esc(r.nome)}</h2>${pill}
+        <span style="color:var(--cinza);font-size:12.5px">${resp.length} respostas de ${hc} colaboradores · ${taxa==null?'—':taxa.toFixed(0)+'%'} de participação</span>
+        <span class="ps-chev">▾</span></summary>
+      <div class="ps-rod-body">
+        <div class="btn-row" style="margin-top:0;margin-bottom:12px">
+          <button class="btn ${aberta?'btn-ghost':'btn-primary'} btn-mini" data-acao="status" data-rod="${esc(r.id)}">${aberta?'Encerrar rodada':'Reabrir rodada'}</button>
+          <button class="btn btn-ghost btn-mini" data-acao="copiar-todos" data-rod="${esc(r.id)}">Copiar todos os links</button>
+          <button class="btn btn-ghost btn-mini" data-acao="csv" data-rod="${esc(r.id)}">Baixar links (.csv)</button>
+          <button class="btn btn-ghost btn-mini" data-acao="novos" data-rod="${esc(r.id)}">Gerar links p/ deptos novos</button>
+          <button class="btn btn-danger btn-mini" data-acao="excluir" data-rod="${esc(r.id)}">Excluir rodada</button>
+        </div>
+        <div class="table-wrap">${links.length ? `<table><thead><tr><th>Filial</th><th>Departamento</th><th>Área</th><th>Colab.</th><th>Respostas</th><th>Taxa</th><th>Link</th><th></th></tr></thead><tbody>${linhas}</tbody></table>` : '<div class="empty">Sem links nesta rodada</div>'}</div>
+        <div class="note">Aberta em ${esc(r.criadaEm||'—')}${r.competenciaHeadcount?' · headcount de '+fmtMesComp(r.competenciaHeadcount):''}. Com a rodada encerrada, os links param de aceitar respostas.</div>
+      </div>
+    </details>`;
+  }).join('');
+
+  host.querySelectorAll('details[data-rod]').forEach(d=> d.addEventListener('toggle', ()=>{
+    if(d.open) psRodAbertas.add(d.dataset.rod); else psRodAbertas.delete(d.dataset.rod);
+  }));
+  host.onclick = psAcaoRodada;
+}
+async function criarRodada(){
+  const mes = document.getElementById('rd-mes').value;
+  const ano = parseInt(document.getElementById('rd-ano').value,10);
+  if(!ano || ano<2024 || ano>2100){ toast('Informe um ano válido.', true); return; }
+  const id = ano+'-'+mes, nome = PS_MES_NOME[mes]+'/'+ano;
+  if(psRodada(id)){ toast(`A rodada ${nome} já existe.`, true); return; }
+  const {comp, setores} = psSetoresCadastro();
+  if(!setores.length){ toast('Importe a Relação de Funcionários primeiro.', true); return; }
+  confirmModal(`Abrir a rodada <strong>${esc(nome)}</strong> e gerar <strong>${setores.length} links</strong> (um por departamento)? A rodada já começa aceitando respostas.`, async ()=>{
+    const btn = document.getElementById('rd-btn-criar');
+    btn.disabled = true; btn.textContent = 'Gerando...';
+    try{
+      psRodAbertas.add(id);
+      const modelo = psModelo();
+      // os links primeiro, a rodada por último: se algo falhar no meio, nenhum link fica ativo
+      for(let i=0;i<setores.length;i+=400){
+        const batch = writeBatch(db);
+        setores.slice(i,i+400).forEach(s=> batch.set(doc(db,'rh_pesquisa_links', psToken()),
+          {rodadaId:id, filial:s.filial, depto:s.depto, headcount:s.headcount, ativo:true}));
+        await batch.commit();
+      }
+      await setDoc(doc(db,'rh_pesquisa_rodadas', id), {
+        nome, mes, ano, status:'aberta', criadaEm: todayISO(), criadaPor: currentUser.nome||'',
+        competenciaHeadcount: comp, ...modelo,
+      });
+      state.psF.rodada = ''; // o dashboard passa a abrir na rodada nova
+      toast(`Rodada ${nome} aberta ✓ — ${setores.length} links gerados`);
+    }catch(e){ console.error(e); toast('Falha ao abrir a rodada: '+(e.message||e), true); }
+    finally{ btn.disabled = false; btn.textContent = 'Abrir rodada e gerar links'; }
+  });
+}
+async function psAcaoRodada(e){
+  const b = e.target.closest('[data-acao]'); if(!b) return;
+  e.preventDefault();
+  const acao = b.dataset.acao, r = psRodada(b.dataset.rod);
+  if(acao==='copiar'){ toast(await psCopiar(psUrl(b.dataset.link)) ? 'Link copiado ✓' : 'Não consegui copiar — selecione o link e copie.', false); return; }
+  if(!r) return;
+  const links = state.psLinks.filter(l=>l.rodadaId===r.id).sort((a,b)=>(a.filial+a.depto).localeCompare(b.filial+b.depto));
+  if(acao==='status'){
+    const novo = r.status==='aberta' ? 'encerrada' : 'aberta';
+    try{ await setDoc(doc(db,'rh_pesquisa_rodadas', r.id), {status:novo}, {merge:true}); toast(novo==='aberta'?'Rodada reaberta ✓':'Rodada encerrada ✓'); }
+    catch(err){ console.error(err); toast('Falha ao atualizar.', true); }
+  }
+  if(acao==='copiar-todos'){
+    const txt = ['Filial\tDepartamento\tLink', ...links.map(l=>`${l.filial}\t${l.depto}\t${psUrl(l.id)}`)].join('\n');
+    toast(await psCopiar(txt) ? `${links.length} links copiados ✓ — cole numa planilha` : 'Não consegui copiar.', false);
+  }
+  if(acao==='csv'){
+    const q = s => '"'+String(s??'').replace(/"/g,'""')+'"';
+    const csv = '﻿'+['Filial;Departamento;Área;Colaboradores;Link', ...links.map(l=>[l.filial,l.depto,areaDe(l.depto),l.headcount||0,psUrl(l.id)].map(q).join(';'))].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+    a.download = `links_pesquisa_${r.id}.csv`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }
+  if(acao==='novos'){
+    const {setores} = psSetoresCadastro();
+    const tem = new Set(links.map(l=>l.filial+'||'+l.depto));
+    const novos = setores.filter(s=>!tem.has(s.filial+'||'+s.depto));
+    if(!novos.length){ toast('Todos os departamentos do cadastro já têm link nesta rodada.'); return; }
+    try{
+      const batch = writeBatch(db);
+      novos.forEach(s=> batch.set(doc(db,'rh_pesquisa_links', psToken()), {rodadaId:r.id, filial:s.filial, depto:s.depto, headcount:s.headcount, ativo:true}));
+      await batch.commit();
+      toast(`${novos.length} link(s) novo(s) gerado(s) ✓`);
+    }catch(err){ console.error(err); toast('Falha ao gerar links.', true); }
+  }
+  if(acao==='excluir'){
+    const resp = state.psResp.filter(x=>x.rodadaId===r.id);
+    confirmModal(`Excluir a rodada <strong>${esc(r.nome)}</strong> com <strong>${resp.length} respostas</strong> e ${links.length} links? Não dá para desfazer. Use só para apagar uma rodada de teste.`, async ()=>{
+      try{
+        const refs = [...resp.map(x=>doc(db,'rh_pesquisa_respostas',x.id)), ...links.map(l=>doc(db,'rh_pesquisa_links',l.id))];
+        for(let i=0;i<refs.length;i+=400){ const batch=writeBatch(db); refs.slice(i,i+400).forEach(ref=>batch.delete(ref)); await batch.commit(); }
+        await deleteDoc(doc(db,'rh_pesquisa_rodadas', r.id));
+        toast('Rodada excluída ✓');
+      }catch(err){ console.error(err); toast('Falha ao excluir.', true); }
+    });
+  }
+}
+
+/* ---------- RESULTADOS ---------- */
+function psInitControles(){
+  const F = state.psF;
+  const on = (id, fn)=> document.getElementById(id).addEventListener('change', e=>{ fn(e.target.value); renderPesquisa(); });
+  on('ps-rodada', v=>{ F.rodada=v; const rods=psRodadasOrd(); const i=rods.findIndex(r=>r.id===v); F.comparar=(rods[i+1]||{}).id||''; });
+  on('ps-comparar', v=>{ F.comparar=v; });
+  on('ps-filial', v=>{ F.filial=v; F.area=''; F.depto=''; });
+  on('ps-area', v=>{ F.area=v; F.depto=''; });
+  on('ps-depto', v=>{ F.depto=v; });
+  on('ps-agrupar', v=>{ F.agrupar=v; });
+}
+function psAreaDe(depto){ return areaDe(depto) || '(Sem área)'; }
+function psPassa(x){
+  const F = state.psF;
+  return (!F.filial || x.filial===F.filial) && (!F.area || psAreaDe(x.depto)===F.area) && (!F.depto || x.depto===F.depto);
+}
+function psFillSelect(id, pares, valor){
+  const el = document.getElementById(id);
+  el.innerHTML = pares.map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('');
+  el.value = valor;
+}
+// médias e % favorável (4 ou 5) por pergunta, por bloco e geral
+function psCalc(resps, rod){
+  const out = {n:resps.length, perg:{}, bloco:{}, geral:null, fav:null};
+  if(!rod) return out;
+  const acB = {}; let sG=0, nG=0, fG=0;
+  rod.perguntas.forEach(p=>{
+    let s=0, c=0, fv=0;
+    resps.forEach(r=>{ const v=Number(r.respostas && r.respostas[p.k]); if(v>=1 && v<=5){ s+=v; c++; if(v>=4) fv++; } });
+    out.perg[p.k] = {media:c?s/c:null, fav:c?fv/c*100:null};
+    const b = acB[p.bloco] || (acB[p.bloco]={s:0,c:0,fv:0}); b.s+=s; b.c+=c; b.fv+=fv;
+    sG+=s; nG+=c; fG+=fv;
+  });
+  Object.entries(acB).forEach(([id,b])=> out.bloco[id] = {media:b.c?b.s/b.c:null, fav:b.c?b.fv/b.c*100:null});
+  out.geral = nG ? sG/nG : null; out.fav = nG ? fG/nG*100 : null;
+  return out;
+}
+function psGrupoDe(x, modo){
+  if(modo==='filial') return {k:x.filial, label:x.filial};
+  if(modo==='area'){ const a=psAreaDe(x.depto); return {k:a, label:a}; }
+  return {k:x.filial+'||'+x.depto, label:x.depto, sub:x.filial};
+}
+// agrupa respostas e headcount; aplica a regra de anonimato:
+// 1) grupo com menos de N respostas fica oculto;
+// 2) se a soma dos ocultos ficar entre 1 e N-1, oculta também o menor grupo visível
+//    (senão dava para descobrir o oculto subtraindo os visíveis do total).
+function psGrupos(resps, links, modo){
+  const m = new Map(), min = psMin();
+  const pega = x=>{ const g=psGrupoDe(x,modo); if(!m.has(g.k)) m.set(g.k, {...g, hc:0, resps:[]}); return m.get(g.k); };
+  links.forEach(l=>{ pega(l).hc += (l.headcount||0); });
+  resps.forEach(r=>{ pega(r).resps.push(r); });
+  const arr = [...m.values()];
+  arr.forEach(g=>{ g.oculto = g.resps.length < min; g.complementar = false; });
+  for(;;){
+    const so = arr.filter(g=>g.oculto).reduce((s,g)=>s+g.resps.length,0);
+    if(so===0 || so>=min) break;
+    const vis = arr.filter(g=>!g.oculto).sort((a,b)=>a.resps.length-b.resps.length);
+    if(!vis.length) break;
+    vis[0].oculto = true; vis[0].complementar = true;
+  }
+  return arr.sort((a,b)=>(a.label+(a.sub||'')).localeCompare(b.label+(b.sub||'')));
+}
+function psKpi(titulo, valor, meta, cmpHTML, media){
+  const nivel = media==null ? '' : media>=4 ? '<span class="pill p-ok abs">Bom</span>' : media>=3 ? '<span class="pill p-warn abs">Regular</span>' : '<span class="pill p-bad abs">Atenção</span>';
+  const barra = media==null ? '' : `<div class="bar"><span style="width:${(media/5*100).toFixed(0)}%;background:${psCor(media)}"></span></div>`;
+  return `<div class="kpi">${nivel}<div class="eyebrow">${titulo}</div><div class="val">${valor}</div><div class="meta">${meta}</div>${cmpHTML||''}${barra}</div>`;
+}
+function renderPesquisa(){
+  const F = state.psF, min = psMin();
+  const rods = psRodadasOrd();
+  const conteudo = document.getElementById('ps-conteudo');
+  document.getElementById('ps-desc').textContent =
+    `Resultados da pesquisa anônima dos colaboradores (escala de 1 a 5). Setores com menos de ${min} respostas ficam ocultos para proteger o anonimato.`;
+  if(!rods.length){
+    ['ps-rodada','ps-comparar','ps-filial','ps-area','ps-depto'].forEach(id=>document.getElementById(id).innerHTML='');
+    document.getElementById('ps-kpis').innerHTML = '';
+    document.getElementById('ps-aviso').innerHTML = `<div class="ps-aviso">Nenhuma rodada da pesquisa ainda.${currentUser.role==='admin'?' Abra a primeira na aba <strong>Rodadas da Pesquisa</strong>.':''}</div>`;
+    conteudo.style.display = 'none';
+    return;
+  }
+  if(!psRodada(F.rodada)){ F.rodada = rods[0].id; F.comparar = (rods[1]||{}).id||''; }
+  if(F.comparar===F.rodada || (F.comparar && !psRodada(F.comparar))) F.comparar = '';
+  const rod = psRodada(F.rodada), ant = F.comparar ? psRodada(F.comparar) : null;
+
+  // filtros em cascata a partir dos links da rodada
+  const linksR = state.psLinks.filter(l=>l.rodadaId===F.rodada);
+  const uniq = a=>[...new Set(a)].sort((x,y)=>x.localeCompare(y));
+  const filiais = uniq(linksR.map(l=>l.filial));
+  if(F.filial && !filiais.includes(F.filial)) F.filial='';
+  const areas = uniq(linksR.filter(l=>!F.filial||l.filial===F.filial).map(l=>psAreaDe(l.depto)));
+  if(F.area && !areas.includes(F.area)) F.area='';
+  const deptos = uniq(linksR.filter(l=>(!F.filial||l.filial===F.filial)&&(!F.area||psAreaDe(l.depto)===F.area)).map(l=>l.depto));
+  if(F.depto && !deptos.includes(F.depto)) F.depto='';
+  psFillSelect('ps-rodada', rods.map(r=>[r.id, r.nome+(r.status==='aberta'?' · aberta':'')]), F.rodada);
+  psFillSelect('ps-comparar', [['','— não comparar —'], ...rods.filter(r=>r.id!==F.rodada).map(r=>[r.id, r.nome])], F.comparar);
+  psFillSelect('ps-filial', [['','Todas'], ...filiais.map(f=>[f,f])], F.filial);
+  psFillSelect('ps-area', [['','Todas'], ...areas.map(a=>[a,a])], F.area);
+  psFillSelect('ps-depto', [['','Todos'], ...deptos.map(d=>[d,d])], F.depto);
+  document.getElementById('ps-agrupar').value = F.agrupar;
+
+  const resps = state.psResp.filter(r=>r.rodadaId===F.rodada && psPassa(r));
+  const links = linksR.filter(psPassa);
+  const hc = links.reduce((s,l)=>s+(l.headcount||0),0);
+  const taxa = hc ? Math.min(100, resps.length/hc*100) : null;
+  const respsAnt = ant ? state.psResp.filter(r=>r.rodadaId===ant.id && psPassa(r)) : [];
+  const linksAnt = ant ? state.psLinks.filter(l=>l.rodadaId===ant.id && psPassa(l)) : [];
+  const hcAnt = linksAnt.reduce((s,l)=>s+(l.headcount||0),0);
+  const taxaAnt = hcAnt ? Math.min(100, respsAnt.length/hcAnt*100) : null;
+  const antOk = !!ant && respsAnt.length >= min;
+  const atual = psCalc(resps, rod), anterior = antOk ? psCalc(respsAnt, ant) : null;
+  const semCmp = !ant ? '' : antOk ? null : `<div class="cmp cmp-flat">— ${esc(ant.nome)}: menos de ${min} respostas</div>`;
+  const cmp = (a,b,fmt)=> semCmp!==null ? semCmp : (a==null||b==null) ? '' : cmpLine(a, b, true, fmt).replace('vs. anterior', 'vs. '+esc(ant.nome));
+
+  const kpis = [psKpi('Taxa de resposta', taxa==null?'—':taxa.toFixed(0)+'%',
+    `${resps.length} respostas de ${hc} colaboradores`,
+    ant && taxaAnt!=null && taxa!=null ? cmpLine(taxa, taxaAnt, true, v=>v.toFixed(0)+'%').replace('vs. anterior', 'vs. '+esc(ant.nome)) : '', null)];
+
+  const aviso = document.getElementById('ps-aviso');
+  if(resps.length < min){
+    aviso.innerHTML = `<div class="ps-aviso"><strong>${resps.length} resposta(s) nesta seleção.</strong> Os resultados só aparecem a partir de ${min} respostas, para que ninguém seja identificado. ${F.depto||F.area||F.filial ? 'Tente um filtro mais amplo.' : ''}</div>`;
+    document.getElementById('ps-kpis').innerHTML = kpis.join('');
+    conteudo.style.display = 'none';
+    return;
+  }
+  aviso.innerHTML = '';
+  conteudo.style.display = '';
+
+  kpis.push(psKpi('Média geral', psNota(atual.geral)+'<span style="font-size:14px;color:var(--cinza)"> /5</span>',
+    `${psPct(atual.fav)} favorável · todas as perguntas`, cmp(atual.geral, anterior&&anterior.geral, v=>v.toFixed(2)), atual.geral));
+  rod.blocos.forEach(b=>{
+    const a = atual.bloco[b.id]||{}, p = anterior && anterior.bloco[b.id];
+    kpis.push(psKpi(`${b.id} · ${esc(b.nome)}`, psNota(a.media), `${psPct(a.fav)} favorável`, cmp(a.media, p&&p.media, v=>v.toFixed(2)), a.media));
+  });
+  document.getElementById('ps-kpis').innerHTML = kpis.join('');
+
+  // gráfico por bloco
+  document.getElementById('ps-desc-blocos').textContent = 'Média de todas as perguntas de cada bloco' + (antOk ? ` — ${rod.nome} × ${ant.nome}` : '');
+  if(window.Chart){
+    const ds = [{label:rod.nome, data:rod.blocos.map(b=>{ const v=(atual.bloco[b.id]||{}).media; return v==null?null:+v.toFixed(2); }), backgroundColor:'#024f2b', borderRadius:4}];
+    if(antOk) ds.push({label:ant.nome, data:rod.blocos.map(b=>{ const v=(anterior.bloco[b.id]||{}).media; return v==null?null:+v.toFixed(2); }), backgroundColor:'#b9cf8f', borderRadius:4});
+    mountChart('ch-ps-blocos', {type:'bar', data:{labels:rod.blocos.map(b=>b.id+' · '+b.nome), datasets:ds}, options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:true, labels:{boxWidth:12, font:{size:11}}}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)}`}}},
+      scales:{x:{grid:{display:false}, ticks:{font:{size:11}}}, y:{min:0, max:5, ticks:{stepSize:1, font:{size:10}}, grid:{color:'#eef0e8'}}}
+    }});
+  }
+
+  // tabela por pergunta
+  let n = 0;
+  const rowsP = rod.perguntas.map(p=>{
+    n++;
+    const a = atual.perg[p.k]||{}, b = anterior && anterior.perg[p.k];
+    const r = [`<span style="color:var(--cinza)">${esc(p.bloco)}</span>`, `<span style="font-weight:400">${n}. ${esc(p.texto)}</span>`, psNotaBarra(a.media), psPct(a.fav)];
+    if(antOk) r.push(psNota(b&&b.media), psDelta(a.media, b&&b.media));
+    return r;
+  });
+  document.getElementById('ps-tbl-perguntas').innerHTML = tableHTML(
+    ['Bloco','Pergunta','Média','% favorável', ...(antOk?[esc(ant.nome),'Δ']:[])], rowsP);
+
+  // tabela por setor
+  const grupos = psGrupos(resps, links, F.agrupar);
+  const gruposAnt = antOk ? new Map(psGrupos(respsAnt, linksAnt, F.agrupar).map(g=>[g.k, g])) : new Map();
+  const nomeAgr = {depto:'Departamento', area:'Área', filial:'Filial'}[F.agrupar];
+  document.getElementById('ps-desc-setores').textContent =
+    `Setores com menos de ${min} respostas aparecem ocultos. Às vezes um setor maior também é ocultado, para não dar para descobrir o resultado do oculto por subtração.`;
+  const rowsS = grupos.map(g=>{
+    const tx = g.hc ? Math.min(100, g.resps.length/g.hc*100).toFixed(0)+'%' : '—';
+    const nome = esc(g.label) + (g.sub ? `<span class="ps-sub">${esc(g.sub)}</span>` : '');
+    if(g.oculto){
+      const msg = g.complementar ? 'oculto p/ proteger outro setor' : `oculto · menos de ${min}`;
+      return [nome, g.resps.length, g.hc, tx, `<span class="pill p-neutral">${msg}</span>`, ...rod.blocos.map(()=>''), ...(antOk?['']:[])];
+    }
+    const c = psCalc(g.resps, rod);
+    const ga = gruposAnt.get(g.k);
+    const ca = ga && !ga.oculto ? psCalc(ga.resps, ant) : null;
+    return [nome, g.resps.length, g.hc, tx, psNotaBarra(c.geral), ...rod.blocos.map(b=>psNota((c.bloco[b.id]||{}).media)), ...(antOk?[psDelta(c.geral, ca&&ca.geral)]:[])];
+  });
+  document.getElementById('ps-tbl-setores').innerHTML = tableHTML(
+    [nomeAgr,'Respostas','Colab.','Taxa','Média geral', ...rod.blocos.map(b=>esc(b.id+' · '+b.nome)), ...(antOk?['Δ geral']:[])], rowsS);
+
+  // comentários — o setor só aparece se o departamento não estiver oculto
+  const visDepto = new Set(psGrupos(resps, links, 'depto').filter(g=>!g.oculto).map(g=>g.k));
+  const coms = resps.filter(r=>(r.comentario||'').trim()).sort((a,b)=>a.id.localeCompare(b.id)); // id aleatório = ordem aleatória estável
+  document.getElementById('ps-comentarios').innerHTML = coms.length
+    ? `<div style="font-size:12px;color:var(--cinza);margin-bottom:10px">${coms.length} comentário(s)</div>` + coms.map(r=>{
+        const k = r.filial+'||'+r.depto;
+        const set = visDepto.has(k) ? `${esc(r.depto)} · ${esc(r.filial)}` : 'Setor não exibido (poucas respostas)';
+        return `<div class="ps-coment"><div class="ps-set">${set}</div>${esc(r.comentario)}</div>`;
+      }).join('')
+    : '<div class="empty">Nenhum comentário nesta seleção</div>';
+}
+
 /* ================= MODAL ================= */
 function openModal(html){ document.getElementById('modal-box').innerHTML = html; document.getElementById('modal-bg').classList.add('open'); }
 function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
@@ -1609,6 +2122,7 @@ Object.assign(window, {
   salvarConfig, apagarTudo,
   applyFilter, setPreset, salvarAreas,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
+  criarRodada,
 });
 
 // se o Chart.js carregar depois do primeiro render, redesenha uma vez
