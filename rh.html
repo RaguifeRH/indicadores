@@ -429,16 +429,16 @@
       <!-- PESQUISA DE SATISFAÇÃO — RODADAS E LINKS -->
       <div class="page" id="page-rodadas">
         <h1 class="page-title">Rodadas da Pesquisa</h1>
-        <div class="page-desc">Abra a rodada de março ou de setembro e envie os links. Cada departamento recebe um link próprio: o setor já vem preenchido e o colaborador não consegue trocá-lo. O link não identifica quem respondeu.</div>
+        <div class="page-desc">Abra a rodada de março ou de setembro e envie o link — é um só para todos. O colaborador escolhe o próprio setor numa lista. O link não identifica quem respondeu.</div>
         <div class="panel">
           <h2>Abrir nova rodada</h2>
-          <div class="desc">Os links são gerados a partir dos departamentos com ativos na última Relação de Funcionários importada. O headcount de cada um é guardado na rodada para calcular a taxa de resposta.</div>
+          <div class="desc">A lista de setores do formulário sai dos departamentos com ativos na última Relação de Funcionários importada. O headcount de cada um é guardado na rodada para calcular a taxa de resposta.</div>
           <div class="form-grid">
             <div><label>Mês</label><select id="rd-mes"><option value="03">Março</option><option value="09">Setembro</option></select></div>
             <div><label>Ano</label><input type="number" id="rd-ano" min="2024" max="2100" step="1"></div>
           </div>
           <div class="note" id="rd-info"></div>
-          <div class="btn-row"><button class="btn btn-primary" id="rd-btn-criar" onclick="criarRodada()">Abrir rodada e gerar links</button></div>
+          <div class="btn-row"><button class="btn btn-primary" id="rd-btn-criar" onclick="criarRodada()">Abrir rodada e gerar link</button></div>
         </div>
         <div id="rd-lista"></div>
       </div>
@@ -1532,8 +1532,8 @@ function renderPorDepto(){
 /* =====================================================================
    PESQUISA DE SATISFAÇÃO
    Coleções no Firestore:
-   · rh_pesquisa_rodadas/{AAAA-MM}   nome, status (aberta|encerrada), perguntas (cópia congelada)
-   · rh_pesquisa_links/{token}       rodadaId, filial, depto, headcount — um por departamento
+   · rh_pesquisa_rodadas/{AAAA-MM}   nome, status, linkId, setores[{filial,depto,headcount}], perguntas (só RH lê)
+   · rh_pesquisa_links/{token}       1 por rodada — o que o formulário lê: perguntas + lista de setores (público)
    · rh_pesquisa_respostas/{auto}    rodadaId, linkId, filial, depto, respostas{q1..}, comentario
    A resposta não guarda nome, e-mail, aparelho nem horário. Quem responde usa pesquisa.html (sem login).
    ===================================================================== */
@@ -1620,6 +1620,20 @@ function psSetoresCadastro(){
 }
 
 /* ---------- RODADAS (admin) ---------- */
+// setores de uma rodada (com headcount). Rodadas antigas tinham 1 link por setor.
+function psSetoresDe(rodId){
+  const r = psRodada(rodId);
+  if(r && Array.isArray(r.setores)) return r.setores;
+  return state.psLinks.filter(l=>l.rodadaId===rodId && l.depto);
+}
+function psChaveSetor(s){ return s.filial+'||'+s.depto; }
+function psOrdSetor(a,b){ return (a.filial+a.depto).localeCompare(b.filial+b.depto); }
+// documento PÚBLICO lido pelo pesquisa.html: perguntas e lista de setores (sem headcount)
+function psDocLink(rodId, nome, modelo, setores, ativo){
+  return {rodadaId:rodId, nome, ativo, ...modelo,
+    setores: setores.map(s=>({filial:s.filial, depto:s.depto})),
+    chavesSetor: setores.map(psChaveSetor)};
+}
 const psRodAbertas = new Set();   // quais cartões de rodada estão expandidos
 let psRodInit = false;
 function renderRodadas(){
@@ -1632,7 +1646,7 @@ function renderRodadas(){
   }
   const hcTotal = setores.reduce((s,x)=>s+(x.headcount||0),0);
   document.getElementById('rd-info').innerHTML = comp
-    ? `Serão gerados <strong>${setores.length} links</strong> (um por departamento), com base na Relação de Funcionários de <strong>${fmtMesComp(comp)}</strong> · ${hcTotal} colaboradores efetivos.`
+    ? `Será gerado <strong>1 link</strong> para todos. No formulário, o colaborador escolhe o setor numa lista com <strong>${setores.length} departamentos</strong> (Relação de Funcionários de <strong>${fmtMesComp(comp)}</strong> · ${hcTotal} colaboradores efetivos).`
     : 'Importe a Relação de Funcionários primeiro (aba Importar) — é dela que vêm os departamentos e o headcount.';
   document.getElementById('rd-btn-criar').disabled = !comp;
 
@@ -1642,38 +1656,41 @@ function renderRodadas(){
   if(!rods.length){ host.innerHTML = '<div class="panel"><div class="empty">Nenhuma rodada aberta ainda</div></div>'; return; }
 
   host.innerHTML = rods.map(r=>{
-    const links = state.psLinks.filter(l=>l.rodadaId===r.id)
-      .sort((a,b)=>(a.filial+a.depto).localeCompare(b.filial+b.depto));
+    const setoresR = [...psSetoresDe(r.id)].sort(psOrdSetor);
     const resp = state.psResp.filter(x=>x.rodadaId===r.id);
-    const porLink = {}; resp.forEach(x=>{ porLink[x.linkId]=(porLink[x.linkId]||0)+1; });
-    const hc = links.reduce((s,l)=>s+(l.headcount||0),0);
+    const porSetor = {}; resp.forEach(x=>{ const k=psChaveSetor(x); porSetor[k]=(porSetor[k]||0)+1; });
+    const hc = setoresR.reduce((s,l)=>s+(l.headcount||0),0);
     const taxa = hc ? resp.length/hc*100 : null;
     const aberta = r.status==='aberta';
     const pill = aberta ? '<span class="pill p-ok">Aberta</span>' : '<span class="pill p-neutral">Encerrada</span>';
-    const linhas = links.map(l=>{
-      const n = porLink[l.id]||0;
+    const linhas = setoresR.map(l=>{
+      const n = porSetor[psChaveSetor(l)]||0;
       return `<tr>
         <td>${esc(l.filial)}</td><td>${esc(l.depto)}</td><td>${esc(areaDe(l.depto)||'—')}</td>
         <td class="num">${l.headcount||0}</td><td class="num">${n}</td>
-        <td class="num">${l.headcount? Math.round(n/l.headcount*100)+'%' : '—'}</td>
-        <td><input class="ps-link-in" readonly value="${esc(psUrl(l.id))}" onclick="this.select()"></td>
-        <td><button class="btn btn-ghost btn-mini" data-acao="copiar" data-link="${esc(l.id)}">Copiar</button></td>
+        <td class="num">${l.headcount? Math.min(100,Math.round(n/l.headcount*100))+'%' : '—'}</td>
       </tr>`;
     }).join('');
+    const linkBox = r.linkId
+      ? `<label>Link da pesquisa — o mesmo para todos os colaboradores</label>
+         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+           <input class="ps-link-in" style="flex:1" readonly value="${esc(psUrl(r.linkId))}" onclick="this.select()">
+           <button class="btn btn-primary btn-mini" data-acao="copiar" data-rod="${esc(r.id)}">Copiar link</button>
+         </div>`
+      : `<div class="note" style="margin:0 0 14px">Esta rodada foi criada na versão antiga (um link por setor). Exclua e abra de novo para ter o link único.</div>`;
     return `<details class="panel ps-rod" data-rod="${esc(r.id)}" ${psRodAbertas.has(r.id)?'open':''}>
       <summary><h2>${esc(r.nome)}</h2>${pill}
-        <span style="color:var(--cinza);font-size:12.5px">${resp.length} respostas de ${hc} colaboradores · ${taxa==null?'—':taxa.toFixed(0)+'%'} de participação</span>
+        <span style="color:var(--cinza);font-size:12.5px">${resp.length} respostas de ${hc} colaboradores · ${taxa==null?'—':Math.min(100,taxa).toFixed(0)+'%'} de participação</span>
         <span class="ps-chev">▾</span></summary>
       <div class="ps-rod-body">
+        ${linkBox}
         <div class="btn-row" style="margin-top:0;margin-bottom:12px">
           <button class="btn ${aberta?'btn-ghost':'btn-primary'} btn-mini" data-acao="status" data-rod="${esc(r.id)}">${aberta?'Encerrar rodada':'Reabrir rodada'}</button>
-          <button class="btn btn-ghost btn-mini" data-acao="copiar-todos" data-rod="${esc(r.id)}">Copiar todos os links</button>
-          <button class="btn btn-ghost btn-mini" data-acao="csv" data-rod="${esc(r.id)}">Baixar links (.csv)</button>
-          <button class="btn btn-ghost btn-mini" data-acao="novos" data-rod="${esc(r.id)}">Gerar links p/ deptos novos</button>
+          ${r.linkId?`<button class="btn btn-ghost btn-mini" data-acao="novos" data-rod="${esc(r.id)}">Incluir deptos novos na lista</button>`:''}
           <button class="btn btn-danger btn-mini" data-acao="excluir" data-rod="${esc(r.id)}">Excluir rodada</button>
         </div>
-        <div class="table-wrap">${links.length ? `<table><thead><tr><th>Filial</th><th>Departamento</th><th>Área</th><th>Colab.</th><th>Respostas</th><th>Taxa</th><th>Link</th><th></th></tr></thead><tbody>${linhas}</tbody></table>` : '<div class="empty">Sem links nesta rodada</div>'}</div>
-        <div class="note">Aberta em ${esc(r.criadaEm||'—')}${r.competenciaHeadcount?' · headcount de '+fmtMesComp(r.competenciaHeadcount):''}. Com a rodada encerrada, os links param de aceitar respostas.</div>
+        <div class="table-wrap">${setoresR.length ? `<table><thead><tr><th>Filial</th><th>Departamento</th><th>Área</th><th>Colab.</th><th>Respostas</th><th>Taxa</th></tr></thead><tbody>${linhas}</tbody></table>` : '<div class="empty">Sem setores nesta rodada</div>'}</div>
+        <div class="note">Aberta em ${esc(r.criadaEm||'—')}${r.competenciaHeadcount?' · headcount de '+fmtMesComp(r.competenciaHeadcount):''}. Com a rodada encerrada, o link para de aceitar respostas.</div>
       </div>
     </details>`;
   }).join('');
@@ -1691,11 +1708,11 @@ async function criarRodada(){
   if(psRodada(id)){ toast(`A rodada ${nome} já existe.`, true); return; }
   const {comp, setores} = psSetoresCadastro();
   if(!setores.length){ toast('Importe a Relação de Funcionários primeiro.', true); return; }
-  confirmModal(`Abrir a rodada <strong>${esc(nome)}</strong> e gerar <strong>${setores.length} links</strong> (um por departamento)? A rodada já começa aceitando respostas.`, async ()=>{
+  confirmModal(`Abrir a rodada <strong>${esc(nome)}</strong> com <strong>um único link</strong>? O colaborador escolhe o setor numa lista com ${setores.length} departamentos. A rodada já começa aceitando respostas.`, async ()=>{
     const btn = document.getElementById('rd-btn-criar');
     btn.disabled = true; btn.textContent = 'Gerando...';
+    psRodAbertas.add(id);
     try{
-      psRodAbertas.add(id);
       // limpa links que tenham sobrado de uma tentativa anterior que falhou
       const sobras = state.psLinks.filter(l=>l.rodadaId===id);
       for(let i=0;i<sobras.length;i+=400){
@@ -1703,63 +1720,52 @@ async function criarRodada(){
         sobras.slice(i,i+400).forEach(l=> batch.delete(doc(db,'rh_pesquisa_links', l.id)));
         await batch.commit();
       }
-      const modelo = psModelo();
-      // os links primeiro, a rodada por último: se algo falhar no meio, nenhum link fica ativo
-      for(let i=0;i<setores.length;i+=400){
-        const batch = writeBatch(db);
-        setores.slice(i,i+400).forEach(s=> batch.set(doc(db,'rh_pesquisa_links', psToken()),
-          {rodadaId:id, filial:s.filial, depto:s.depto, headcount:s.headcount, ativo:true}));
-        await batch.commit();
-      }
+      const modelo = psModelo(), linkId = psToken();
+      await setDoc(doc(db,'rh_pesquisa_links', linkId), psDocLink(id, nome, modelo, setores, true));
       await setDoc(doc(db,'rh_pesquisa_rodadas', id), {
         nome, mes, ano, status:'aberta', criadaEm: todayISO(), criadaPor: currentUser.nome||'',
-        competenciaHeadcount: comp, ...modelo,
+        competenciaHeadcount: comp, linkId, setores, ...modelo,
       });
       state.psF.rodada = ''; // o dashboard passa a abrir na rodada nova
-      toast(`Rodada ${nome} aberta ✓ — ${setores.length} links gerados`);
+      toast(`Rodada ${nome} aberta ✓ — copie o link abaixo`);
     }catch(e){ console.error(e); toast('Falha ao abrir a rodada: '+(e.message||e), true); }
-    finally{ btn.disabled = false; btn.textContent = 'Abrir rodada e gerar links'; }
+    finally{ btn.disabled = false; btn.textContent = 'Abrir rodada e gerar link'; }
   });
 }
 async function psAcaoRodada(e){
   const b = e.target.closest('[data-acao]'); if(!b) return;
   e.preventDefault();
   const acao = b.dataset.acao, r = psRodada(b.dataset.rod);
-  if(acao==='copiar'){ toast(await psCopiar(psUrl(b.dataset.link)) ? 'Link copiado ✓' : 'Não consegui copiar — selecione o link e copie.', false); return; }
   if(!r) return;
-  const links = state.psLinks.filter(l=>l.rodadaId===r.id).sort((a,b)=>(a.filial+a.depto).localeCompare(b.filial+b.depto));
+  if(acao==='copiar'){ toast(await psCopiar(psUrl(r.linkId)) ? 'Link copiado ✓' : 'Não consegui copiar — selecione o link e copie.', false); return; }
   if(acao==='status'){
     const novo = r.status==='aberta' ? 'encerrada' : 'aberta';
-    try{ await setDoc(doc(db,'rh_pesquisa_rodadas', r.id), {status:novo}, {merge:true}); toast(novo==='aberta'?'Rodada reaberta ✓':'Rodada encerrada ✓'); }
-    catch(err){ console.error(err); toast('Falha ao atualizar.', true); }
-  }
-  if(acao==='copiar-todos'){
-    const txt = ['Filial\tDepartamento\tLink', ...links.map(l=>`${l.filial}\t${l.depto}\t${psUrl(l.id)}`)].join('\n');
-    toast(await psCopiar(txt) ? `${links.length} links copiados ✓ — cole numa planilha` : 'Não consegui copiar.', false);
-  }
-  if(acao==='csv'){
-    const q = s => '"'+String(s??'').replace(/"/g,'""')+'"';
-    const csv = '﻿'+['Filial;Departamento;Área;Colaboradores;Link', ...links.map(l=>[l.filial,l.depto,areaDe(l.depto),l.headcount||0,psUrl(l.id)].map(q).join(';'))].join('\r\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
-    a.download = `links_pesquisa_${r.id}.csv`; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-  }
-  if(acao==='novos'){
-    const {setores} = psSetoresCadastro();
-    const tem = new Set(links.map(l=>l.filial+'||'+l.depto));
-    const novos = setores.filter(s=>!tem.has(s.filial+'||'+s.depto));
-    if(!novos.length){ toast('Todos os departamentos do cadastro já têm link nesta rodada.'); return; }
     try{
       const batch = writeBatch(db);
-      novos.forEach(s=> batch.set(doc(db,'rh_pesquisa_links', psToken()), {rodadaId:r.id, filial:s.filial, depto:s.depto, headcount:s.headcount, ativo:true}));
+      batch.set(doc(db,'rh_pesquisa_rodadas', r.id), {status:novo}, {merge:true});
+      if(r.linkId) batch.set(doc(db,'rh_pesquisa_links', r.linkId), {ativo: novo==='aberta'}, {merge:true});
       await batch.commit();
-      toast(`${novos.length} link(s) novo(s) gerado(s) ✓`);
-    }catch(err){ console.error(err); toast('Falha ao gerar links.', true); }
+      toast(novo==='aberta'?'Rodada reaberta ✓':'Rodada encerrada ✓');
+    }catch(err){ console.error(err); toast('Falha ao atualizar.', true); }
+  }
+  if(acao==='novos'){
+    const atuais = psSetoresDe(r.id);
+    const tem = new Set(atuais.map(psChaveSetor));
+    const novos = psSetoresCadastro().setores.filter(s=>!tem.has(psChaveSetor(s)));
+    if(!novos.length){ toast('Todos os departamentos do cadastro já estão na lista desta rodada.'); return; }
+    const todos = [...atuais.map(s=>({filial:s.filial, depto:s.depto, headcount:s.headcount||0})), ...novos].sort(psOrdSetor);
+    try{
+      const batch = writeBatch(db);
+      batch.set(doc(db,'rh_pesquisa_rodadas', r.id), {setores:todos}, {merge:true});
+      batch.set(doc(db,'rh_pesquisa_links', r.linkId), {setores:todos.map(s=>({filial:s.filial, depto:s.depto})), chavesSetor:todos.map(psChaveSetor)}, {merge:true});
+      await batch.commit();
+      toast(`${novos.length} departamento(s) incluído(s) na lista ✓`);
+    }catch(err){ console.error(err); toast('Falha ao atualizar a lista.', true); }
   }
   if(acao==='excluir'){
     const resp = state.psResp.filter(x=>x.rodadaId===r.id);
-    confirmModal(`Excluir a rodada <strong>${esc(r.nome)}</strong> com <strong>${resp.length} respostas</strong> e ${links.length} links? Não dá para desfazer. Use só para apagar uma rodada de teste.`, async ()=>{
+    const links = state.psLinks.filter(l=>l.rodadaId===r.id);
+    confirmModal(`Excluir a rodada <strong>${esc(r.nome)}</strong> com <strong>${resp.length} respostas</strong>? O link para de funcionar. Não dá para desfazer. Use só para apagar uma rodada de teste.`, async ()=>{
       try{
         const refs = [...resp.map(x=>doc(db,'rh_pesquisa_respostas',x.id)), ...links.map(l=>doc(db,'rh_pesquisa_links',l.id))];
         for(let i=0;i<refs.length;i+=400){ const batch=writeBatch(db); refs.slice(i,i+400).forEach(ref=>batch.delete(ref)); await batch.commit(); }
@@ -1855,7 +1861,7 @@ function renderPesquisa(){
   const rod = psRodada(F.rodada), ant = F.comparar ? psRodada(F.comparar) : null;
 
   // filtros em cascata a partir dos links da rodada
-  const linksR = state.psLinks.filter(l=>l.rodadaId===F.rodada);
+  const linksR = psSetoresDe(F.rodada);
   const uniq = a=>[...new Set(a)].sort((x,y)=>x.localeCompare(y));
   const filiais = uniq(linksR.map(l=>l.filial));
   if(F.filial && !filiais.includes(F.filial)) F.filial='';
@@ -1875,7 +1881,7 @@ function renderPesquisa(){
   const hc = links.reduce((s,l)=>s+(l.headcount||0),0);
   const taxa = hc ? Math.min(100, resps.length/hc*100) : null;
   const respsAnt = ant ? state.psResp.filter(r=>r.rodadaId===ant.id && psPassa(r)) : [];
-  const linksAnt = ant ? state.psLinks.filter(l=>l.rodadaId===ant.id && psPassa(l)) : [];
+  const linksAnt = ant ? psSetoresDe(ant.id).filter(psPassa) : [];
   const hcAnt = linksAnt.reduce((s,l)=>s+(l.headcount||0),0);
   const taxaAnt = hcAnt ? Math.min(100, respsAnt.length/hcAnt*100) : null;
   const antOk = !!ant && respsAnt.length >= min;

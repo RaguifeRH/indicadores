@@ -14,6 +14,8 @@
 .title{display:flex;gap:9px;align-items:center;color:var(--g);font-weight:800;font-size:18px;margin-bottom:13px}.num{width:29px;height:29px;border-radius:50%;background:var(--l);display:inline-flex;align-items:center;justify-content:center;flex:none}
 .note{font-size:13px;color:#64736c;line-height:1.45}.sector{background:#eff7f2;border:1px solid #cde0d5;border-radius:10px;padding:12px;font-weight:700;color:var(--g)}
 .sector small{display:block;font-weight:400;color:#64736c;margin-top:3px}
+select{width:100%;padding:13px 12px;border:1px solid var(--bd);border-radius:10px;font:inherit;font-size:16px;background:#fbfdfc;color:var(--tx)}
+select:focus{outline:2px solid var(--l);border-color:var(--g)}
 .q{padding:14px 0;border-top:1px solid #edf2ef}.q:first-of-type{border-top:0}.qt{font-weight:700;font-size:15px;line-height:1.4;margin-bottom:9px}
 .opts{display:flex;flex-direction:column;gap:7px}.opt{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-radius:10px;padding:10px 12px;background:#fbfdfc;cursor:pointer}.opt input{width:18px;height:18px;accent-color:var(--g);margin:0}.opt:hover{border-color:var(--l);background:#f7fbef}
 .opt:has(input:checked){border-color:var(--g);background:#eff7f2}
@@ -47,9 +49,9 @@ button:disabled{opacity:.6;cursor:wait}
 </section>
 
 <form id="form" class="hidden" novalidate>
-<section class="card"><div class="title"><span class="num">1</span> Seu setor</div>
-<div id="setorFixado" class="sector"></div>
-<p class="note">O setor foi definido pelo RH neste link. Não informe seu nome, matrícula ou gestor.</p></section>
+<section class="card" id="card-setor"><div class="title"><span class="num">1</span> Seu setor</div>
+<select id="setor" aria-label="Seu setor"></select>
+<p class="note">Escolha o departamento em que você trabalha. Não informe seu nome, matrícula ou gestor.</p></section>
 
 <section class="card"><div class="title"><span class="num">2</span> Como você avalia?</div>
 <p class="note">Marque uma opção em cada pergunta. Não existe resposta certa ou errada.</p></section>
@@ -100,14 +102,14 @@ async function iniciar(){
     const ls = await getDoc(doc(db,'rh_pesquisa_links',linkId));
     if(!ls.exists()){ mensagem('Link inválido','Este link não existe. Confira se copiou o endereço completo ou peça um novo ao RH.'); return; }
     link = ls.data();
-    const rs = await getDoc(doc(db,'rh_pesquisa_rodadas',link.rodadaId));
-    if(!rs.exists()){ mensagem('Pesquisa indisponível','Esta rodada da pesquisa não está mais disponível.'); return; }
-    rodada = rs.data();
+    // o próprio link traz as perguntas e a lista de setores
+    if(!Array.isArray(link.perguntas) || !Array.isArray(link.setores)){ mensagem('Link desatualizado','Este link é de uma versão antiga da pesquisa. Peça o link novo ao RH.'); return; }
+    rodada = link;
   }catch(e){
     console.error(e);
     mensagem('Não foi possível carregar','Verifique sua conexão com a internet e abra o link de novo.'); return;
   }
-  if(rodada.status!=='aberta' || link.ativo===false){
+  if(link.ativo!==true){
     mensagem('Pesquisa encerrada','O prazo para responder a '+(rodada.nome||'esta rodada')+' terminou. Obrigado pelo interesse!'); return;
   }
   montarFormulario();
@@ -115,7 +117,14 @@ async function iniciar(){
 }
 
 function montarFormulario(){
-  $('setorFixado').innerHTML = esc(link.depto) + (link.filial ? `<small>${esc(link.filial)}</small>` : '');
+  // lista de setores: agrupada por filial quando houver mais de uma
+  const setores = link.setores.map((x,i)=>({...x, i}));
+  const filiais = [...new Set(setores.map(x=>x.filial))].sort((a,b)=>a.localeCompare(b));
+  const opt = x=>`<option value="${x.i}">${esc(x.depto)}</option>`;
+  const porNome = (a,b)=>a.depto.localeCompare(b.depto);
+  $('setor').innerHTML = '<option value="">Selecione seu setor...</option>' + (filiais.length>1
+    ? filiais.map(f=>`<optgroup label="${esc(f)}">${setores.filter(x=>x.filial===f).sort(porNome).map(opt).join('')}</optgroup>`).join('')
+    : setores.sort(porNome).map(opt).join(''));
   const escala = (rodada.escala || [{v:'1',t:'Muito ruim'},{v:'2',t:'Ruim'},{v:'3',t:'Regular'},{v:'4',t:'Bom'},{v:'5',t:'Muito bom'}])
     .map(e=> Array.isArray(e) ? e : [e.v, e.t]);
   let n=0, html='';
@@ -139,6 +148,15 @@ $('btn-continuar').addEventListener('click', ()=>{ mostrar('form'); window.scrol
 $('form').addEventListener('submit', async e=>{
   e.preventDefault();
   $('erro').classList.add('hidden');
+  const iSetor = $('setor').value;
+  if(iSetor===''){
+    $('card-setor').scrollIntoView({behavior:'smooth', block:'center'});
+    $('setor').style.outline='2px solid #b3261e'; setTimeout(()=>{ $('setor').style.outline=''; }, 2500);
+    $('erro').textContent = 'Escolha o seu setor no início do formulário.';
+    $('erro').classList.remove('hidden');
+    return;
+  }
+  const setor = link.setores[+iSetor];
   const respostas = {};
   let faltando = null;
   for(const p of rodada.perguntas){
@@ -160,7 +178,7 @@ $('form').addEventListener('submit', async e=>{
   try{
     await addDoc(collection(db,'rh_pesquisa_respostas'), {
       rodadaId: link.rodadaId, linkId,
-      filial: link.filial, depto: link.depto,
+      filial: setor.filial, depto: setor.depto,
       respostas,
       comentario: $('comentario').value.trim().slice(0,2000),
     });
