@@ -1562,7 +1562,8 @@ const PS_BLOCOS = [
   {id:'D', nome:'Satisfação geral', perguntas:[
     'De forma geral, como você avalia seu trabalho na Raguife?']},
 ];
-const PS_ESCALA = [['1','Muito ruim'],['2','Ruim'],['3','Regular'],['4','Bom'],['5','Muito bom']];
+// objetos, não listas: o Firestore não aceita lista dentro de lista
+const PS_ESCALA = [{v:'1',t:'Muito ruim'},{v:'2',t:'Ruim'},{v:'3',t:'Regular'},{v:'4',t:'Bom'},{v:'5',t:'Muito bom'}];
 const PS_MES_NOME = {'03':'Março','09':'Setembro'};
 function psModelo(){
   let n=0; const perguntas=[];
@@ -1695,6 +1696,13 @@ async function criarRodada(){
     btn.disabled = true; btn.textContent = 'Gerando...';
     try{
       psRodAbertas.add(id);
+      // limpa links que tenham sobrado de uma tentativa anterior que falhou
+      const sobras = state.psLinks.filter(l=>l.rodadaId===id);
+      for(let i=0;i<sobras.length;i+=400){
+        const batch = writeBatch(db);
+        sobras.slice(i,i+400).forEach(l=> batch.delete(doc(db,'rh_pesquisa_links', l.id)));
+        await batch.commit();
+      }
       const modelo = psModelo();
       // os links primeiro, a rodada por último: se algo falhar no meio, nenhum link fica ativo
       for(let i=0;i<setores.length;i+=400){

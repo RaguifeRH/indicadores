@@ -116,7 +116,8 @@ async function iniciar(){
 
 function montarFormulario(){
   $('setorFixado').innerHTML = esc(link.depto) + (link.filial ? `<small>${esc(link.filial)}</small>` : '');
-  const escala = rodada.escala || [["1","Muito ruim"],["2","Ruim"],["3","Regular"],["4","Bom"],["5","Muito bom"]];
+  const escala = (rodada.escala || [{v:'1',t:'Muito ruim'},{v:'2',t:'Ruim'},{v:'3',t:'Regular'},{v:'4',t:'Bom'},{v:'5',t:'Muito bom'}])
+    .map(e=> Array.isArray(e) ? e : [e.v, e.t]);
   let n=0, html='';
   for(const b of rodada.blocos){
     const ps = rodada.perguntas.filter(p=>p.bloco===b.id);
