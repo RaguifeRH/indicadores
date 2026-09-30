@@ -367,7 +367,7 @@
             </div>
           </div>
           <div class="note" id="imp-status-deslig" style="display:none"></div>
-          <div class="note">Separa os desligamentos em <strong>involuntário</strong> (iniciativa do empregador — códigos 1, 2, 11), <strong>voluntário</strong> (iniciativa do empregado — códigos 4, 10) e <strong>neutro</strong> (término de contrato, acordo, falecimento, fim de estágio — contam como saída, mas fora dos dois). Transferência e mudança de CPF (5, 5C) não contam. A competência vem da própria data de demissão; o <strong>departamento</strong> é descoberto cruzando a <strong>chapa</strong> com a Relação de Funcionários enviada acima — por isso ela precisa ser enviada primeiro. Chapa não encontrada entre os efetivos fica em "(SEM DEPTO)".</div>
+          <div class="note">Separa os desligamentos em <strong>involuntário</strong> (iniciativa do empregador — códigos 1, 2, 11), <strong>voluntário</strong> (iniciativa do empregado — códigos 4, 10) e <strong>neutro</strong> (término de contrato, acordo, falecimento, fim de estágio — contam como saída, mas fora dos dois). Transferência e mudança de CPF (5, 5C) não contam. Assim como o headcount, só conta <strong>efetivos</strong> — aprendiz, estagiário e autônomo (pelo cargo na Relação de Funcionários) são ignorados, para o total dos motivos bater com o card de desligamentos. A competência vem da própria data de demissão; o <strong>departamento</strong> é descoberto cruzando a <strong>chapa</strong> com a Relação de Funcionários enviada acima — por isso ela precisa ser enviada primeiro. Chapa que não aparece na Relação fica em "(SEM DEPTO)".</div>
         </div>
 
         <div class="panel" id="imp-preview" style="display:none">
@@ -727,6 +727,8 @@ function chaveLanc(comp, filial, depto){
 }
 let importRows = null; // linhas já normalizadas, prontas para gravar
 let importSpellsEfetivos = null; // vínculos de efetivos da última Relação de Funcionários processada (p/ cruzar atestados por matrícula)
+let importChapasNaoEfetivos = null; // chapas de aprendiz/estagiário/autônomo — ignoradas também no PDF de desligamentos
+let importDeletarIds = null; // lançamentos antigos a apagar ao gravar (ex.: "(SEM DEPTO)" que deixou de existir)
 
 function carregarSheetJS(){
   if(window.XLSX) return Promise.resolve();
@@ -768,6 +770,7 @@ async function processarPlanilha(ev){
   if(!file) return;
   document.getElementById('imp-preview').style.display='none';
   importRows = null;
+  importDeletarIds = null;
   statusImport('Lendo arquivo...');
   try{
     await carregarSheetJS();
@@ -797,12 +800,17 @@ async function processarPlanilha(ev){
 
     // ---- 1) monta a lista de "vínculos" (um por período de emprego), só Efetivos (pelo Cargo) ----
     const spells = [];
+    const naoEfetivos = new Set();
     for(let i=hdrIdx+1;i<grid.length;i++){
       const row = grid[i]; if(!row) continue;
       const chapa = row[cChapa];
       if(!chapa || norm(chapa)==='chapa') continue; // linha vazia ou cabeçalho repetido
       const cargo = String(row[cCargo]||'');
-      if(categoriaCargo(cargo) !== 'Efetivo') continue; // aprendiz/estagiário/autônomo ficam de fora
+      if(categoriaCargo(cargo) !== 'Efetivo'){ // aprendiz/estagiário/autônomo ficam de fora
+        const k = String(chapa).trim();
+        naoEfetivos.add(k); naoEfetivos.add(k.replace(/^0+/,''));
+        continue;
+      }
       const filial = String(row[cFilial]||'').trim();
       const depto = String(row[cDepto]||'').trim();
       if(!filial || !depto) continue;
@@ -814,6 +822,7 @@ async function processarPlanilha(ev){
     }
     if(!spells.length){ statusImport('Nenhum vínculo de efetivo encontrado.', true); return; }
     importSpellsEfetivos = spells;
+    importChapasNaoEfetivos = naoEfetivos;
 
     // ---- 2) meses a calcular ----
     const mesIni = document.getElementById('imp-mes-inicio').value || addMonths(monthISO(), -11);
@@ -1011,51 +1020,82 @@ async function processarDesligamentos(ev){
       const k = String(s.chapa||'').trim();
       addChapa(k, s); addChapa(k.replace(/^0+/,''), s);
     });
+    const naoEfet = importChapasNaoEfetivos || new Set();
 
     const filRe = /Filial:\s*([\d.]+)\s*-\s*(.+)/;
     const linRe = /^\s*(\d+)\s+(\S+)\s+.+?\s+(\d{2}\/\d{2}\/\d{4})\s+([0-9A-Za-z]{1,3})\s*-\s*(.+)$/;
     const agg = new Map(); // id -> {competencia,filial,depto,vol,invol,neutro}
-    let filialCod=null, lidos=0, semChapa=0, naoConta=0, tVol=0, tInvol=0, tNeutro=0;
+    const compsPDF = new Set(), filiaisPDF = new Set(); // o que este PDF cobre (p/ limpar valores antigos)
+    let filialCod=null, lidos=0, semChapa=0, naoConta=0, naoEfetivo=0, tVol=0, tInvol=0, tNeutro=0;
 
     linhas.forEach(l=>{
       const mf = l.match(filRe); if(mf){ filialCod = mf[1].trim(); return; }
       const m = l.match(linRe); if(!m) return;
       const chapa = m[2].trim(), data = m[3], code = m[4].trim();
+      const comp = data.slice(6,10)+'-'+data.slice(3,5);
+      const filialPdf = filialPorCodigo(filialCod) || (filialCod||'—');
+      compsPDF.add(comp); filiaisPDF.add(filialPdf);
       const bucket = classificaMotivo(code);
       if(bucket==='naoconta'){ naoConta++; return; }
+      const lst = porChapa.get(chapa) || porChapa.get(chapa.replace(/^0+/,''));
+      // aprendiz/estagiário/autônomo: fora, igual ao headcount e ao card de desligamentos
+      if(!(lst && lst.length) && (naoEfet.has(chapa) || naoEfet.has(chapa.replace(/^0+/,'')))){ naoEfetivo++; return; }
       lidos++;
       if(bucket==='vol') tVol++; else if(bucket==='invol') tInvol++; else tNeutro++;
-      const comp = data.slice(6,10)+'-'+data.slice(3,5);
-      let depto='(SEM DEPTO)', filial = filialPorCodigo(filialCod) || (filialCod||'—');
-      const lst = porChapa.get(chapa) || porChapa.get(chapa.replace(/^0+/,''));
+      let depto='(SEM DEPTO)', filial = filialPdf;
       if(lst && lst.length){
         const sp = lst.find(s=>s.dem && s.dem.slice(0,7)===comp)
                 || lst.slice().sort((a,b)=>String(b.adm).localeCompare(String(a.adm)))[0];
         if(sp){ depto = sp.depto || depto; if(sp.filial) filial = sp.filial; }
       } else { semChapa++; }
+      filiaisPDF.add(filial);
       const id = chaveLanc(comp, filial, depto);
       let a = agg.get(id);
       if(!a){ a = {competencia:comp, filial, depto, vol:0, invol:0, neutro:0}; agg.set(id, a); }
       a[bucket]++;
     });
 
-    if(!lidos){ statusImportDeslig('Não encontrei linhas de desligamento nesse PDF — confira se é o relatório "Funcionários Demitidos / Admitidos".', true); ev.target.value=''; return; }
+    if(!lidos && !naoEfetivo){ statusImportDeslig('Não encontrei linhas de desligamento nesse PDF — confira se é o relatório "Funcionários Demitidos / Admitidos".', true); ev.target.value=''; return; }
+
+    // reenvio do PDF na mesma sessão: começa do zero
+    importRows.forEach(r=>{ delete r.desligInvol; delete r.desligVol; delete r.desligNeutro; });
 
     let aplicados=0, criados=0;
     agg.forEach((a,id)=>{
       const row = importRows.find(r=>r.id===id);
       if(row){ row.desligInvol=a.invol; row.desligVol=a.vol; row.desligNeutro=a.neutro; aplicados++; }
       else {
+        const ant = state.lanc.find(l=>l.id===id);
         importRows.push({ id, competencia:a.competencia, filial:a.filial, depto:a.depto,
-          ativos:0, admitidos:0, demitidos:0, turnover:0,
+          ativos:ant?ant.ativos||0:0, admitidos:ant?ant.admitidos||0:0, demitidos:ant?ant.demitidos||0:0, turnover:ant?ant.turnover||0:0,
           desligInvol:a.invol, desligVol:a.vol, desligNeutro:a.neutro });
         criados++;
       }
     });
+
+    // valores gravados antes, nos mesmos meses/filiais, que este PDF não confirma mais: zera
+    // (ou apaga, se for uma linha "(SEM DEPTO)" que só existia por causa dos desligamentos)
+    importDeletarIds = new Set();
+    let corrigidos = 0;
+    state.lanc.forEach(l=>{
+      if(!compsPDF.has(l.competencia) || !filiaisPDF.has(l.filial)) return;
+      if(!((l.desligInvol||0)+(l.desligVol||0)+(l.desligNeutro||0))) return;
+      if(agg.has(l.id)) return;
+      corrigidos++;
+      const row = importRows.find(r=>r.id===l.id);
+      if(!row && l.depto==='(SEM DEPTO)' && !(l.ativos||0)){ importDeletarIds.add(l.id); return; }
+      if(row){ row.desligInvol=0; row.desligVol=0; row.desligNeutro=0; }
+      else importRows.push({ id:l.id, competencia:l.competencia, filial:l.filial, depto:l.depto,
+        ativos:l.ativos||0, admitidos:l.admitidos||0, demitidos:l.demitidos||0, turnover:l.turnover||0,
+        desligInvol:0, desligVol:0, desligNeutro:0 });
+    });
+
     renderPreviewImportacao();
-    let msg = `${lidos} desligamentos classificados · ${tInvol} involuntários / ${tVol} voluntários / ${tNeutro} neutros`;
+    let msg = `${lidos} desligamentos de efetivos classificados · ${tInvol} involuntários / ${tVol} voluntários / ${tNeutro} neutros`;
+    if(naoEfetivo) msg += ` · ${naoEfetivo} ignorados (aprendiz/estagiário/autônomo)`;
     if(naoConta) msg += ` · ${naoConta} ignorados (transferência/CPF)`;
-    if(semChapa) msg += ` · ${semChapa} sem chapa nos efetivos → "(SEM DEPTO)"`;
+    if(semChapa) msg += ` · ${semChapa} chapa(s) fora da Relação → "(SEM DEPTO)"`;
+    if(corrigidos) msg += ` · ${corrigidos} lançamento(s) antigo(s) corrigido(s)`;
     statusImportDeslig(msg + ' ✓');
   }catch(e){ console.error(e); statusImportDeslig('Falha ao ler o PDF: '+(e.message||e), true); }
 }
@@ -1100,6 +1140,11 @@ async function gravarImportacao(){
       await batch.commit();
       statusImport(`Gravando... ${Math.min(i+chunkSize, importRows.length)}/${importRows.length}`);
     }
+    if(importDeletarIds && importDeletarIds.size){
+      const batch = writeBatch(db);
+      importDeletarIds.forEach(id=> batch.delete(doc(db,'rh_lancamentos', id)));
+      await batch.commit();
+    }
     toast('Importação concluída ✓');
     statusImport(`${importRows.length} registros gravados ✓`);
     limparImportacao();
@@ -1109,6 +1154,8 @@ async function gravarImportacao(){
 function limparImportacao(){
   importRows = null;
   importSpellsEfetivos = null;
+  importChapasNaoEfetivos = null;
+  importDeletarIds = null;
   document.getElementById('imp-preview').style.display='none';
   document.getElementById('imp-panel-atestado').style.display='none';
   document.getElementById('imp-status-atestado').style.display='none';
