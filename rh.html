@@ -1454,21 +1454,27 @@ function renderDashboard(){
 
   const totMot = atual.desligInvol + atual.desligVol + atual.desligNeutro;
   const totMotAnt = anterior.desligInvol + anterior.desligVol + anterior.desligNeutro;
-  const comIni = atual.desligInvol + atual.desligVol; // base p/ o "% com iniciativa"
-  const pctInvol = comIni? Math.round(atual.desligInvol/comIni*100) : 0;
-  const pctVol = comIni? Math.round(atual.desligVol/comIni*100) : 0;
+  // % sobre o total de desligamentos classificados (involuntário + voluntário + neutro = 100%)
+  const pct = v => totMot? Math.round(v/totMot*100) : 0;
+  const semPdf = 'Importe o relatório de desligamentos por motivo (PDF)';
 
   cards.push(kpiCard('Deslig. involuntário (empresa)',
     totMot? atual.desligInvol+'' : '—',
-    totMot? `${pctInvol}% dos com iniciativa · dispensa pelo empregador` : 'Importe o relatório de desligamentos por motivo (PDF)',
+    totMot? `${pct(atual.desligInvol)}% dos desligamentos · dispensa pelo empregador` : semPdf,
     true, 0, 0,
     (totMot && totMotAnt)? cmpLine(atual.desligInvol, anterior.desligInvol, false, v=>Math.round(v)+'') : semAnterior));
 
   cards.push(kpiCard('Deslig. voluntário (funcionário)',
     totMot? atual.desligVol+'' : '—',
-    totMot? `${pctVol}% dos com iniciativa · ${atual.desligNeutro} neutro(s) à parte (término/acordo)` : 'Importe o relatório de desligamentos por motivo (PDF)',
+    totMot? `${pct(atual.desligVol)}% dos desligamentos · pedido do funcionário` : semPdf,
     true, 0, 0,
     (totMot && totMotAnt)? cmpLine(atual.desligVol, anterior.desligVol, false, v=>Math.round(v)+'') : semAnterior));
+
+  cards.push(kpiCard('Deslig. neutro (sem iniciativa)',
+    totMot? atual.desligNeutro+'' : '—',
+    totMot? `${pct(atual.desligNeutro)}% dos desligamentos · término de contrato, acordo, aposentadoria, falecimento` : semPdf,
+    true, 0, 0,
+    (totMot && totMotAnt)? cmpLine(atual.desligNeutro, anterior.desligNeutro, false, v=>Math.round(v)+'') : semAnterior));
 
   document.getElementById('kpi-grid').innerHTML = cards.join('');
 
