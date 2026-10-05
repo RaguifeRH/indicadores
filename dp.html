@@ -420,23 +420,23 @@
       </div>
 
 
-      <!-- HEADCOUNT -->
+      <!-- HEADCOUNT (vem do RH) -->
       <div class="page" id="page-headcount">
         <h1 class="page-title">Headcount</h1>
-        <div class="page-desc">Número de funcionários por mês, filial e departamento — base do custo per capita no Dashboard</div>
+        <div class="page-desc">Vem direto do módulo de RH (Relação de Funcionários) — não precisa importar nada aqui. Para atualizar, importe a Relação no RH.</div>
         <div class="panel">
-          <h2>Importar planilha de headcount (.xlsx)</h2>
-          <div class="desc">Colunas esperadas: <strong>Competência</strong>, <strong>Filial</strong>, <strong>Departamento</strong> e <strong>Funcionários</strong> (também aceita "Headcount", "Colaboradores" ou "Qtd"). Os nomes de filial e departamento precisam ser os mesmos da planilha de custos. Reimportar um mês substitui os valores dele.</div>
-          <div class="form-grid">
-            <div><label>Arquivo</label><input type="file" id="hc-file" accept=".xlsx" onchange="processarPlanilhaHeadcount(event)"></div>
-          </div>
-          <div class="note" id="hc-status" style="display:none"></div>
-          <div class="btn-row"><button class="btn btn-ghost" onclick="baixarModeloHeadcount()">Baixar modelo (.xlsx)</button></div>
+          <h2>Cruzamento RH × custos, por mês</h2>
+          <div class="desc">O per capita só usa linhas que existem nos dois módulos com a mesma filial e o mesmo departamento. Quanto maior a cobertura, mais confiável o número.</div>
+          <div class="table-wrap" id="tbl-headcount"></div>
+          <div class="note">O RH conta só <strong>efetivos</strong> (sem aprendiz, estagiário e autônomo). O custo inclui a categoria Jovem Aprendiz — por isso o per capita fica um pouco acima do custo real por pessoa.</div>
         </div>
         <div class="panel">
-          <h2>Meses lançados</h2>
-          <div class="desc">Total de funcionários por mês · "sem custo" = linhas de headcount sem departamento correspondente na base de custos (confira a grafia)</div>
-          <div class="table-wrap" id="tbl-headcount"></div>
+          <h2>Nomes que não bateram</h2>
+          <div class="desc" id="hc-difs-desc"></div>
+          <div class="var-grid">
+            <div><h3>Só nos custos (DP)</h3><div class="table-wrap" id="tbl-hc-so-dp"></div></div>
+            <div><h3>Só no RH</h3><div class="table-wrap" id="tbl-hc-so-rh"></div></div>
+          </div>
         </div>
       </div>
 
@@ -652,6 +652,7 @@ function subscribeData(){
     state.custos = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderFiliaisDeptos();
     renderDashboard();
+    renderHeadcountTabela();
   }, e=>console.error(e));
   unsubs.push(u1);
   const u2 = onSnapshot(collection(db,'dp_faturamento'), snap=>{
@@ -660,8 +661,10 @@ function subscribeData(){
     renderDashboard();
   }, e=>console.error(e));
   unsubs.push(u2);
-  const u3 = onSnapshot(collection(db,'dp_headcount'), snap=>{
-    state.headcount = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  // headcount vem do módulo de RH (Relação de Funcionários): mesma chave mês + filial + depto
+  const u3 = onSnapshot(collection(db,'rh_lancamentos'), snap=>{
+    state.headcount = snap.docs.map(d=>{ const x=d.data(); return {id:d.id, competencia:x.competencia, filial:x.filial, depto:x.depto, funcionarios:Number(x.ativos)||0}; })
+      .filter(h=>h.funcionarios>0);
     renderHeadcountTabela();
     renderDashboard();
   }, e=>console.error(e));
@@ -1030,120 +1033,44 @@ async function processarPlanilhaFaturamento(ev){
   }catch(e){ console.error(e); statusFatImport('Falha ao ler o arquivo: '+(e.message||e), true); }
 }
 
-/* ================= HEADCOUNT ================= */
-function statusHC(msg, isErr){
-  const el = document.getElementById('hc-status');
-  el.style.display='block'; el.textContent = msg;
-  el.style.background = isErr? '#f7e3df' : '';
-  el.style.color = isErr? 'var(--erro)' : '';
-}
-async function processarPlanilhaHeadcount(ev){
-  const file = ev.target.files[0];
-  if(!file) return;
-  statusHC('Lendo arquivo...');
-  try{
-    await carregarSheetJS();
-    const wb = XLSX.read(await file.arrayBuffer(), {type:'array', cellDates:true});
-    const wsName = wb.SheetNames.find(n=>/head|funcion|efetivo/i.test(stripAcc(n))) || wb.SheetNames[0];
-    const grid = XLSX.utils.sheet_to_json(wb.Sheets[wsName], {header:1, defval:null, raw:true});
-    const norm = s => stripAcc(String(s||'')).toLowerCase().trim();
-    let hdrIdx = -1;
-    for(let i=0;i<Math.min(grid.length,12);i++){
-      const l = (grid[i]||[]).map(norm);
-      if(l.some(h=>h.includes('competenc')) && l.some(h=>h.includes('filial'))){ hdrIdx=i; break; }
-    }
-    if(hdrIdx<0){ statusHC('Não encontrei a linha de cabeçalho (Competência + Filial).', true); return; }
-    const hdr = grid[hdrIdx].map(norm);
-    const cComp = hdr.findIndex(h=>h.includes('competenc'));
-    const cFilial = hdr.findIndex(h=>h.includes('filial'));
-    const cDepto = hdr.findIndex(h=>h.includes('depart')||h.includes('depto'));
-    const cQtd = hdr.findIndex(h=>/funcionar|headcount|colaborador|efetivo|^qtd|quantidade/.test(h));
-    if([cComp,cFilial,cDepto,cQtd].some(i=>i<0)){
-      statusHC('Faltam colunas: preciso de Competência, Filial, Departamento e Funcionários.', true); return;
-    }
-    const porId = new Map();
-    let ignoradas = 0;
-    for(let i=hdrIdx+1;i<grid.length;i++){
-      const row = grid[i]; if(!row) continue;
-      const filial = String(row[cFilial]||'').trim(), depto = String(row[cDepto]||'').trim();
-      const comp = parseComp(row[cComp]);
-      if(!filial || !depto || !comp){ if(row.some(v=>v!=null && v!=='')) ignoradas++; continue; }
-      const id = chaveCusto(comp, filial, depto);
-      const ant = porId.get(id);
-      const qtd = parseNum(row[cQtd]);
-      if(ant) ant.funcionarios += qtd;   // linhas repetidas do mesmo depto somam
-      else porId.set(id, {id, competencia:comp, filial, depto, funcionarios:qtd});
-    }
-    const linhas = [...porId.values()];
-    if(!linhas.length){ statusHC('Nenhuma linha válida encontrada.', true); return; }
-    // reimportar um mês substitui o mês inteiro: remove o que não veio no arquivo
-    const meses = new Set(linhas.map(l=>l.competencia));
-    const remover = state.headcount.filter(h=>meses.has(h.competencia) && !porId.has(h.id)).map(h=>h.id);
-    const ops = [...linhas.map(l=>({t:'set', l})), ...remover.map(id=>({t:'del', id}))];
-    for(let i=0;i<ops.length;i+=400){
-      const batch = writeBatch(db);
-      ops.slice(i,i+400).forEach(o=>{
-        if(o.t==='set') batch.set(doc(db,'dp_headcount', o.l.id), {competencia:o.l.competencia, filial:o.l.filial, depto:o.l.depto, funcionarios:o.l.funcionarios, atualizadoEm:todayISO()});
-        else batch.delete(doc(db,'dp_headcount', o.id));
-      });
-      await batch.commit();
-    }
-    const custoIds = new Set(state.custos.map(c=>c.id));
-    const semPar = linhas.filter(l=>!custoIds.has(l.id)).length;
-    const mesesOrd = [...meses].sort();
-    statusHC(`${linhas.length} linha(s) gravada(s) ✓ — ${fmtMesComp(mesesOrd[0])} a ${fmtMesComp(mesesOrd[mesesOrd.length-1])}`
-      + (semPar? ` · ⚠ ${semPar} sem departamento correspondente na base de custos (não entram no per capita)` : '')
-      + (ignoradas? ` · ${ignoradas} linha(s) incompleta(s) ignorada(s)` : ''));
-    toast('Headcount importado ✓');
-    document.getElementById('hc-file').value = '';
-  }catch(e){ console.error(e); statusHC('Falha ao ler o arquivo: '+(e.message||e), true); }
-}
+/* ================= HEADCOUNT (lido do RH) ================= */
 function renderHeadcountTabela(){
   const el = document.getElementById('tbl-headcount'); if(!el) return;
+  const hcMap = hcIndex();
   const custoIds = new Set(state.custos.map(c=>c.id));
-  const porMes = {};
-  state.headcount.forEach(h=>{
-    const m = porMes[h.competencia] ||= {total:0, linhas:0, semPar:0};
-    m.total += h.funcionarios||0; m.linhas++; if(!custoIds.has(h.id)) m.semPar++;
+  const meses = [...new Set([...state.custos.map(c=>c.competencia), ...state.headcount.map(h=>h.competencia)])].filter(Boolean).sort().reverse().slice(0,12);
+  const rows = meses.map(m=>{
+    const custos = state.custos.filter(c=>c.competencia===m);
+    const hcs = state.headcount.filter(h=>h.competencia===m);
+    const totalCusto = custos.reduce((s,c)=>s+(c.total||0),0);
+    const custoCoberto = custos.filter(c=>hcMap.has(c.id)).reduce((s,c)=>s+(c.total||0),0);
+    const hcTotal = hcs.reduce((s,h)=>s+h.funcionarios,0);
+    const soRH = hcs.filter(h=>!custoIds.has(h.id)).length;
+    const cob = totalCusto ? custoCoberto/totalCusto*100 : null;
+    const cor = cob==null? '' : cob>=95? 'v-down' : cob>=80? '' : 'v-up';
+    return [fmtMesComp(m), hcTotal? hcTotal.toLocaleString('pt-BR') : '—', fmtMoeda(totalCusto),
+      cob==null? '—' : `<span class="${cor}">${cob.toFixed(1)}%</span>`,
+      custos.filter(c=>!hcMap.has(c.id)).length, soRH];
   });
-  const rows = Object.keys(porMes).sort().reverse().map(k=>{
-    const m = porMes[k];
-    return [fmtMesComp(k), m.total.toLocaleString('pt-BR'), m.linhas, m.semPar? `<span style="color:var(--erro)">${m.semPar}</span>` : '0',
-      `<button class="btn btn-danger btn-mini" onclick="delHeadcountMes('${k}')">×</button>`];
-  });
-  el.innerHTML = tableHTML(['Mês','Funcionários','Linhas','Sem custo',''], rows);
-}
-function delHeadcountMes(comp){
-  confirmModal(`Remover o headcount de <strong>${fmtMesComp(comp)}</strong>?`, async()=>{
-    try{
-      const ids = state.headcount.filter(h=>h.competencia===comp).map(h=>h.id);
-      for(let i=0;i<ids.length;i+=400){
-        const batch = writeBatch(db);
-        ids.slice(i,i+400).forEach(id=>batch.delete(doc(db,'dp_headcount', id)));
-        await batch.commit();
-      }
-      toast('Removido ✓');
-    }catch(e){ console.error(e); toast('Falha ao remover.', true); }
-  });
-}
-async function baixarModeloHeadcount(){
-  try{
-    await carregarSheetJS();
-    // modelo já preenchido com as filiais/deptos do último mês de custo — basta digitar a quantidade
-    const ultimo = [...new Set(state.custos.map(c=>c.competencia))].sort().pop();
-    const hcMap = new Map(state.headcount.map(h=>[h.id, h.funcionarios]));
-    const base = ultimo ? state.custos.filter(c=>c.competencia===ultimo) : [];
-    const linhas = base.sort((a,b)=>(a.filial+a.depto).localeCompare(b.filial+b.depto)).map(c=>{
-      const [y,m] = c.competencia.split('-').map(Number);
-      return {'Competência': new Date(y, m-1, 15), 'Filial': c.filial, 'Departamento': c.depto, 'Funcionários': hcMap.get(c.id) ?? ''};
-    });
-    if(!linhas.length) linhas.push({'Competência':'', 'Filial':'', 'Departamento':'', 'Funcionários':''});
-    const ws = XLSX.utils.json_to_sheet(linhas, {cellDates:true});
-    ws['!cols'] = [{wch:12},{wch:22},{wch:30},{wch:13}];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'HEADCOUNT');
-    XLSX.writeFile(wb, `dp_headcount_modelo_${todayISO()}.xlsx`);
-  }catch(e){ console.error(e); toast('Falha ao gerar o modelo.', true); }
+  el.innerHTML = tableHTML(['Mês','Funcionários (RH)','Custo (DP)','Custo coberto','Deptos só no DP','Deptos só no RH'], rows);
+
+  // diferenças de nome no último mês que tem dados nos dois módulos
+  const mesesAmbos = meses.filter(m=>state.custos.some(c=>c.competencia===m) && state.headcount.some(h=>h.competencia===m));
+  const m = mesesAmbos[0];
+  const desc = document.getElementById('hc-difs-desc');
+  if(!m){
+    desc.textContent = state.headcount.length ? 'Nenhum mês com dados nos dois módulos ainda.' : 'O RH ainda não tem headcount importado.';
+    document.getElementById('tbl-hc-so-dp').innerHTML = document.getElementById('tbl-hc-so-rh').innerHTML = '';
+    return;
+  }
+  desc.textContent = `${fmtMesComp(m)} · provavelmente a mesma coisa escrita de jeitos diferentes (acento e maiúscula já são ignorados). Corrija a grafia em uma das planilhas e reimporte.`;
+  const hcIds = new Set(state.headcount.map(h=>h.id));
+  const soDP = state.custos.filter(c=>c.competencia===m && !hcIds.has(c.id)).sort((a,b)=>(b.total||0)-(a.total||0));
+  const soRHl = state.headcount.filter(h=>h.competencia===m && !custoIds.has(h.id)).sort((a,b)=>b.funcionarios-a.funcionarios);
+  document.getElementById('tbl-hc-so-dp').innerHTML = soDP.length
+    ? tableHTML(['Filial','Departamento','Custo'], soDP.map(c=>[esc(c.filial), esc(c.depto), fmtMoeda(c.total)])) : '<div class="empty">Tudo bateu ✓</div>';
+  document.getElementById('tbl-hc-so-rh').innerHTML = soRHl.length
+    ? tableHTML(['Filial','Departamento','Funcionários'], soRHl.map(h=>[esc(h.filial), esc(h.depto), h.funcionarios])) : '<div class="empty">Tudo bateu ✓</div>';
 }
 
 /* ================= ZONA DE RISCO ================= */
@@ -1193,6 +1120,16 @@ function perCapita(linhas, hcMap){
   linhas.forEach(l=>{ if(hcMap.has(l.id)){ custo+=l.total||0; hc+=hcMap.get(l.id); meses.add(l.competencia); } });
   return { custo, hc, nMeses:meses.size, hcMedio: meses.size? hc/meses.size : null, valor: hc? custo/hc : null };
 }
+// funcionários do RH no período, respeitando os filtros (área vem da linha de custo de mesma chave)
+function hcFiltrado(de, ate){
+  const areaPorId = new Map(state.custos.map(c=>[c.id, c.area||'']));
+  const f = state.headcount.filter(h=> h.competencia>=de && h.competencia<=ate &&
+    (!state.filterFiliais.size || state.filterFiliais.has(h.filial)) &&
+    (!state.filterAreas.size || state.filterAreas.has(areaPorId.get(h.id) ?? '')) &&
+    (!state.filterDeptos.size || state.filterDeptos.has(h.depto)));
+  const meses = new Set(f.map(h=>h.competencia));
+  return meses.size ? f.reduce((s,h)=>s+h.funcionarios,0)/meses.size : null;
+}
 function razaoPct(num, den){ return den ? num/den*100 : null; }
 function fmtPct(v){ return v==null? '—' : v.toFixed(1)+'%'; }
 let relatorio = {};   // última versão do dashboard calculada — usada na exportação
@@ -1230,11 +1167,14 @@ function renderDashboard(){
   const hcMap = hcIndex();
   const pcA = perCapita(atual.linhas, hcMap), pcP = perCapita(anterior.linhas, hcMap);
   const fmtNum = v=>Math.round(v).toLocaleString('pt-BR');
-  cards.push(kpiCard('Funcionários (média mensal)', pcA.hcMedio==null? '—' : fmtNum(pcA.hcMedio),
-    pcA.hcMedio==null? 'Sem headcount lançado nesse período' : `${pcA.nMeses} mês(es) com headcount`,
-    (pcA.hcMedio!=null && pcP.hcMedio!=null)? cmpLine(pcA.hcMedio, pcP.hcMedio, true, fmtNum).replace('cmp-up','cmp-flat').replace('cmp-down','cmp-flat') : semAnterior));
+  const hcA = hcFiltrado(de, ate), hcP = hcFiltrado(pr.de, pr.ate);
+  const custoMesesHC = atual.linhas.filter(l=>state.headcount.some(h=>h.competencia===l.competencia)).reduce((s,l)=>s+(l.total||0),0);
+  const cobertura = custoMesesHC ? pcA.custo/custoMesesHC*100 : null;
+  cards.push(kpiCard('Funcionários (média mensal)', hcA==null? '—' : fmtNum(hcA),
+    hcA==null? 'Sem headcount do RH nesse período' : 'Efetivos, vindo do módulo de RH',
+    (hcA!=null && hcP!=null)? cmpLine(hcA, hcP, true, fmtNum).replace('cmp-up','cmp-flat').replace('cmp-down','cmp-flat') : semAnterior));
   cards.push(kpiCard('Custo per capita (mensal)', pcA.valor==null? '—' : fmtMoeda(pcA.valor),
-    pcA.valor==null? 'Precisa de headcount lançado' : 'Custo ÷ funcionários, por mês',
+    pcA.valor==null? 'Precisa do headcount do RH' : `Custo ÷ funcionários · cobre ${cobertura==null?'—':cobertura.toFixed(0)+'%'} do custo${cobertura!=null && cobertura<95? ' — veja Headcount' : ''}`,
     (pcA.valor!=null && pcP.valor!=null)? cmpLine(pcA.valor, pcP.valor, false, v=>fmtMoeda(v)) : semAnterior));
   const folhaA = atual.porCategoria.folha||0, folhaP = anterior.porCategoria.folha||0;
   const encA = razaoPct(atual.porGrupo.encargos||0, folhaA), encP = razaoPct(anterior.porGrupo.encargos||0, folhaP);
@@ -1261,7 +1201,7 @@ function renderDashboard(){
       ['Benefícios no período', atual.porGrupo.beneficios||0, 'moeda'],
       ['Folha ÷ Faturamento (empresa toda)', razaoAtual, 'pct'],
       ['Meta Folha ÷ Faturamento', state.cfg.metaFolhaFaturamento, 'pct'],
-      ['Funcionários (média mensal)', pcA.hcMedio, 'num'],
+      ['Funcionários (média mensal)', hcA, 'num'],
       ['Custo per capita (mensal)', pcA.valor, 'moeda'],
       ['Encargos ÷ Folha', encA, 'pct'],
       ['Horas extras ÷ Folha', heA, 'pct'],
@@ -1681,7 +1621,6 @@ Object.assign(window, {
   processarPlanilhaCusto, gravarImportacao, limparImportacao, baixarPlanilha,
   salvarFaturamento, delFaturamento, processarPlanilhaFaturamento,
   salvarConfig, apagarTudo,
-  processarPlanilhaHeadcount, delHeadcountMes, baixarModeloHeadcount,
   exportarExcel, exportarPDF,
   applyFilter, setPreset,
   openModalSenha, salvarNovaSenha, closeModal, _runConfirm, confirmModal,
