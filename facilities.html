@@ -456,7 +456,7 @@
           <h2>Indicadores por mês</h2>
           <div class="desc" id="h-label"></div>
           <div class="table-wrap" id="tbl-historico"></div>
-          <div class="note">Custo/refeição usa o fechamento mensal (com mão de obra, descontado dos funcionários). Meses sem fechamento aparecem com "—". Para o PDF, clique em "Gerar PDF" e escolha "Salvar como PDF" na janela de impressão.</div>
+          <div class="note">Os custos unitários vêm do fechamento mensal (aba Custos mensais): sem MO, com MO (menos desconto dos funcionários) e sem desconto. Meses sem fechamento aparecem com "—". Para o PDF, clique em "Gerar PDF" e escolha "Salvar como PDF" na janela de impressão.</div>
         </div>
       </div>
 
@@ -1449,7 +1449,7 @@ function aggMes(mes){
   const res = l.reduce((x,r)=>x+(r.resto||0),0);
   const ref = l.reduce((x,r)=>x+(r.refeicoes||0),0);
   const cst = state.custos.find(c=>c.mes===mes);
-  const custoUnit = cst? calcCusto(cst).comMO : 0;
+  const cc = cst? calcCusto(cst) : null;
   const comprasTotal = compras + (cst? (cst.ajuste||0) : 0);
   return {
     mes,
@@ -1461,7 +1461,9 @@ function aggMes(mes){
     adm: a.length? mediaLista(a) : null,
     hig: h.length? mediaLista(h) : null,
     compras: comprasTotal,
-    custoUnit: custoUnit||null,
+    custoSemMO: cc? (cc.semMO||null) : null,
+    custoComMO: cc? (cc.comMO||null) : null,
+    custoSemDesc: cc? (cc.semDesc||null) : null,
     temDados: !!(l.length || s.length || a.length || h.length || compras || cst),
   };
 }
@@ -1491,10 +1493,12 @@ async function renderHistorico(){
     `<span class="pill ${metaCls(r.adm, cfg.metaConf, false)}">${fmtInd(r.adm, v=>v.toFixed(2))}</span>`,
     `<span class="pill ${metaCls(r.hig, cfg.metaConf, false)}">${fmtInd(r.hig, v=>v.toFixed(2))}</span>`,
     r.compras? brl(r.compras) : '—',
-    r.custoUnit? '<b>'+brl(r.custoUnit)+'</b>' : '—',
+    r.custoSemMO? '<b>'+brl(r.custoSemMO)+'</b>' : '—',
+    r.custoComMO? '<b>'+brl(r.custoComMO)+'</b>' : '—',
+    r.custoSemDesc? '<b>'+brl(r.custoSemDesc)+'</b>' : '—',
   ]);
   document.getElementById('tbl-historico').innerHTML = tableHTML(
-    ['Mês','Refeições','Sobra Limpa','Resto (kg/p)','Satisfação','Conf. ADM','Conf. Hig.','Compras','Custo/refeição'], rows);
+    ['Mês','Refeições','Sobra Limpa','Resto (kg/p)','Satisfação','Conf. ADM','Conf. Hig.','Compras','Unit. sem MO','Unit. com MO','Unit. sem desconto'], rows);
 }
 function gerarPDF(){
   if(!histRows.length){ toast('Aplique um período com dados antes de gerar o PDF.', true); return; }
@@ -1510,7 +1514,9 @@ function gerarPDF(){
     ['Conf. ADM (média)', fmtInd(media('adm'), v=>v.toFixed(2)+' / 5')],
     ['Conf. Higiênica (média)', fmtInd(media('hig'), v=>v.toFixed(2)+' / 5')],
     ['Compras no período', brl(totCompras)],
-    ['Custo/refeição (média)', fmtInd(media('custoUnit'), v=>brl(v))],
+    ['Unit. sem MO (média)', fmtInd(media('custoSemMO'), v=>brl(v))],
+    ['Unit. com MO (média)', fmtInd(media('custoComMO'), v=>brl(v))],
+    ['Unit. sem desconto (média)', fmtInd(media('custoSemDesc'), v=>brl(v))],
   ];
   const linhas = histRows.map(r=>`<tr>
     <td><b>${fmtMes(r.mes)}</b></td>
@@ -1521,7 +1527,9 @@ function gerarPDF(){
     <td>${fmtInd(r.adm, v=>v.toFixed(2))}</td>
     <td>${fmtInd(r.hig, v=>v.toFixed(2))}</td>
     <td>${r.compras? brl(r.compras):'—'}</td>
-    <td>${r.custoUnit? brl(r.custoUnit):'—'}</td>
+    <td>${r.custoSemMO? brl(r.custoSemMO):'—'}</td>
+    <td>${r.custoComMO? brl(r.custoComMO):'—'}</td>
+    <td>${r.custoSemDesc? brl(r.custoSemDesc):'—'}</td>
   </tr>`).join('');
   document.getElementById('print-area').innerHTML = `
     <div class="rp-head">${logoSVG(48)}<div>
@@ -1531,7 +1539,7 @@ function gerarPDF(){
     <div class="rp-sub">Período: <b>${histPeriodo}</b> · Emitido em ${fmtBR(todayISO())} por ${esc(currentUser.nome)} ·
       Metas: Sobra ≤ ${cfg.metaSobra}% · Resto ≤ ${cfg.metaResto} kg/p · Satisfação ≥ ${cfg.metaSat} · Conformidade ≥ ${cfg.metaConf}</div>
     <div class="rp-cards">${cards.map(c=>`<div class="rp-card"><div class="t">${c[0]}</div><div class="v">${c[1]}</div></div>`).join('')}</div>
-    <table><thead><tr><th>Mês</th><th>Refeições</th><th>Sobra Limpa</th><th>Resto (kg/p)</th><th>Satisfação</th><th>Conf. ADM</th><th>Conf. Hig.</th><th>Compras</th><th>Custo/refeição</th></tr></thead>
+    <table><thead><tr><th>Mês</th><th>Refeições</th><th>Sobra Limpa</th><th>Resto (kg/p)</th><th>Satisfação</th><th>Conf. ADM</th><th>Conf. Hig.</th><th>Compras</th><th>Unit. sem MO</th><th>Unit. com MO</th><th>Unit. sem desconto</th></tr></thead>
     <tbody>${linhas}</tbody></table>
     <div class="rp-foot"><span>Raguife — Confiança que Inspira</span><span>raguiferh.github.io/facilities</span></div>`;
   window.print();
