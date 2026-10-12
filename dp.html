@@ -527,7 +527,7 @@ const GRUPOS = [
 
 const DEFAULT_CFG = {metaFolhaFaturamento: 20};
 
-let state = { custos:[], faturamento:[], headcount:[], cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFiliais:new Set(), filterAreas:new Set(), filterDeptos:new Set() };
+let state = { custos:[], faturamento:[], headcount:[], rhAreas:new Map(), cfg:{...DEFAULT_CFG}, filterDe:'', filterAte:'', filterFiliais:new Set(), filterAreas:new Set(), filterDeptos:new Set() };
 let currentUser = null;
 let unsubs = [];
 
@@ -607,6 +607,10 @@ function chaveCusto(comp, filial, depto){
   const norm = s => stripAcc(String(s||'')).trim().toUpperCase().replace(/\s+/g,' ');
   return (comp||'')+'__'+norm(filial)+'__'+norm(depto);
 }
+// chave usada SÓ para cruzar com o RH: "RAGUIFE - MATRIZ" e "RAGUIFE MATRIZ" viram a mesma coisa
+function normNome(s){ return stripAcc(String(s||'')).toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim(); }
+function chaveMatch(comp, filial, depto){ return (comp||'')+'__'+normNome(filial)+'__'+normNome(depto); }
+function chaveSetor(filial, depto){ return normNome(filial)+'__'+normNome(depto); }
 function totalLinha(obj){ return CUSTO_CATS.reduce((s,c)=>s+(Number(obj[c.key])||0),0); }
 function logoSVG(size){
   return `<svg width="${size}" height="${size*0.78}" viewBox="0 0 100 78" xmlns="http://www.w3.org/2000/svg">
@@ -649,7 +653,7 @@ async function loadConfig(){
 function subscribeData(){
   unsubs.forEach(u=>u()); unsubs=[];
   const u1 = onSnapshot(collection(db,'dp_custos'), snap=>{
-    state.custos = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    state.custos = snap.docs.map(d=>{ const x=d.data(); return {id:d.id, ...x, k:chaveMatch(x.competencia, x.filial, x.depto)}; });
     renderFiliaisDeptos();
     renderDashboard();
     renderHeadcountTabela();
@@ -663,12 +667,19 @@ function subscribeData(){
   unsubs.push(u2);
   // headcount vem do módulo de RH (Relação de Funcionários): mesma chave mês + filial + depto
   const u3 = onSnapshot(collection(db,'rh_lancamentos'), snap=>{
-    state.headcount = snap.docs.map(d=>{ const x=d.data(); return {id:d.id, competencia:x.competencia, filial:x.filial, depto:x.depto, funcionarios:Number(x.ativos)||0}; })
+    state.headcount = snap.docs.map(d=>{ const x=d.data(); return {id:d.id, k:chaveMatch(x.competencia, x.filial, x.depto), competencia:x.competencia, filial:x.filial, depto:x.depto, funcionarios:Number(x.ativos)||0}; })
       .filter(h=>h.funcionarios>0);
     renderHeadcountTabela();
     renderDashboard();
   }, e=>console.error(e));
   unsubs.push(u3);
+  // áreas cadastradas no RH (aba Áreas) — usadas quando o setor do RH não existe nos custos
+  const u4 = onSnapshot(doc(db,'config','rh_areas'), snap=>{
+    state.rhAreas = new Map();
+    (snap.exists() ? (snap.data().pares||[]) : []).forEach(p=>{ if(p && p.d) state.rhAreas.set(normNome(p.d), p.a||''); });
+    renderDashboard();
+  }, e=>console.error(e));
+  unsubs.push(u4);
 }
 
 /* ================= NAV / SHELL ================= */
@@ -1037,20 +1048,20 @@ async function processarPlanilhaFaturamento(ev){
 function renderHeadcountTabela(){
   const el = document.getElementById('tbl-headcount'); if(!el) return;
   const hcMap = hcIndex();
-  const custoIds = new Set(state.custos.map(c=>c.id));
+  const custoIds = new Set(state.custos.map(c=>c.k));
   const meses = [...new Set([...state.custos.map(c=>c.competencia), ...state.headcount.map(h=>h.competencia)])].filter(Boolean).sort().reverse().slice(0,12);
   const rows = meses.map(m=>{
     const custos = state.custos.filter(c=>c.competencia===m);
     const hcs = state.headcount.filter(h=>h.competencia===m);
     const totalCusto = custos.reduce((s,c)=>s+(c.total||0),0);
-    const custoCoberto = custos.filter(c=>hcMap.has(c.id)).reduce((s,c)=>s+(c.total||0),0);
+    const custoCoberto = custos.filter(c=>hcMap.has(c.k)).reduce((s,c)=>s+(c.total||0),0);
     const hcTotal = hcs.reduce((s,h)=>s+h.funcionarios,0);
-    const soRH = hcs.filter(h=>!custoIds.has(h.id)).length;
+    const soRH = hcs.filter(h=>!custoIds.has(h.k)).length;
     const cob = totalCusto ? custoCoberto/totalCusto*100 : null;
     const cor = cob==null? '' : cob>=95? 'v-down' : cob>=80? '' : 'v-up';
     return [fmtMesComp(m), hcTotal? hcTotal.toLocaleString('pt-BR') : '—', fmtMoeda(totalCusto),
       cob==null? '—' : `<span class="${cor}">${cob.toFixed(1)}%</span>`,
-      custos.filter(c=>!hcMap.has(c.id)).length, soRH];
+      custos.filter(c=>!hcMap.has(c.k)).length, soRH];
   });
   el.innerHTML = tableHTML(['Mês','Funcionários (RH)','Custo (DP)','Custo coberto','Deptos só no DP','Deptos só no RH'], rows);
 
@@ -1063,10 +1074,10 @@ function renderHeadcountTabela(){
     document.getElementById('tbl-hc-so-dp').innerHTML = document.getElementById('tbl-hc-so-rh').innerHTML = '';
     return;
   }
-  desc.textContent = `${fmtMesComp(m)} · provavelmente a mesma coisa escrita de jeitos diferentes (acento e maiúscula já são ignorados). Corrija a grafia em uma das planilhas e reimporte.`;
-  const hcIds = new Set(state.headcount.map(h=>h.id));
-  const soDP = state.custos.filter(c=>c.competencia===m && !hcIds.has(c.id)).sort((a,b)=>(b.total||0)-(a.total||0));
-  const soRHl = state.headcount.filter(h=>h.competencia===m && !custoIds.has(h.id)).sort((a,b)=>b.funcionarios-a.funcionarios);
+  desc.textContent = `${fmtMesComp(m)} · provavelmente a mesma coisa escrita de jeitos diferentes (acento, maiúscula, hífen e pontuação já são ignorados). Corrija a grafia em uma das planilhas e reimporte.`;
+  const hcIds = new Set(state.headcount.map(h=>h.k));
+  const soDP = state.custos.filter(c=>c.competencia===m && !hcIds.has(c.k)).sort((a,b)=>(b.total||0)-(a.total||0));
+  const soRHl = state.headcount.filter(h=>h.competencia===m && !custoIds.has(h.k)).sort((a,b)=>b.funcionarios-a.funcionarios);
   document.getElementById('tbl-hc-so-dp').innerHTML = soDP.length
     ? tableHTML(['Filial','Departamento','Custo'], soDP.map(c=>[esc(c.filial), esc(c.depto), fmtMoeda(c.total)])) : '<div class="empty">Tudo bateu ✓</div>';
   document.getElementById('tbl-hc-so-rh').innerHTML = soRHl.length
@@ -1114,19 +1125,37 @@ function somaFaturamento(de, ate){
   return state.faturamento.filter(f=>f.competencia>=de && f.competencia<=ate).reduce((s,f)=>s+(f.valor||0),0);
 }
 // headcount casa com custo pela mesma chave (mês + filial + depto); per capita só usa linhas que têm os dois
-function hcIndex(){ return new Map(state.headcount.map(h=>[h.id, Number(h.funcionarios)||0])); }
+function hcIndex(){
+  const m = new Map();
+  state.headcount.forEach(h=> m.set(h.k, (m.get(h.k)||0) + (Number(h.funcionarios)||0)));
+  return m;
+}
 function perCapita(linhas, hcMap){
   let custo=0, hc=0; const meses=new Set();
-  linhas.forEach(l=>{ if(hcMap.has(l.id)){ custo+=l.total||0; hc+=hcMap.get(l.id); meses.add(l.competencia); } });
+  const usadas = new Set();   // não conta o mesmo headcount duas vezes se houver 2 linhas de custo com a mesma chave
+  linhas.forEach(l=>{ if(hcMap.has(l.k)){ custo+=l.total||0; if(!usadas.has(l.k)){ hc+=hcMap.get(l.k); usadas.add(l.k); } meses.add(l.competencia); } });
   return { custo, hc, nMeses:meses.size, hcMedio: meses.size? hc/meses.size : null, valor: hc? custo/hc : null };
 }
 // funcionários do RH no período, respeitando os filtros (área vem da linha de custo de mesma chave)
+// área de um setor do RH: a da planilha de custos (mesma filial+depto); se não houver, a cadastrada no RH
+function areaDoSetorRH(h){
+  if(!state._areaSetor || state._areaSetorSrc!==state.custos){
+    state._areaSetor = new Map();
+    [...state.custos].sort((a,b)=>(a.competencia||'').localeCompare(b.competencia||''))
+      .forEach(c=> state._areaSetor.set(chaveSetor(c.filial, c.depto), c.area||''));
+    state._areaSetorSrc = state.custos;
+  }
+  const a = state._areaSetor.get(chaveSetor(h.filial, h.depto));
+  return a!=null ? a : (state.rhAreas.get(normNome(h.depto)) || '');
+}
 function hcFiltrado(de, ate){
-  const areaPorId = new Map(state.custos.map(c=>[c.id, c.area||'']));
+  const fil = new Set([...state.filterFiliais].map(normNome));
+  const are = new Set([...state.filterAreas].map(normNome));
+  const dep = new Set([...state.filterDeptos].map(normNome));
   const f = state.headcount.filter(h=> h.competencia>=de && h.competencia<=ate &&
-    (!state.filterFiliais.size || state.filterFiliais.has(h.filial)) &&
-    (!state.filterAreas.size || state.filterAreas.has(areaPorId.get(h.id) ?? '')) &&
-    (!state.filterDeptos.size || state.filterDeptos.has(h.depto)));
+    (!fil.size || fil.has(normNome(h.filial))) &&
+    (!are.size || are.has(normNome(areaDoSetorRH(h)))) &&
+    (!dep.size || dep.has(normNome(h.depto))));
   const meses = new Set(f.map(h=>h.competencia));
   return meses.size ? f.reduce((s,h)=>s+h.funcionarios,0)/meses.size : null;
 }
