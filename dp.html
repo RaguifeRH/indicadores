@@ -407,7 +407,7 @@
             <div><label>Arquivo</label><input type="file" id="imp-file" accept=".xlsx" onchange="processarPlanilhaCusto(event)"></div>
           </div>
           <div class="note" id="imp-status" style="display:none"></div>
-          <div class="note">Espera encontrar as colunas: Competência, Filial, <strong>Área</strong>, Departamento, e as categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed). As colunas <strong>Horas Extras</strong> e <strong>Ocorrências de Ponto</strong> são opcionais — se existirem, são guardadas como informação à parte e não entram na soma do custo (horas extras já estão embutidas no valor da Folha). A coluna <strong>Área</strong> também é opcional — se não existir na planilha, as linhas ficam agrupadas como "(Sem área)".</div>
+          <div class="note">Espera encontrar as colunas: Competência, Filial, <strong>Área</strong>, Departamento, e as categorias de custo (Folha, INSS, SESI/SENAI, FGTS, Alimentação, Nota Fiscal, Jovem Aprendiz, Plano de Saúde, Plano Odontológico, Seguro de Vida, Diárias e Médias, Prêmio, Multimed). As colunas <strong>13º Salário</strong>, <strong>INSS 13º</strong> e <strong>FGTS 13º</strong> são opcionais — preencha só nos meses em que o 13º foi pago (1ª parcela em novembro, 2ª em dezembro) e deixe 0 nos demais; elas somam no custo total. As colunas <strong>Horas Extras</strong> e <strong>Ocorrências de Ponto</strong> são opcionais — se existirem, são guardadas como informação à parte e não entram na soma do custo (horas extras já estão embutidas no valor da Folha). A coluna <strong>Área</strong> também é opcional — se não existir na planilha, as linhas ficam agrupadas como "(Sem área)".</div>
         </div>
         <div class="panel" id="imp-preview" style="display:none">
           <h2>Conferir antes de gravar</h2>
@@ -512,6 +512,10 @@ const CUSTO_CATS = [
   {key:'diariasMedias',      label:'Diárias/Médias',     grupo:'folha'},
   {key:'premio',             label:'Prêmio',             grupo:'folha'},
   {key:'multimed',           label:'Multimed',           grupo:'encargos'},
+  // 13º salário — colunas opcionais (planilhas antigas sem elas continuam funcionando, valem 0)
+  {key:'decimoTerceiro',     label:'13º Salário',        grupo:'folha',    opcional:true},
+  {key:'inss13',             label:'INSS 13º',           grupo:'encargos', opcional:true},
+  {key:'fgts13',             label:'FGTS 13º',           grupo:'encargos', opcional:true},
 ];
 // campos informativos por filial/depto que NÃO entram na soma do custo (já estão embutidos na Folha
 // ou não são valores monetários) — ficam guardados à parte, com seus próprios cards no dashboard
@@ -521,8 +525,8 @@ const CAMPOS_EXTRA = [
 ];
 // mesma divisão em 3 grupos que a planilha original já usa (folha/encargos somam ao total geral)
 const GRUPOS = [
-  {key:'folha',      label:'Folha e Complementos',   desc:'Folha, nota fiscal, jovem aprendiz, diárias/médias, prêmio'},
-  {key:'encargos',   label:'Encargos e Obrigações',  desc:'INSS, SESI/SENAI, FGTS, Multimed'},
+  {key:'folha',      label:'Folha e Complementos',   desc:'Folha, 13º salário, nota fiscal, jovem aprendiz, diárias/médias, prêmio'},
+  {key:'encargos',   label:'Encargos e Obrigações',  desc:'INSS, SESI/SENAI, FGTS, Multimed, INSS e FGTS do 13º'},
   {key:'beneficios', label:'Benefícios',             desc:'Alimentação, plano de saúde, plano odontológico, seguro de vida'},
 ];
 
@@ -855,7 +859,7 @@ async function processarPlanilhaCusto(ev){
     const ws = wb.Sheets[wsName];
     const grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
     const STOP = new Set(['de','e','do','da']);
-    const tokenize = s => stripAcc(String(s||'')).toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(t=>t && !STOP.has(t));
+    const tokenize = s => stripAcc(String(s||'')).toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(t=>t && !STOP.has(t));
     const norm = s => stripAcc(String(s||'')).toLowerCase().trim();
     // acha a linha de cabeçalho procurando "competência" e "filial" na mesma linha (pode não ser a linha 1)
     let hdrIdx = -1;
@@ -870,22 +874,23 @@ async function processarPlanilhaCusto(ev){
     const cComp = find(x=>x.includes('competenc')),
           cFilial = find(x=>x.includes('filial')),
           cDepto = find(x=>x.includes('depart')||x.includes('depto')),
-          cCats = CUSTO_CATS.map(c=>{
-            const lt = tokenize(c.label);
-            if(!lt.length) return -1;
-            return hdrTokens.findIndex(ht=> lt.every(t=> [...ht].some(h=> h.startsWith(t) || t.startsWith(h)) ));
-          });
-    if([cComp,cFilial,cDepto].some(i=>i<0) || cCats.some(i=>i<0)){
+          cCats = CUSTO_CATS.map(c=>acharColuna(c.label));
+    // "13" só casa com "13": a coluna INSS não pode pegar "INSS 13º" e vice-versa
+    function acharColuna(label){
+      const lt = tokenize(label);
+      if(!lt.length) return -1;
+      const tem13 = lt.includes('13');
+      return hdrTokens.findIndex(ht=> ht.has('13')===tem13 &&
+        lt.every(t=> [...ht].some(h=> h.startsWith(t) || t.startsWith(h)) ));
+    }
+    if([cComp,cFilial,cDepto].some(i=>i<0) || CUSTO_CATS.some((c,k)=>!c.opcional && cCats[k]<0)){
       statusImport('Não reconheci todas as colunas esperadas nessa planilha.', true); return;
     }
     // coluna Área — opcional, não trava a importação se não existir
     const cArea = find(x=>x.includes('area'));
     // colunas informativas — opcionais, não travam a importação se não existirem
-    const cExtras = CAMPOS_EXTRA.map(c=>{
-      const lt = tokenize(c.label);
-      return hdrTokens.findIndex(ht=> lt.every(t=> [...ht].some(h=> h.startsWith(t) || t.startsWith(h)) ));
-    });
-    const faltando = CAMPOS_EXTRA.filter((c,k)=>cExtras[k]<0).map(c=>c.label);
+    const cExtras = CAMPOS_EXTRA.map(c=>acharColuna(c.label));
+    const faltando = [...CUSTO_CATS.filter((c,k)=>c.opcional && cCats[k]<0), ...CAMPOS_EXTRA.filter((c,k)=>cExtras[k]<0)].map(c=>c.label);
     const porId = new Map(state.custos.map(l=>[l.id, l]));
     const porLinha = new Map();   // id -> linha da planilha (se repetir, vale a última)
     let duplicadas = 0;
@@ -898,7 +903,7 @@ async function processarPlanilhaCusto(ev){
       if(!filial || !depto || !compRaw) continue;
       const comp = parseComp(compRaw); if(!comp) continue;
       const obj = {competencia:comp, filial, area, depto};
-      CUSTO_CATS.forEach((c,k)=>{ obj[c.key] = parseNum(row[cCats[k]]); });
+      CUSTO_CATS.forEach((c,k)=>{ obj[c.key] = cCats[k]>=0 ? parseNum(row[cCats[k]]) : 0; });
       CAMPOS_EXTRA.forEach((c,k)=>{ obj[c.key] = cExtras[k]>=0 ? parseNum(row[cExtras[k]]) : 0; });
       obj.id = chaveCusto(comp, filial, depto);
       obj.total = totalLinha(obj);
@@ -1228,9 +1233,15 @@ function renderDashboard(){
     pcA.valor==null? 'Precisa do headcount do RH' : `Custo ÷ funcionários · cobre ${cobertura==null?'—':cobertura.toFixed(0)+'%'} do custo${cobertura!=null && cobertura<95? ' — veja Headcount' : ''}`,
     (pcA.valor!=null && pcP.valor!=null)? cmpLine(pcA.valor, pcP.valor, false, v=>fmtMoeda(v)) : semAnterior));
   const folhaA = atual.porCategoria.folha||0, folhaP = anterior.porCategoria.folha||0;
-  const encA = razaoPct(atual.porGrupo.encargos||0, folhaA), encP = razaoPct(anterior.porGrupo.encargos||0, folhaP);
+  const d13 = a=>({sal:a.porCategoria.decimoTerceiro||0, enc:(a.porCategoria.inss13||0)+(a.porCategoria.fgts13||0)});
+  const t13A = d13(atual), t13P = d13(anterior);
+  cards.push(kpiCard('13º salário no período', fmtMoeda(t13A.sal+t13A.enc),
+    (t13A.sal+t13A.enc) ? `Salário ${fmtMoeda(t13A.sal)} + encargos ${fmtMoeda(t13A.enc)} · já soma no custo total` : 'Nenhum 13º lançado no período (normalmente nov/dez)',
+    anterior.nMeses? cmpLine(t13A.sal+t13A.enc, t13P.sal+t13P.enc, false, v=>fmtMoeda(v)) : semAnterior));
+  // encargos sobre a base que gera encargo: folha + 13º (senão o INSS/FGTS do 13º inflaria a % em nov/dez)
+  const encA = razaoPct(atual.porGrupo.encargos||0, folhaA+t13A.sal), encP = razaoPct(anterior.porGrupo.encargos||0, folhaP+t13P.sal);
   cards.push(kpiCard('Encargos ÷ Folha', fmtPct(encA),
-    'INSS + SESI/SENAI + FGTS + Multimed sobre a categoria Folha',
+    'Todos os encargos (inclusive do 13º) sobre Folha + 13º',
     (encA!=null && encP!=null)? cmpLine(encA, encP, false, fmtPct) : semAnterior));
   const heA = razaoPct(atual.extras.horasExtras||0, folhaA), heP = razaoPct(anterior.extras.horasExtras||0, folhaP);
   cards.push(kpiCard('Horas extras ÷ Folha', fmtPct(heA),
@@ -1254,6 +1265,7 @@ function renderDashboard(){
       ['Meta Folha ÷ Faturamento', state.cfg.metaFolhaFaturamento, 'pct'],
       ['Funcionários (média mensal)', hcA, 'num'],
       ['Custo per capita (mensal)', pcA.valor, 'moeda'],
+      ['13º salário (com encargos)', t13A.sal+t13A.enc, 'moeda'],
       ['Encargos ÷ Folha', encA, 'pct'],
       ['Horas extras ÷ Folha', heA, 'pct'],
       ['Horas extras (R$, informativo)', atual.extras.horasExtras||0, 'moeda'],
