@@ -731,7 +731,7 @@
           <h2>Indicadores por mês</h2>
           <div class="desc" id="h-label"></div>
           <div class="table-wrap" id="tbl-historico"></div>
-          <div class="note">Os custos unitários vêm do fechamento mensal (aba Custos mensais): sem MO, com MO (menos desconto dos funcionários) e sem desconto. Meses sem fechamento aparecem com "—". Para o PDF, clique em "Gerar PDF" e escolha "Salvar como PDF" na janela de impressão.</div>
+          <div class="note">Os custos unitários vêm do fechamento mensal (aba Custos mensais): sem MO, com MO (menos desconto dos funcionários) e sem desconto. Nos meses com fechamento, Refeições e Compras também vêm de lá (refeições validadas e total da contabilidade, quando informado). Meses sem fechamento mostram os lançamentos do dia a dia e "—" nos custos. Para o PDF, clique em "Gerar PDF" e escolha "Salvar como PDF" na janela de impressão.</div>
         </div>
       </div>
 
@@ -1726,10 +1726,14 @@ function aggMes(mes){
   const ref = l.reduce((x,r)=>x+(r.refeicoes||0),0);
   const cst = state.custos.find(c=>c.mes===mes);
   const cc = cst? calcCusto(cst) : null;
-  const comprasTotal = compras + (cst? (cst.ajuste||0) : 0);
+  // com fechamento: usa as MESMAS bases do custo unitário (refeições validadas e compras
+  // contábeis/ajustadas), para a linha bater com o Histórico de custos.
+  // sem fechamento: cai para os lançamentos do dia a dia.
+  const comprasTotal = cc ? cc.compras : compras;
   return {
     mes,
-    ref: ref || (cst? cst.ref : 0),
+    ref: (cst && cst.ref) ? cst.ref : ref,
+    fechado: !!cst,
     sobra: prod? sob/prod*100 : null,
     resto: ref? res/ref : null,
     sat: s.length? mediaSat(s) : null,
