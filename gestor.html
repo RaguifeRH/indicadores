@@ -71,9 +71,22 @@
   .tag button{background:rgba(255,255,255,.2);border:0;color:#fff;cursor:pointer;width:18px;height:18px;padding:0;}
   .status{font-size:12px;color:var(--muted);}
 
-  section.mod{background:#fff;border:1px solid var(--line);border-top:6px solid var(--c,var(--verde));padding:20px 22px 22px;margin-bottom:20px;}
-  section.mod > h2{font-family:var(--display);font-stretch:75%;font-weight:900;text-transform:uppercase;font-size:30px;line-height:1;color:var(--verde);margin:0 0 4px;}
-  section.mod > .msub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+  /* abas por módulo: cada módulo com a sua cor */
+  .abas{display:flex;flex-wrap:wrap;gap:6px;border-bottom:5px solid var(--c,var(--verde));}
+  .aba{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-bottom:0;border-top:5px solid var(--c);background:#fff;color:var(--ink);
+       padding:12px 20px;font-weight:700;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;}
+  .aba .dot{width:11px;height:11px;background:var(--c);flex:none;}
+  .aba .n{font-size:10.5px;font-weight:700;letter-spacing:0;color:var(--muted);background:var(--mist);padding:2px 7px;}
+  .aba:hover{background:color-mix(in srgb, var(--c) 8%, #fff);}
+  .aba.on{background:var(--c);color:#fff;} .aba.on .dot{background:#fff;} .aba.on .n{background:rgba(255,255,255,.2);color:#fff;}
+  section.mod{background:color-mix(in srgb, var(--c,var(--verde)) 5%, #fff);border:1px solid var(--line);border-top:0;padding:0 22px 22px;margin-bottom:20px;}
+  section.mod > .band{background:var(--c,var(--verde));background-image:var(--tex);color:#fff;margin:0 -22px 18px;padding:16px 22px 14px;}
+  section.mod > .band h2{font-family:var(--display);font-stretch:75%;font-weight:900;text-transform:uppercase;font-size:32px;line-height:1;margin:0;color:#fff;}
+  section.mod > .band .msub{font-size:12px;color:rgba(255,255,255,.85);margin-top:6px;}
+  section.mod .kpi, section.mod .tw{background:#fff;}
+  section.mod .kpi .v{color:var(--c);}
+  .abas + section.mod{border-top:0;}
+  @media(max-width:700px){ .aba{flex:1 1 auto;justify-content:center;padding:11px 12px;} }
   .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
   .kpi{border:1px solid var(--line);border-top:4px solid var(--c,var(--verde));padding:14px 16px;}
   .kpi .t{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;}
@@ -94,7 +107,7 @@
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:12px 20px;font-size:13px;font-weight:700;z-index:90;opacity:0;transition:all .25s;border-left:4px solid var(--lima);max-width:90vw;}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);} #toast.err{background:var(--bad);}
   @media(max-width:700px){ main{padding:16px 16px 70px;} .hero h1{font-size:36px;} .topbar{padding:12px 16px;} .fld{flex:1 1 100%;} }
-  @media print{ .topbar,.filtros{display:none!important;} section.mod{break-inside:avoid;} }
+  @media print{ .topbar,.filtros,.abas{display:none!important;} section.mod{display:block!important;break-inside:avoid;} }
 </style>
 </head>
 <body>
@@ -464,7 +477,7 @@ function construirModelo(){
     const rows=D.rh.filter(r=>fFil(r)&&fDep(r));
     const a=agregarRH(rows,de,ate), p=agregarRH(rows,pr.de,pr.ate);
     const ant=k=> temAnt && p.nMeses ? p[k] : null;
-    const S={mod:'rh', titulo:'Recursos Humanos', cor:'#7aa53a', kpis:[], tabelas:[]};
+    const S={mod:'rh', titulo:'Recursos Humanos', cor:'#4f7a1f', kpis:[], tabelas:[]};
     if(BLK.rh_headcount) S.kpis.push(K('Headcount (ativos)', a.headcount, F.int, 'pessoas', 'Fim do período', ant('headcount'), true));
     if(BLK.rh_turnover)  S.kpis.push(K('Turnover', a.turnover, F.pct1, '%', 'Meta: até '+D.cfgRH.metaTurnover+'%', ant('turnover'), false));
     if(BLK.rh_abs){
@@ -493,7 +506,7 @@ function construirModelo(){
 
   /* ---- Ambulatório ---- */
   if(modAtivo('amb')){
-    const S={mod:'amb', titulo:'Ambulatório', cor:'#11808c', kpis:[], tabelas:[]};
+    const S={mod:'amb', titulo:'Ambulatório', cor:'#0c6873', kpis:[], tabelas:[]};
     const rhF=D.rh.filter(r=>fFil(r)&&fDep(r));
     const rhIn=(a,b)=>rhF.filter(l=>l.competencia>=a&&l.competencia<=b);
     const dspSk=x=>x.data+'|'+(x.titulo||'')+'|'+(x.resp||'');
@@ -543,7 +556,7 @@ function construirModelo(){
 
   /* ---- DP ---- */
   if(modAtivo('dp')){
-    const S={mod:'dp', titulo:'Departamento Pessoal', cor:'#c3901f', kpis:[], tabelas:[]};
+    const S={mod:'dp', titulo:'Departamento Pessoal', cor:'#9a6a08', kpis:[], tabelas:[]};
     const rows=D.custosDP.filter(r=>fFil(r)&&fDep(r));
     const a=agregarDP(rows,de,ate), p=agregarDP(rows,pr.de,pr.ate);
     const ant=v=> temAnt && p.nMeses ? v : null;
@@ -583,10 +596,16 @@ function renderTudo(){
     ` · ${mesesLib.length} competência(s) liberada(s) no intervalo`;
   const box=document.getElementById('conteudo');
   if(!MODELO.secoes.length && !MODELO.bases.length){ box.innerHTML='<div class="aviso">Nenhum indicador foi selecionado para o portal ainda.</div>'; return; }
-  box.innerHTML = MODELO.secoes.map(S=>`
-    <section class="mod" style="--c:${S.cor}">
-      <h2>${esc(S.titulo)}</h2>
-      <div class="msub">${S.mod==='amb'?'Absenteísmo vem do RH e respeita filial e departamento; DSP respeita o departamento; exames e satisfação são da empresa toda.':'Respeita os filtros de filial e departamento.'}</div>
+  const secs=MODELO.secoes;
+  if(!secs.some(S=>S.mod===abaAtiva) && abaAtiva!=='tudo') abaAtiva = secs.length? secs[0].mod : 'tudo';
+  const corAtiva = (secs.find(S=>S.mod===abaAtiva)||{}).cor || 'var(--verde)';
+  const abas = secs.length>1? `<div class="abas" style="--c:${corAtiva}">` +
+    secs.map(S=>`<button class="aba ${S.mod===abaAtiva?'on':''}" style="--c:${S.cor}" data-aba="${S.mod}"><span class="dot"></span>${esc(S.titulo)}<span class="n">${S.kpis.length+S.tabelas.length}</span></button>`).join('') +
+    `<button class="aba ${abaAtiva==='tudo'?'on':''}" style="--c:#024f2b" data-aba="tudo"><span class="dot"></span>Ver tudo</button></div>` : '';
+  box.innerHTML = abas + secs.map(S=>`
+    <section class="mod" style="--c:${S.cor};${secs.length>1 && abaAtiva!=='tudo' && S.mod!==abaAtiva?'display:none':''}">
+      <div class="band"><h2>${esc(S.titulo)}</h2>
+      <div class="msub">${S.mod==='amb'?'Absenteísmo vem do RH e respeita filial e departamento; DSP respeita o departamento; exames e satisfação são da empresa toda.':'Respeita os filtros de filial e departamento.'}</div></div>
       ${S.kpis.length? '<div class="grid-kpi">'+S.kpis.map(k=>`<div class="kpi"><div class="t">${esc(k.titulo)}</div><div class="v">${k.fmt(k.valor)}</div><div class="m">${esc(k.meta)}</div>${cmpBadge(k.valor,k.ant,k.higher,k.fmt)}</div>`).join('')+'</div>' : ''}
       ${S.tabelas.map(t=>`<h3>${esc(t.titulo)}</h3><div class="tw">${t.rows.length?
         '<table><thead><tr>'+t.cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr></thead><tbody>'+
@@ -595,6 +614,13 @@ function renderTudo(){
     </section>`).join('') +
     (MODELO.bases.length? `<div class="nota">O Excel inclui também: ${MODELO.bases.map(b=>esc(b.titulo)).join(', ')} (detalhe linha a linha).</div>` : '');
 }
+
+let abaAtiva = (()=>{ try{ return localStorage.getItem('portal_aba')||''; }catch(e){ return ''; } })();
+document.getElementById('conteudo').addEventListener('click',e=>{
+  const b=e.target.closest('.aba'); if(!b) return;
+  abaAtiva=b.dataset.aba; try{ localStorage.setItem('portal_aba',abaAtiva); }catch(err){}
+  renderTudo();
+});
 
 /* ====== EXCEL ====== */
 function nomeAba(t, usados){
