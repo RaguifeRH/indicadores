@@ -523,7 +523,8 @@ function construirModelo(){
       const chaves=[...new Set(linhas.map(l=>(l.filial||'')+'||'+(l.depto||'—')))];
       S.tabelas.push({titulo:'Absenteísmo médico por departamento', cols:[['Filial',F.txt],['Departamento',F.txt],['Absent. médico (%)',F.pct2]],
         rows:chaves.map(k=>{ const [fl,dp]=k.split('||'); return [fl||'—', dp, absMedico(linhas.filter(l=>(l.filial||'')===fl&&(l.depto||'—')===dp))]; })
-          .sort((a,b)=>(b[2]||0)-(a[2]||0))});
+          .filter(r=>r[2]!=null && r[2]>0.004) // só quem teve absenteísmo (some o que arredonda para 0,00%)
+          .sort((a,b)=>b[2]-a[2])});
     }
     if(BLK.amb_tbl_dsp){
       const dps=[...new Set(dspF.map(x=>(x.depto||'').trim()).filter(Boolean))];
