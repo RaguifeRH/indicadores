@@ -4,32 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cadastro em massa — Checklists da semana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --verde:#1d6b3a; --verde-esc:#154f2b; --lima:#8CB43E; --lima-esc:#6f942f;
-    --tinta:#20302a; --cinza:#6c7a72; --linha:#e2e8e3; --fundo:#f3f6f2;
+    --verde:#024f2b; --verde-esc:#01361d; --lima:#9dcd46; --lima-esc:#739630;
+    --tinta:#15201a; --cinza:#5d6a62; --linha:#dde5de; --fundo:#f2f5f0;
     --ok:#1d7a43; --erro:#c0392b; --aviso:#b8860b; --branco:#fff;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:Inter,'Segoe UI',system-ui,sans-serif;background:var(--fundo);color:var(--tinta);line-height:1.5;}
+  body{margin:0;font-family:Poppins,system-ui,sans-serif;background:var(--fundo);color:var(--tinta);line-height:1.5;}
   .wrap{max-width:820px;margin:0 auto;padding:28px 18px 80px;}
   header.top{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
   header.top svg{flex:0 0 auto;}
   h1{font-size:22px;margin:0;color:var(--verde-esc);letter-spacing:-.2px;}
   .sub{color:var(--cinza);font-size:13.5px;margin:2px 0 26px;}
-  .card{background:var(--branco);border:1px solid var(--linha);border-radius:14px;padding:20px 20px 22px;margin-bottom:16px;box-shadow:0 1px 2px rgba(20,60,40,.04);}
+  .card{background:var(--branco);border:1px solid var(--linha);border-radius:0;padding:20px 20px 22px;margin-bottom:16px;box-shadow:0 1px 2px rgba(20,60,40,.04);}
   .card.locked{opacity:.5;pointer-events:none;}
   .card h2{font-size:15px;margin:0 0 3px;display:flex;align-items:center;gap:9px;color:var(--verde-esc);}
   .num{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;border-radius:50%;background:var(--verde);color:#fff;font-size:12px;font-weight:700;}
   .card .hint{color:var(--cinza);font-size:12.5px;margin:0 0 14px 32px;}
   label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta);margin-bottom:5px;}
   input[type=text],input[type=email],input[type=password],select{
-    width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:9px;font-size:14px;font-family:inherit;background:#fbfdfb;color:var(--tinta);}
+    width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:0;font-size:14px;font-family:inherit;background:#fbfdfb;color:var(--tinta);}
   input:focus,select:focus{outline:none;border-color:var(--lima);box-shadow:0 0 0 3px rgba(140,180,62,.18);}
   .row{display:flex;gap:12px;flex-wrap:wrap;}
   .row>div{flex:1;min-width:180px;}
-  .btn{border:none;border-radius:9px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s;}
+  .btn{border:none;border-radius:0;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s;}
   .btn:hover{filter:brightness(1.06);}
   .btn:disabled{opacity:.55;cursor:not-allowed;filter:none;}
   .btn-primary{background:var(--verde);color:#fff;}
@@ -38,41 +40,64 @@
   .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;}
   .status{font-size:13px;font-weight:600;}
   .status.ok{color:var(--ok);} .status.err{color:var(--erro);} .status.warn{color:var(--aviso);}
-  .filebox{border:2px dashed var(--linha);border-radius:11px;padding:22px;text-align:center;background:#fbfdfb;cursor:pointer;transition:border-color .15s,background .15s;}
+  .filebox{border:2px dashed var(--linha);border-radius:0;padding:22px;text-align:center;background:#fbfdfb;cursor:pointer;transition:border-color .15s,background .15s;}
   .filebox:hover{border-color:var(--lima);background:#f6faf2;}
   .filebox strong{color:var(--verde-esc);}
   .filebox small{display:block;color:var(--cinza);margin-top:5px;font-size:12px;}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px;}
   th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--linha);}
   th{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--cinza);font-weight:700;}
-  .table-scroll{max-height:340px;overflow:auto;border:1px solid var(--linha);border-radius:10px;margin-top:12px;}
-  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;}
+  .table-scroll{max-height:340px;overflow:auto;border:1px solid var(--linha);border-radius:0;margin-top:12px;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:0;font-size:11.5px;font-weight:700;}
   .p-novo{background:#e4f3e8;color:var(--ok);}
   .p-exists{background:#eceff0;color:var(--cinza);}
   .p-warn{background:#fbf1d8;color:var(--aviso);}
   .p-err{background:#f8e3df;color:var(--erro);}
   .summary{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;}
   .summary b{font-size:19px;display:block;color:var(--verde-esc);}
-  .log{margin-top:14px;font-size:12.5px;max-height:220px;overflow:auto;border:1px solid var(--linha);border-radius:10px;padding:10px 12px;background:#fbfdfb;display:none;}
+  .log{margin-top:14px;font-size:12.5px;max-height:220px;overflow:auto;border:1px solid var(--linha);border-radius:0;padding:10px 12px;background:#fbfdfb;display:none;}
   .log div{padding:2px 0;border-bottom:1px dashed #eef1ee;}
   .log div:last-child{border-bottom:none;}
-  textarea{width:100%;min-height:130px;border:1px solid var(--linha);border-radius:9px;padding:10px 12px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace;background:#fbfdfb;resize:vertical;}
-  .note{background:#f6faf2;border:1px solid #dfeccb;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#3a4a3e;margin-top:14px;}
+  textarea{width:100%;min-height:130px;border:1px solid var(--linha);border-radius:0;padding:10px 12px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace;background:#fbfdfb;resize:vertical;}
+  .note{background:#f6faf2;border:1px solid #dfeccb;border-radius:0;padding:11px 13px;font-size:12.5px;color:#3a4a3e;margin-top:14px;}
   a{color:var(--verde);}
-  .prog{height:8px;background:#eef3ec;border-radius:6px;overflow:hidden;margin-top:14px;display:none;}
+  .prog{height:8px;background:#eef3ec;border-radius:0;overflow:hidden;margin-top:14px;display:none;}
   .prog>span{display:block;height:100%;width:0;background:var(--lima);transition:width .2s;}
+
+  /* ===== tema jornal (Facilities) ===== */
+  header.top{position:relative;overflow:hidden;background:var(--verde);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0,rgba(255,255,255,.035) 2px,transparent 2px,transparent 14px);color:#fff;padding:24px 24px 26px;margin-bottom:0;border-bottom:6px solid #f2b300;}
+  header.top:after{content:"";position:absolute;right:-50px;top:-60px;width:190px;height:190px;border-radius:50%;background:rgba(157,205,70,.16);}
+  header.top > *{position:relative;z-index:1;}
+  .top-kick{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:#cfe6a8;margin-bottom:6px;}
+  .top-kick:before{content:"";width:22px;height:3px;background:#9dcd46;}
+  h1{font-family:'Archivo',Poppins,sans-serif;font-stretch:75%;font-weight:900;text-transform:uppercase;font-size:34px;line-height:.95;color:#fff;letter-spacing:.005em;}
+  .sub{background:#fff;border:1px solid var(--linha);border-top:0;padding:12px 16px;margin:0 0 18px;}
+  .card{border-top:4px solid var(--verde);box-shadow:none;}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.12em;}
+  .num{background:var(--verde);}
+  label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--cinza);}
+  input[type=text],input[type=email],input[type=password],select{border-color:#c9d5cc;background:#fff;}
+  input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(2,79,43,.12);}
+  .btn{font-weight:700;min-height:44px;}
+  .btn-leaf{color:#01361d;}
+  .filebox{border-color:#9fb8a6;background:#fff;}
+  .note{background:#e7f2d2;border:0;border-left:4px solid #739630;}
+  .pill{text-transform:uppercase;letter-spacing:.06em;font-size:10px;}
+  th{background:#f7faf6;letter-spacing:.1em;}
+  .summary b{font-family:'Archivo',Poppins,sans-serif;font-stretch:75%;font-weight:900;font-size:30px;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <svg width="40" height="34" viewBox="0 0 100 90" aria-hidden="true">
-      <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#8CB43E" stroke-width="7"/>
-      <circle cx="30" cy="27" r="6.5" fill="#8CB43E"/><circle cx="50" cy="23" r="6.5" fill="#8CB43E"/><circle cx="70" cy="27" r="6.5" fill="#8CB43E"/>
-      <path d="M27 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
-      <path d="M50 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#8CB43E" stroke-width="9" stroke-linecap="round"/>
+      <rect x="4" y="4" width="92" height="70" rx="12" fill="none" stroke="#9dcd46" stroke-width="7"/>
+      <circle cx="30" cy="27" r="6.5" fill="#9dcd46"/><circle cx="50" cy="23" r="6.5" fill="#9dcd46"/><circle cx="70" cy="27" r="6.5" fill="#9dcd46"/>
+      <path d="M27 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#9dcd46" stroke-width="9" stroke-linecap="round"/>
+      <path d="M50 40 v9 a11.5 11.5 0 0 0 23 0 v-9" fill="none" stroke="#9dcd46" stroke-width="9" stroke-linecap="round"/>
     </svg>
     <div>
+      <div class="top-kick">Facilities</div>
       <h1>Cadastro em massa — Checklists da semana</h1>
     </div>
   </header>
