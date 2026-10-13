@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal dos Gestores - Raguife</title>
+<meta name="theme-color" content="#01361d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --verde:#024f2b; --verde-esc:#01361d; --verde-2:#036c3b; --lima:#9dcd46; --lima-cl:#cfe6a8; --lima-bg:#e7f2d2; --oliva:#739630;
+    --ink:#15201a; --muted:#5d6a62; --line:#dde5de; --line2:#eef3ef; --mist:#f2f5f0; --paper:#fff; --hover:#f7faf6;
+    --bad:#b3372f; --badSoft:#fbecea; --okc:#1f7a45; --okSoft:#e3f2e7; --warn:#9a6a08; --warnSoft:#fdf3dc;
+    --tex:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0,rgba(255,255,255,.035) 2px,transparent 2px,transparent 14px);
+    --font:Poppins,system-ui,sans-serif; --display:'Archivo',Poppins,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;} html,body{margin:0;padding:0;}
+  body{background:var(--mist);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;font-size:14px;}
+  button,input,select{font-family:inherit;}
+  a{color:var(--verde);}
+
+  /* login */
+  #login{display:none;min-height:100vh;align-items:center;justify-content:center;padding:20px;}
+  .login-card{background:#fff;border:1px solid var(--line);border-top:6px solid var(--verde);padding:28px;width:100%;max-width:400px;}
+  .login-card h1{font-family:var(--display);font-stretch:75%;font-weight:900;text-transform:uppercase;font-size:38px;line-height:1;color:var(--verde);margin:8px 0 4px;}
+  .login-card .sub{color:var(--muted);font-size:13px;margin-bottom:20px;}
+  .login-err{color:var(--bad);font-size:13px;font-weight:600;min-height:18px;margin-top:10px;}
+  .linkbtn{background:none;border:0;color:var(--verde);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:0;margin-top:12px;}
+
+  #app{display:none;}
+  .topbar{background:var(--verde-esc);background-image:var(--tex);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 24px;position:sticky;top:0;z-index:30;flex-wrap:wrap;}
+  .topbar .wm{font-weight:800;font-size:20px;letter-spacing:-.02em;line-height:1;}
+  .topbar .sub{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--lima);display:block;margin-top:3px;}
+  .topbar .grow{flex:1;}
+  .who{font-size:12.5px;text-align:right;} .who b{display:block;} .who span{color:#a9c4b1;font-size:11px;}
+  .btn-top{background:transparent;border:1px solid rgba(255,255,255,.25);color:#fff;padding:8px 13px;font-weight:600;font-size:12px;cursor:pointer;}
+  .btn-top:hover{background:rgba(255,255,255,.08);}
+
+  main{max-width:1180px;margin:0 auto;padding:24px 24px 80px;}
+  .hero{position:relative;overflow:hidden;background:var(--verde);background-image:var(--tex);color:#fff;padding:24px 28px 26px;margin-bottom:20px;border-bottom:6px solid var(--lima);}
+  .hero:after{content:"";position:absolute;right:-60px;top:-70px;width:220px;height:220px;border-radius:50%;background:rgba(157,205,70,.16);}
+  .hero > *{position:relative;z-index:1;}
+  .eyebrow{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--lima-cl);}
+  .eyebrow:before{content:"";width:22px;height:3px;background:var(--lima);}
+  .hero h1{font-family:var(--display);font-stretch:75%;font-weight:900;font-size:48px;line-height:.95;text-transform:uppercase;margin:8px 0 0;}
+  .hero h1 em{font-style:normal;color:var(--lima);}
+  .hero p{color:#d9e6dc;margin:10px 0 0;font-size:13.5px;}
+
+  .filtros{background:#fff;border:1px solid var(--line);border-left:6px solid var(--verde);padding:16px 18px;margin-bottom:20px;display:flex;flex-direction:column;gap:14px;}
+  .frow{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+  .fld{min-width:150px;}
+  label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em;}
+  input,select{width:100%;padding:10px 12px;border:1px solid #c9d5cc;border-radius:0;font-size:14px;background:#fff;color:var(--ink);}
+  input:focus,select:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px rgba(2,79,43,.12);}
+  .btn{font-weight:700;font-size:13.5px;border:none;border-radius:0;padding:11px 18px;min-height:44px;cursor:pointer;}
+  .btn:disabled{opacity:.55;cursor:wait;}
+  .btn-primary{background:var(--verde);color:#fff;} .btn-primary:hover{background:var(--verde-2);}
+  .btn-leaf{background:var(--lima);color:var(--verde-esc);} .btn-leaf:hover{background:#8dbd3a;}
+  .btn-ghost{background:#fff;color:var(--verde);border:1px solid #c9d5cc;} .btn-ghost:hover{border-color:var(--verde);}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{padding:7px 13px;border:1px solid #c9d5cc;background:#fff;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .chip:hover{border-color:var(--verde);} .chip.on{background:var(--verde);color:#fff;border-color:var(--verde);}
+  .dwrap{position:relative;max-width:440px;}
+  .dpanel{position:absolute;z-index:20;background:#fff;border:1px solid var(--line);border-top:3px solid var(--verde);margin-top:4px;max-height:240px;overflow-y:auto;width:100%;box-shadow:0 14px 34px rgba(1,30,15,.16);display:none;}
+  .ditem{padding:8px 12px;font-size:12.5px;cursor:pointer;display:flex;gap:9px;align-items:center;} .ditem:hover{background:var(--hover);}
+  .ditem input{width:auto;margin:0;accent-color:var(--verde);}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .tag{background:var(--verde);color:#fff;padding:4px 6px 4px 11px;font-size:11.5px;font-weight:600;display:inline-flex;gap:6px;align-items:center;}
+  .tag button{background:rgba(255,255,255,.2);border:0;color:#fff;cursor:pointer;width:18px;height:18px;padding:0;}
+  .status{font-size:12px;color:var(--muted);}
+
+  section.mod{background:#fff;border:1px solid var(--line);border-top:6px solid var(--c,var(--verde));padding:20px 22px 22px;margin-bottom:20px;}
+  section.mod > h2{font-family:var(--display);font-stretch:75%;font-weight:900;text-transform:uppercase;font-size:30px;line-height:1;color:var(--verde);margin:0 0 4px;}
+  section.mod > .msub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+  .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
+  .kpi{border:1px solid var(--line);border-top:4px solid var(--c,var(--verde));padding:14px 16px;}
+  .kpi .t{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .kpi .v{font-family:var(--display);font-stretch:75%;font-size:36px;line-height:1.05;font-weight:900;color:var(--verde);margin-top:6px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+  .kpi .m{font-size:11.5px;color:var(--muted);margin-top:4px;}
+  .cmp{font-size:11px;font-weight:700;margin-top:6px;display:inline-block;}
+  .cmp-up{color:var(--okc);} .cmp-down{color:var(--bad);} .cmp-flat{color:var(--muted);}
+  h3{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--verde);font-weight:700;text-transform:uppercase;letter-spacing:.12em;margin:22px 0 8px;}
+  h3:before{content:"";width:18px;height:3px;background:var(--c,var(--verde));}
+  .tw{overflow-x:auto;border:1px solid var(--line2);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--muted);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--hover);white-space:nowrap;}
+  td{padding:9px 12px;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums;}
+  tr:last-child td{border-bottom:0;}
+  .vazio{color:var(--muted);font-size:13px;padding:18px 12px;}
+  .aviso{background:var(--warnSoft);color:#7a5610;border-left:4px solid #c3901f;padding:14px 16px;font-size:13px;line-height:1.5;margin-bottom:20px;}
+  .nota{font-size:12px;color:var(--muted);margin-top:8px;}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:12px 20px;font-size:13px;font-weight:700;z-index:90;opacity:0;transition:all .25s;border-left:4px solid var(--lima);max-width:90vw;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);} #toast.err{background:var(--bad);}
+  @media(max-width:700px){ main{padding:16px 16px 70px;} .hero h1{font-size:36px;} .topbar{padding:12px 16px;} .fld{flex:1 1 100%;} }
+  @media print{ .topbar,.filtros{display:none!important;} section.mod{break-inside:avoid;} }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="eyebrow" style="color:var(--oliva)">Portal dos gestores</div>
+    <h1>Entrar</h1>
+    <div class="sub">Use o e-mail e a senha que o RH cadastrou para você.</div>
+    <label>E-mail</label><input type="email" id="lg-user" autocomplete="username" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')doLogin()">
+    <label>Senha</label><input type="password" id="lg-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="lg-err"></div>
+    <button class="btn btn-primary" id="lg-btn" style="width:100%" onclick="doLogin()">Entrar</button>
+    <button class="linkbtn" onclick="esqueciSenha()">Esqueci minha senha</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div><span class="wm">raguife</span><span class="sub">Portal dos gestores</span></div>
+    <div class="grow"></div>
+    <div class="who"><b id="who-nome"></b><span id="who-role"></span></div>
+    <a class="btn-top" id="btn-config" href="dashboard.html" style="display:none;text-decoration:none">Configurar portal</a>
+    <button class="btn-top" onclick="logout()">Sair</button>
+  </div>
+  <main>
+    <section class="hero">
+      <div class="eyebrow">Indicadores · Gestão de Pessoas</div>
+      <h1>Painel dos <em>gestores</em></h1>
+      <p id="hero-sub">Carregando…</p>
+    </section>
+
+    <div id="aviso-vazio" class="aviso" style="display:none">Nenhuma competência foi liberada ainda. Assim que o RH liberar, os números aparecem aqui.</div>
+
+    <div class="filtros" id="filtros" style="display:none">
+      <div class="frow">
+        <div class="fld"><label>De</label><select id="sel-de"></select></div>
+        <div class="fld"><label>Até</label><select id="sel-ate"></select></div>
+        <button class="btn btn-leaf" id="btn-excel" onclick="baixarExcel()">Baixar Excel</button>
+        <button class="btn btn-ghost" id="btn-atualizar" onclick="carregar()">Atualizar dados</button>
+        <span class="status" id="status"></span>
+      </div>
+      <div id="f-filial-wrap">
+        <label>Filial <span style="text-transform:none;letter-spacing:0;font-weight:400">(afeta RH e Departamento Pessoal)</span></label>
+        <div class="chips" id="f-filial"></div>
+      </div>
+      <div>
+        <label>Departamento / setor</label>
+        <div class="dwrap">
+          <input type="text" id="f-depto-busca" placeholder="Buscar departamento…" autocomplete="off">
+          <div class="dpanel" id="f-depto-panel"></div>
+        </div>
+        <div class="tags" id="f-depto-tags"></div>
+      </div>
+    </div>
+
+    <div id="conteudo"></div>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBm3bZuGRLF3s10806rWmveKOtEs59JERw",
+  authDomain: "controlepix-cc524.firebaseapp.com",
+  projectId: "controlepix-cc524",
+  storageBucket: "controlepix-cc524.firebasestorage.app",
+  messagingSenderId: "949223824940",
+  appId: "1:949223824940:web:d56a9e04901aff35273b89"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+/* ====== CATÁLOGO DE BLOCOS (mesmas chaves do dashboard.html) ====== */
+const BLOCOS = [
+  {mod:'rh', label:'Recursos Humanos', cor:'#7aa53a', itens:[
+    {k:'rh_headcount', label:'Headcount (ativos no fim do período)'},
+    {k:'rh_turnover',  label:'Turnover'},
+    {k:'rh_abs',       label:'Absenteísmo (c/ abono, s/ abono, médico)'},
+    {k:'rh_faltas',    label:'Faltas (ocorrências)'},
+    {k:'rh_movs',      label:'Admissões e desligamentos'},
+    {k:'rh_tbl_filial',label:'Tabela por filial'},
+    {k:'rh_base',      label:'Base detalhada filial × depto × mês (só no Excel)'},
+  ]},
+  {mod:'amb', label:'Ambulatório', cor:'#11808c', itens:[
+    {k:'amb_atestados',   label:'Dias perdidos e atestados'},
+    {k:'amb_exames',      label:'Exames no prazo'},
+    {k:'amb_dsp',         label:'DSPs realizados'},
+    {k:'amb_sat',         label:'Satisfação (consulta e ambulatório)'},
+    {k:'amb_tbl_setor',   label:'Tabela: absenteísmo por setor'},
+    {k:'amb_tbl_dsp',     label:'Tabela: DSP por departamento'},
+    {k:'amb_tbl_dsp_resp',label:'Tabela: DSP top responsáveis'},
+  ]},
+  {mod:'dp', label:'Departamento Pessoal', cor:'#c3901f', itens:[
+    {k:'dp_custo',     label:'Custo total'},
+    {k:'dp_grupos',    label:'Custo por grupo (folha, encargos, benefícios)'},
+    {k:'dp_folha_fat', label:'Folha ÷ Faturamento'},
+    {k:'dp_he',        label:'Horas extras (informativo)'},
+    {k:'dp_ocorr',     label:'Ocorrências de ponto'},
+    {k:'dp_tbl_filial',label:'Tabela: custo por filial'},
+    {k:'dp_base',      label:'Base detalhada filial × depto × mês (só no Excel)'},
+  ]},
+];
+
+/* ====== HELPERS ====== */
+const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function fmtMes(c){ if(!c) return '—'; const [y,m]=String(c).split('-'); return (MESES[parseInt(m,10)-1]||m)+'/'+y; }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function stripAcc(s){ return String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,''); }
+const F = {
+  int: v=> v==null? '—' : Math.round(v).toLocaleString('pt-BR'),
+  pct1: v=> v==null? '—' : v.toFixed(1).replace('.',',')+'%',
+  pct2: v=> v==null? '—' : v.toFixed(2).replace('.',',')+'%',
+  pct0: v=> v==null? '—' : v.toFixed(0)+'%',
+  moeda: v=> v==null? '—' : (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}),
+  nota: v=> v==null? '—' : v.toFixed(2).replace('.',',')+' / 5',
+  txt: v=> esc(v),
+};
+function addMonths(m,n){ let [y,mo]=m.split('-').map(Number); mo+=n; while(mo>12){mo-=12;y++;} while(mo<1){mo+=12;y--;} return y+'-'+String(mo).padStart(2,'0'); }
+function mesesEntre(de,ate){ const r=[]; let m=de; while(m<=ate && r.length<600){ r.push(m); m=addMonths(m,1);} return r; }
+function prevRange(de,ate){ const n=mesesEntre(de,ate).length; const a=addMonths(de,-1); return {de:addMonths(a,-(n-1)), ate:a}; }
+function inMes(dataISO,de,ate){ if(!dataISO) return false; const m=String(dataISO).slice(0,7); return m>=de && m<=ate; }
+function fimDoMes(m){ const [y,mo]=m.split('-').map(Number); return m+'-'+String(new Date(y,mo,0).getDate()).padStart(2,'0'); }
+function businessDays(de,ate){ let n=0; const d=new Date(de+'T00:00:00'), e=new Date(ate+'T00:00:00'); while(d<=e){ const w=d.getDay(); if(w&&w!==6) n++; d.setDate(d.getDate()+1);} return n; }
+function cmpBadge(curr, prev, higherIsBetter, fmt){
+  if(prev==null || curr==null) return '<span class="cmp cmp-flat">— sem período anterior liberado</span>';
+  const diff = curr-prev;
+  if(Math.abs(diff)<1e-9) return `<span class="cmp cmp-flat">＝ estável (${fmt(prev)})</span>`;
+  const up=diff>0, good=higherIsBetter?up:!up;
+  return `<span class="cmp ${good?'cmp-up':'cmp-down'}">${up?'▲':'▼'} ${fmt(Math.abs(diff))} vs. anterior (${fmt(prev)})</span>`;
+}
+function toast(msg,err){ const t=document.getElementById('toast'); t.textContent=msg; t.className=err?'show err':'show'; clearTimeout(t._h); t._h=setTimeout(()=>t.className='',3000); }
+function authErrPT(e){
+  const c=(e&&e.code)||'';
+  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'E-mail ou senha incorretos.';
+  if(c.includes('too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.';
+  if(c.includes('network')) return 'Sem conexão com a internet.';
+  return 'Falha: '+((e&&e.message)||'erro desconhecido');
+}
+
+/* ====== CÁLCULOS (mesmas fórmulas dos módulos de origem) ====== */
+const SAT_DEF=[{k:'q1'},{k:'q2'},{k:'q3'},{k:'q4'},{k:'q5'}];
+function mediaSat(rows){ let s=0,n=0; rows.forEach(r=>SAT_DEF.forEach(q=>{ if(r[q.k]!=null){ s+=r[q.k]; n++; } })); return n? s/n : null; }
+const CUSTO_CATS = [
+  {key:'folha',label:'Folha',grupo:'folha'},{key:'inss',label:'INSS',grupo:'encargos'},{key:'sesiSenai',label:'SESI/SENAI',grupo:'encargos'},
+  {key:'fgts',label:'FGTS',grupo:'encargos'},{key:'alimentacao',label:'Alimentação',grupo:'beneficios'},{key:'notaFiscal',label:'Nota Fiscal',grupo:'folha'},
+  {key:'jovemAprendiz',label:'Jovem Aprendiz',grupo:'folha'},{key:'planoSaude',label:'Plano de Saúde',grupo:'beneficios'},
+  {key:'planoOdontologico',label:'Plano Odontológico',grupo:'beneficios'},{key:'seguroVida',label:'Seguro de Vida',grupo:'beneficios'},
+  {key:'diariasMedias',label:'Diárias e Médias',grupo:'folha'},{key:'premio',label:'Prêmio',grupo:'folha'},{key:'multimed',label:'Multimed',grupo:'encargos'},
+];
+const GRUPOS=[{key:'folha',label:'Folha e Complementos'},{key:'encargos',label:'Encargos e Obrigações'},{key:'beneficios',label:'Benefícios'}];
+function agregarRH(rows,de,ate){
+  const f=rows.filter(l=>l.competencia>=de && l.competencia<=ate);
+  const meses=[...new Set(f.map(l=>l.competencia))].sort();
+  const ult=meses[meses.length-1];
+  const headcount= ult? f.filter(l=>l.competencia===ult).reduce((s,l)=>s+(l.ativos||0),0) : null;
+  const admitidos=f.reduce((s,l)=>s+(l.admitidos||0),0), demitidos=f.reduce((s,l)=>s+(l.demitidos||0),0);
+  const somaMovs=f.reduce((s,l)=>s+((l.admitidos||0)+(l.demitidos||0))/2,0);
+  const porMes=meses.map(m=>f.filter(l=>l.competencia===m).reduce((s,l)=>s+(l.ativos||0),0));
+  const mediaAtivos=porMes.length? porMes.reduce((a,b)=>a+b,0)/porMes.length : 0;
+  const somaAt=f.reduce((s,l)=>s+(l.ativos||0),0);
+  const pond=k=>f.reduce((s,l)=>s+((l[k]||0)*(l.ativos||0)),0);
+  return {headcount, admitidos, demitidos, nMeses:meses.length,
+    turnover: mediaAtivos? somaMovs/mediaAtivos*100 : null,
+    absCom: somaAt? pond('absenteismoComAbono')/somaAt : null,
+    absSem: somaAt? pond('absenteismoSemAbono')/somaAt : null,
+    absMed: somaAt? pond('absenteismoMedico')/somaAt : null,
+    faltas: f.length? f.reduce((s,l)=>s+(l.faltasQtd||0),0) : null};
+}
+function agregarDP(rows,de,ate){
+  const f=rows.filter(l=>l.competencia>=de && l.competencia<=ate);
+  const porGrupo={}; GRUPOS.forEach(g=>porGrupo[g.key]=CUSTO_CATS.filter(c=>c.grupo===g.key).reduce((s,c)=>s+f.reduce((s2,l)=>s2+(l[c.key]||0),0),0));
+  return {total:f.reduce((s,l)=>s+(l.total||0),0), porGrupo,
+    horasExtras:f.reduce((s,l)=>s+(l.horasExtras||0),0), ocorrencias:f.reduce((s,l)=>s+(l.ocorrenciasPonto||0),0),
+    nMeses:new Set(f.map(l=>l.competencia)).size, linhas:f};
+}
+
+/* ====== ESTADO ====== */
+let currentUser=null, CFG=null, LIB=new Set(), BLK={}, D=null;
+let filtroFiliais=new Set(), filtroDeptos=new Set();
+let MODELO=null; // o que está na tela, usado também pro Excel
+
+/* ====== ACESSO ====== */
+async function doLogin(){
+  const email=document.getElementById('lg-user').value.trim(), pass=document.getElementById('lg-pass').value;
+  const err=document.getElementById('lg-err'); err.textContent='';
+  if(!email||!pass){ err.textContent='Informe e-mail e senha.'; return; }
+  const b=document.getElementById('lg-btn'); b.disabled=true;
+  try{ await signInWithEmailAndPassword(auth,email,pass); }catch(e){ err.textContent=authErrPT(e); }
+  b.disabled=false;
+}
+async function esqueciSenha(){
+  const email=document.getElementById('lg-user').value.trim();
+  if(!email){ document.getElementById('lg-err').textContent='Digite seu e-mail acima e clique de novo.'; return; }
+  try{ await sendPasswordResetEmail(auth,email); toast('E-mail de redefinição enviado ✓'); }catch(e){ toast(authErrPT(e),true); }
+}
+async function logout(){ await signOut(auth); location.reload(); }
+function mostrarLogin(msg){
+  document.getElementById('app').style.display='none';
+  document.getElementById('login').style.display='flex';
+  if(msg) document.getElementById('lg-err').textContent=msg;
+}
+onAuthStateChanged(auth, async user=>{
+  if(!user || user.isAnonymous){ mostrarLogin(); return; }
+  try{
+    const prof=await getDoc(doc(db,'nrh_usuarios',user.uid));
+    if(!prof.exists()){ await signOut(auth); mostrarLogin('Sua conta não tem acesso ao portal.'); return; }
+    const d=prof.data();
+    if(d.ativo===false){ await signOut(auth); mostrarLogin('Seu acesso está desativado.'); return; }
+    const pode = d.admin || d.gestor || (d.modulos && d.modulos.dashboard);
+    if(!pode){ await signOut(auth); mostrarLogin('Sua conta não tem acesso ao portal dos gestores.'); return; }
+    currentUser={uid:user.uid, ...d};
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('who-nome').textContent=d.nome||d.email||'';
+    document.getElementById('who-role').textContent=d.admin?'Administrador':'Gestor'+(d.setor?' · '+d.setor:'');
+    if(d.admin) document.getElementById('btn-config').style.display='inline-block';
+    carregar();
+  }catch(e){ console.error(e); mostrarLogin('Erro ao carregar seu perfil.'); }
+});
+
+/* ====== CARGA (ao vivo) ====== */
+async function ler(nome){ try{ const s=await getDocs(collection(db,nome)); return s.docs.map(x=>({id:x.id,...x.data()})); }catch(e){ console.error(nome,e); return []; } }
+async function cfg(nome,def){ try{ const s=await getDoc(doc(db,'config',nome)); return s.exists()? {...def,...s.data()} : {...def}; }catch(e){ return {...def}; } }
+function modAtivo(mod){ return BLOCOS.find(b=>b.mod===mod).itens.some(i=>BLK[i.k]); }
+
+async function carregar(){
+  const btn=document.getElementById('btn-atualizar'); btn.disabled=true;
+  document.getElementById('status').textContent='Lendo o banco…';
+  try{
+    CFG = await cfg('portal_gestores',{competencias:[], blocos:{}});
+    LIB = new Set(CFG.competencias||[]);
+    BLK = CFG.blocos||{};
+    if(!LIB.size){
+      document.getElementById('aviso-vazio').style.display='block';
+      document.getElementById('filtros').style.display='none';
+      document.getElementById('conteudo').innerHTML='';
+      document.getElementById('hero-sub').textContent='Aguardando a liberação das competências pelo RH.';
+      return;
+    }
+    document.getElementById('aviso-vazio').style.display='none';
+    const rhOn=modAtivo('rh'), ambOn=modAtivo('amb'), dpOn=modAtivo('dp');
+    const vazio=Promise.resolve([]);
+    const [rh,abs,ex,dsp,satM,satA,cus,fat,cRH,cAmb,cDP] = await Promise.all([
+      rhOn? ler('rh_lancamentos'):vazio,
+      ambOn? ler('amb_absenteismo'):vazio, ambOn? ler('amb_exames'):vazio, ambOn? ler('amb_dsp_eventos'):vazio,
+      ambOn? ler('amb_sat_medico'):vazio, ambOn? ler('amb_sat_amb'):vazio,
+      dpOn? ler('dp_custos'):vazio, dpOn? ler('dp_faturamento'):vazio,
+      cfg('rh_metas',{metaTurnover:5,metaAbsenteismo:3}),
+      cfg('amb_metas',{metaAbs:3,metaExames:95,metaSatMed:4.5,metaSatAmb:4.5,efetivo:0}),
+      cfg('dp_metas',{metaFolhaFaturamento:20}),
+    ]);
+    // só o que está em competência liberada entra no portal
+    const lib = m => LIB.has(String(m||'').slice(0,7));
+    D = {
+      rh: rh.filter(l=>lib(l.competencia)), custosDP: cus.filter(l=>lib(l.competencia)), fatDP: fat.filter(f=>lib(f.competencia)),
+      absAmb: abs.filter(a=>lib(a.inicio)), exAmb: ex.filter(e=>lib(e.prevista)), dspAmb: dsp.filter(x=>lib(x.data)),
+      satMed: satM.filter(s=>lib(s.data)), satAmb: satA.filter(s=>lib(s.data)),
+      cfgRH:cRH, cfgAmb:cAmb, cfgDP:cDP,
+    };
+    montarFiltros();
+    renderTudo();
+    document.getElementById('status').textContent='Atualizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ console.error(e); toast('Falha ao carregar: '+(e.message||e),true); document.getElementById('status').textContent=''; }
+  finally{ btn.disabled=false; }
+}
+
+/* ====== FILTROS ====== */
+function montarFiltros(){
+  document.getElementById('filtros').style.display='flex';
+  const meses=[...LIB].sort();
+  const sDe=document.getElementById('sel-de'), sAte=document.getElementById('sel-ate');
+  const keepDe=sDe.value, keepAte=sAte.value;
+  const opts=meses.map(m=>`<option value="${m}">${fmtMes(m)}</option>`).join('');
+  sDe.innerHTML=opts; sAte.innerHTML=opts;
+  const ult=meses[meses.length-1];
+  sDe.value = meses.includes(keepDe)? keepDe : ult;
+  sAte.value = meses.includes(keepAte)? keepAte : ult;
+  document.getElementById('f-filial-wrap').style.display = (modAtivo('rh')||modAtivo('dp'))? 'block':'none';
+  renderFiliais(); renderDeptoTags();
+}
+function todasFiliais(){ return [...new Set([...D.rh,...D.custosDP].map(r=>r.filial).filter(Boolean))].sort(); }
+function todosDeptos(){
+  const base=[...D.rh,...D.custosDP].filter(r=>!filtroFiliais.size||filtroFiliais.has(r.filial)).map(r=>r.depto);
+  return [...new Set([...base, ...D.absAmb.map(a=>a.setor), ...D.dspAmb.map(x=>(x.depto||'').trim())].filter(Boolean))].sort();
+}
+function renderFiliais(){
+  document.getElementById('f-filial').innerHTML =
+    `<button class="chip ${filtroFiliais.size?'':'on'}" data-v="__all__">Todas</button>` +
+    todasFiliais().map(f=>`<button class="chip ${filtroFiliais.has(f)?'on':''}" data-v="${esc(f)}">${esc(f)}</button>`).join('');
+}
+function renderDeptoTags(){
+  document.getElementById('f-depto-tags').innerHTML=[...filtroDeptos].map(d=>`<span class="tag">${esc(d)}<button data-rm="${esc(d)}">×</button></span>`).join('');
+}
+function renderDeptoPanel(q){
+  const f=stripAcc(q).toLowerCase().trim();
+  const lista=todosDeptos().filter(x=>!f||stripAcc(x).toLowerCase().includes(f));
+  const p=document.getElementById('f-depto-panel');
+  p.innerHTML = lista.length? lista.map(x=>`<div class="ditem" data-v="${esc(x)}"><input type="checkbox" tabindex="-1" ${filtroDeptos.has(x)?'checked':''}> ${esc(x)}</div>`).join('')
+                            : '<div class="ditem" style="cursor:default;color:var(--muted)">Nada encontrado</div>';
+  p.style.display='block';
+}
+document.getElementById('f-filial').addEventListener('click',e=>{
+  const b=e.target.closest('.chip'); if(!b) return;
+  const v=b.dataset.v;
+  if(v==='__all__') filtroFiliais.clear(); else filtroFiliais.has(v)? filtroFiliais.delete(v) : filtroFiliais.add(v);
+  const validos=todosDeptos(); [...filtroDeptos].forEach(d=>{ if(!validos.includes(d)) filtroDeptos.delete(d); });
+  renderFiliais(); renderDeptoTags(); renderTudo();
+});
+const busca=document.getElementById('f-depto-busca');
+busca.addEventListener('focus',()=>renderDeptoPanel(busca.value));
+busca.addEventListener('input',()=>renderDeptoPanel(busca.value));
+document.getElementById('f-depto-panel').addEventListener('mousedown',e=>{
+  const it=e.target.closest('.ditem'); if(!it||!it.dataset.v) return; e.preventDefault();
+  const v=it.dataset.v; filtroDeptos.has(v)? filtroDeptos.delete(v) : filtroDeptos.add(v);
+  renderDeptoPanel(busca.value); renderDeptoTags(); renderTudo();
+});
+document.getElementById('f-depto-tags').addEventListener('click',e=>{
+  const b=e.target.closest('[data-rm]'); if(!b) return; filtroDeptos.delete(b.dataset.rm); renderDeptoTags(); renderTudo();
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('.dwrap')) document.getElementById('f-depto-panel').style.display='none'; });
+['sel-de','sel-ate'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{
+  const de=document.getElementById('sel-de'), ate=document.getElementById('sel-ate');
+  if(de.value>ate.value){ if(id==='sel-de') ate.value=de.value; else de.value=ate.value; }
+  renderTudo();
+}));
+
+/* ====== MONTA O MODELO (tela + Excel) ====== */
+// kpi: {titulo, valor, un, fmt, meta, ant, higher}
+function K(titulo, valor, fmt, un, meta, ant, higher){ return {titulo, valor, fmt, un, meta:meta||'', ant, higher}; }
+
+function construirModelo(){
+  const de=document.getElementById('sel-de').value, ate=document.getElementById('sel-ate').value;
+  const pr=prevRange(de,ate);
+  const temAnt = mesesEntre(pr.de,pr.ate).some(m=>LIB.has(m));
+  const mesesLib = mesesEntre(de,ate).filter(m=>LIB.has(m));
+  const fFil=r=>!filtroFiliais.size||filtroFiliais.has(r.filial);
+  const fDep=r=>!filtroDeptos.size||filtroDeptos.has(r.depto);
+  const fDepX=v=>!filtroDeptos.size||filtroDeptos.has((v||'').trim());
+  const M={de, ate, mesesLib, temAnt, secoes:[], bases:[]};
+
+  /* ---- RH ---- */
+  if(modAtivo('rh')){
+    const rows=D.rh.filter(r=>fFil(r)&&fDep(r));
+    const a=agregarRH(rows,de,ate), p=agregarRH(rows,pr.de,pr.ate);
+    const ant=k=> temAnt && p.nMeses ? p[k] : null;
+    const S={mod:'rh', titulo:'Recursos Humanos', cor:'#7aa53a', kpis:[], tabelas:[]};
+    if(BLK.rh_headcount) S.kpis.push(K('Headcount (ativos)', a.headcount, F.int, 'pessoas', 'Fim do período', ant('headcount'), true));
+    if(BLK.rh_turnover)  S.kpis.push(K('Turnover', a.turnover, F.pct1, '%', 'Meta: até '+D.cfgRH.metaTurnover+'%', ant('turnover'), false));
+    if(BLK.rh_abs){
+      S.kpis.push(K('Absenteísmo c/ abono', a.absCom, F.pct2, '%', '', ant('absCom'), false));
+      S.kpis.push(K('Absenteísmo s/ abono', a.absSem, F.pct2, '%', '', ant('absSem'), false));
+      S.kpis.push(K('Absenteísmo médico',  a.absMed, F.pct2, '%', '', ant('absMed'), false));
+    }
+    if(BLK.rh_faltas) S.kpis.push(K('Faltas (ocorrências)', a.faltas, F.int, 'ocorrências', '', ant('faltas'), false));
+    if(BLK.rh_movs){
+      S.kpis.push(K('Admissões', a.admitidos, F.int, 'pessoas', '', ant('admitidos'), true));
+      S.kpis.push(K('Desligamentos', a.demitidos, F.int, 'pessoas', '', ant('demitidos'), false));
+    }
+    if(BLK.rh_tbl_filial){
+      const fils=[...new Set(rows.filter(r=>r.competencia>=de&&r.competencia<=ate).map(r=>r.filial).filter(Boolean))].sort();
+      S.tabelas.push({titulo:'RH por filial', cols:[['Filial',F.txt],['Headcount',F.int],['Turnover (%)',F.pct1],['Absent. c/ abono (%)',F.pct2],['Absent. s/ abono (%)',F.pct2],['Admissões',F.int],['Desligamentos',F.int]],
+        rows: fils.map(fl=>{ const r=agregarRH(rows.filter(x=>x.filial===fl),de,ate); return [fl,r.headcount,r.turnover,r.absCom,r.absSem,r.admitidos,r.demitidos]; })});
+    }
+    if(BLK.rh_base){
+      M.bases.push({titulo:'Base RH', cab:['Competência','Filial','Área','Departamento','Ativos','Admitidos','Demitidos','Absent. c/ abono (%)','Absent. s/ abono (%)','Absent. médico (%)','Faltas'],
+        rows: rows.filter(r=>r.competencia>=de&&r.competencia<=ate).sort((x,y)=>(x.competencia+x.filial+x.depto).localeCompare(y.competencia+y.filial+y.depto))
+          .map(r=>[fmtMes(r.competencia), r.filial||'', r.area||'', r.depto||'', r.ativos||0, r.admitidos||0, r.demitidos||0,
+                   r.absenteismoComAbono??null, r.absenteismoSemAbono??null, r.absenteismoMedico??null, r.faltasQtd||0])});
+    }
+    if(S.kpis.length||S.tabelas.length) M.secoes.push(S);
+  }
+
+  /* ---- Ambulatório ---- */
+  if(modAtivo('amb')){
+    const S={mod:'amb', titulo:'Ambulatório', cor:'#11808c', kpis:[], tabelas:[]};
+    const absF=D.absAmb.filter(a=>inMes(a.inicio,de,ate)&&fDepX(a.setor));
+    const absP=D.absAmb.filter(a=>inMes(a.inicio,pr.de,pr.ate)&&fDepX(a.setor));
+    const dspSk=x=>x.data+'|'+(x.titulo||'')+'|'+(x.resp||'');
+    const dspF=D.dspAmb.filter(x=>inMes(x.data,de,ate)&&fDepX(x.depto));
+    const dspP=D.dspAmb.filter(x=>inMes(x.data,pr.de,pr.ate)&&fDepX(x.depto));
+    const ant=v=> temAnt? v : null;
+    if(BLK.amb_atestados){
+      const dias=absF.reduce((s,a)=>s+(a.dias||0),0);
+      const ef=D.cfgAmb.efetivo||0;
+      const taxa= ef? dias/(ef*businessDays(de+'-01',fimDoMes(ate)))*100 : null;
+      S.kpis.push(K('Dias perdidos (atestado)', dias, F.int, 'dias', taxa!=null?'Taxa: '+F.pct2(taxa):'', ant(absP.reduce((s,a)=>s+(a.dias||0),0)), false));
+      S.kpis.push(K('Atestados', absF.length, F.int, 'atestados', '', ant(absP.length), false));
+    }
+    if(BLK.amb_exames){
+      const pct=rs=>{ if(!rs.length) return null; return rs.filter(e=>e.realizada&&e.realizada<=e.prevista).length/rs.length*100; };
+      const exF=D.exAmb.filter(e=>inMes(e.prevista,de,ate)), exP=D.exAmb.filter(e=>inMes(e.prevista,pr.de,pr.ate));
+      S.kpis.push(K('Exames no prazo', pct(exF), F.pct0, '%', 'Meta: ≥ '+D.cfgAmb.metaExames+'%', ant(pct(exP)), true));
+    }
+    if(BLK.amb_dsp){
+      S.kpis.push(K('DSPs realizados', new Set(dspF.map(dspSk)).size, F.int, 'sessões', dspF.length+' participantes', ant(new Set(dspP.map(dspSk)).size), true));
+    }
+    if(BLK.amb_sat){
+      const sm=mediaSat(D.satMed.filter(s=>inMes(s.data,de,ate))), smp=mediaSat(D.satMed.filter(s=>inMes(s.data,pr.de,pr.ate)));
+      const sa=mediaSat(D.satAmb.filter(s=>inMes(s.data,de,ate))), sap=mediaSat(D.satAmb.filter(s=>inMes(s.data,pr.de,pr.ate)));
+      S.kpis.push(K('Satisfação — consulta', sm, F.nota, 'nota (1 a 5)', 'Meta: ≥ '+D.cfgAmb.metaSatMed, ant(smp), true));
+      S.kpis.push(K('Satisfação — ambulatório', sa, F.nota, 'nota (1 a 5)', 'Meta: ≥ '+D.cfgAmb.metaSatAmb, ant(sap), true));
+    }
+    if(BLK.amb_tbl_setor){
+      const set=[...new Set(absF.map(a=>a.setor).filter(Boolean))];
+      S.tabelas.push({titulo:'Absenteísmo por setor', cols:[['Setor',F.txt],['Dias perdidos',F.int],['Atestados',F.int]],
+        rows:set.map(s=>{ const r=absF.filter(a=>a.setor===s); return [s, r.reduce((x,a)=>x+(a.dias||0),0), r.length]; }).sort((a,b)=>b[1]-a[1])});
+    }
+    if(BLK.amb_tbl_dsp){
+      const dps=[...new Set(dspF.map(x=>(x.depto||'').trim()).filter(Boolean))];
+      S.tabelas.push({titulo:'DSP por departamento', cols:[['Departamento',F.txt],['Sessões',F.int],['Participações',F.int]],
+        rows:dps.map(d=>{ const r=dspF.filter(x=>(x.depto||'').trim()===d); return [d, new Set(r.map(dspSk)).size, r.length]; }).sort((a,b)=>b[2]-a[2])});
+    }
+    if(BLK.amb_tbl_dsp_resp){
+      const nome=x=>(x.resp||'').trim()||'Sem responsável';
+      const rs=[...new Set(dspF.map(nome))];
+      S.tabelas.push({titulo:'DSP — top responsáveis', cols:[['#',F.txt],['Responsável',F.txt],['Sessões',F.int],['Participantes',F.int]],
+        rows:rs.map(r=>{ const l=dspF.filter(x=>nome(x)===r); return [r, new Set(l.map(dspSk)).size, l.length]; })
+          .sort((a,b)=>b[1]-a[1]||b[2]-a[2]).slice(0,10).map((r,i)=>[(i+1)+'º',...r])});
+    }
+    if(S.kpis.length||S.tabelas.length) M.secoes.push(S);
+  }
+
+  /* ---- DP ---- */
+  if(modAtivo('dp')){
+    const S={mod:'dp', titulo:'Departamento Pessoal', cor:'#c3901f', kpis:[], tabelas:[]};
+    const rows=D.custosDP.filter(r=>fFil(r)&&fDep(r));
+    const a=agregarDP(rows,de,ate), p=agregarDP(rows,pr.de,pr.ate);
+    const ant=v=> temAnt && p.nMeses ? v : null;
+    if(BLK.dp_custo) S.kpis.push(K('Custo total', a.total, F.moeda, 'R$', a.nMeses+' mês(es)', ant(p.total), false));
+    if(BLK.dp_grupos) GRUPOS.forEach(g=>S.kpis.push(K(g.label, a.porGrupo[g.key], F.moeda, 'R$',
+      a.total? F.pct1(a.porGrupo[g.key]/a.total*100)+' do total':'', ant(p.porGrupo[g.key]), false)));
+    if(BLK.dp_folha_fat){
+      const razao=(r1,r2)=>{ const fat=D.fatDP.filter(f=>f.competencia>=r1&&f.competencia<=r2).reduce((s,f)=>s+(f.valor||0),0);
+        return fat? agregarDP(D.custosDP,r1,r2).total/fat*100 : null; };
+      S.kpis.push(K('Folha ÷ Faturamento', razao(de,ate), F.pct1, '%', 'Meta: até '+D.cfgDP.metaFolhaFaturamento+'% · empresa toda, ignora filtros', temAnt? razao(pr.de,pr.ate):null, false));
+    }
+    if(BLK.dp_he) S.kpis.push(K('Horas extras (informativo)', a.horasExtras, F.moeda, 'R$', 'Já embutido na Folha', ant(p.horasExtras), false));
+    if(BLK.dp_ocorr) S.kpis.push(K('Ocorrências de ponto', a.ocorrencias, F.int, 'ocorrências', '', ant(p.ocorrencias), false));
+    if(BLK.dp_tbl_filial){
+      const fils=[...new Set(a.linhas.map(r=>r.filial).filter(Boolean))];
+      S.tabelas.push({titulo:'Custo por filial', cols:[['Filial',F.txt],['Custo total',F.moeda],['Folha e Compl.',F.moeda],['Encargos e Obrig.',F.moeda],['Benefícios',F.moeda]],
+        rows:fils.map(fl=>{ const r=agregarDP(rows.filter(x=>x.filial===fl),de,ate); return [fl,r.total,r.porGrupo.folha,r.porGrupo.encargos,r.porGrupo.beneficios]; }).sort((x,y)=>y[1]-x[1])});
+    }
+    if(BLK.dp_base){
+      M.bases.push({titulo:'Base DP', cab:['Competência','Filial','Área','Departamento',...CUSTO_CATS.map(c=>c.label),'Total','Horas extras','Ocorrências de ponto'],
+        rows:a.linhas.slice().sort((x,y)=>(x.competencia+x.filial+x.depto).localeCompare(y.competencia+y.filial+y.depto))
+          .map(r=>[fmtMes(r.competencia), r.filial||'', r.area||'', r.depto||'', ...CUSTO_CATS.map(c=>r[c.key]||0), r.total||0, r.horasExtras||0, r.ocorrenciasPonto||0])});
+    }
+    if(S.kpis.length||S.tabelas.length) M.secoes.push(S);
+  }
+  return M;
+}
+
+/* ====== RENDER ====== */
+function renderTudo(){
+  if(!D) return;
+  MODELO=construirModelo();
+  const {de,ate,mesesLib}=MODELO;
+  const faltando=mesesEntre(de,ate).filter(m=>!LIB.has(m));
+  document.getElementById('hero-sub').textContent = `${fmtMes(de)} a ${fmtMes(ate)}` +
+    (faltando.length? ` · ${faltando.length} mês(es) do intervalo ainda não liberado(s), fora da conta` : '') +
+    ` · ${mesesLib.length} competência(s) liberada(s) no intervalo`;
+  const box=document.getElementById('conteudo');
+  if(!MODELO.secoes.length && !MODELO.bases.length){ box.innerHTML='<div class="aviso">Nenhum indicador foi selecionado para o portal ainda.</div>'; return; }
+  box.innerHTML = MODELO.secoes.map(S=>`
+    <section class="mod" style="--c:${S.cor}">
+      <h2>${esc(S.titulo)}</h2>
+      <div class="msub">${S.mod==='amb'?'Filial não se aplica — o filtro de departamento usa o setor.':'Respeita os filtros de filial e departamento.'}</div>
+      ${S.kpis.length? '<div class="grid-kpi">'+S.kpis.map(k=>`<div class="kpi"><div class="t">${esc(k.titulo)}</div><div class="v">${k.fmt(k.valor)}</div><div class="m">${esc(k.meta)}</div>${cmpBadge(k.valor,k.ant,k.higher,k.fmt)}</div>`).join('')+'</div>' : ''}
+      ${S.tabelas.map(t=>`<h3>${esc(t.titulo)}</h3><div class="tw">${t.rows.length?
+        '<table><thead><tr>'+t.cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr></thead><tbody>'+
+        t.rows.map(r=>'<tr>'+r.map((v,i)=>'<td>'+t.cols[i][1](v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>'
+        : '<div class="vazio">Sem registros no período/filtro atual</div>'}</div>`).join('')}
+    </section>`).join('') +
+    (MODELO.bases.length? `<div class="nota">O Excel inclui também: ${MODELO.bases.map(b=>esc(b.titulo)).join(', ')} (detalhe linha a linha).</div>` : '');
+}
+
+/* ====== EXCEL ====== */
+function nomeAba(t, usados){
+  let n=String(t).replace(/[\\\/\?\*\[\]:]/g,'-').slice(0,31), i=2;
+  while(usados.has(n)){ n=String(t).slice(0,28)+' '+i++; }
+  usados.add(n); return n;
+}
+function arred(v){ return (typeof v==='number' && isFinite(v))? Math.round(v*100)/100 : (v==null? '' : v); }
+function baixarExcel(){
+  if(!MODELO){ toast('Nada carregado ainda.',true); return; }
+  if(!window.XLSX){ toast('Biblioteca do Excel não carregou. Recarregue a página.',true); return; }
+  const wb=XLSX.utils.book_new(), usados=new Set();
+  const filtros=`Filial: ${filtroFiliais.size?[...filtroFiliais].join(', '):'todas'} · Departamento: ${filtroDeptos.size?[...filtroDeptos].join(', '):'todos'}`;
+  const res=[
+    ['Indicadores — Portal dos Gestores'],
+    ['Período', `${fmtMes(MODELO.de)} a ${fmtMes(MODELO.ate)}`],
+    ['Competências liberadas no período', MODELO.mesesLib.map(fmtMes).join(', ')],
+    ['Filtros', filtros],
+    ['Gerado em', new Date().toLocaleString('pt-BR')],
+    [],
+    ['Módulo','Indicador','Valor','Unidade','Período anterior','Observação'],
+  ];
+  MODELO.secoes.forEach(S=>S.kpis.forEach(k=>res.push([S.titulo, k.titulo, arred(k.valor), k.un, arred(k.ant), k.meta])));
+  const ws=XLSX.utils.aoa_to_sheet(res);
+  ws['!cols']=[{wch:24},{wch:32},{wch:14},{wch:14},{wch:16},{wch:48}];
+  XLSX.utils.book_append_sheet(wb, ws, nomeAba('Resumo',usados));
+  MODELO.secoes.forEach(S=>S.tabelas.forEach(t=>{
+    const w=XLSX.utils.aoa_to_sheet([t.cols.map(c=>c[0]), ...t.rows.map(r=>r.map(arred))]);
+    w['!cols']=t.cols.map((c,i)=>({wch:i===0||c[0]==='Responsável'?28:16}));
+    XLSX.utils.book_append_sheet(wb, w, nomeAba(t.titulo,usados));
+  }));
+  MODELO.bases.forEach(b=>{
+    const w=XLSX.utils.aoa_to_sheet([b.cab, ...b.rows.map(r=>r.map(arred))]);
+    w['!cols']=b.cab.map((c,i)=>({wch:i<4?20:14}));
+    XLSX.utils.book_append_sheet(wb, w, nomeAba(b.titulo,usados));
+  });
+  XLSX.writeFile(wb, `indicadores_gestores_${MODELO.de}_a_${MODELO.ate}.xlsx`);
+}
+
+Object.assign(window,{doLogin,esqueciSenha,logout,carregar,baixarExcel});
+</script>
+</body>
+</html>
