@@ -311,7 +311,7 @@
         <div class="print-head"><div class="ph-t">raguife · Indicadores de Departamento Pessoal</div><div class="ph-s" id="print-sub"></div></div>
         <div class="filter-bar levels-bar">
           <div class="levels-cap">Cada seleção filtra a próxima — clique para abrir e marque quantos quiser.</div>
-          <div class="levels-cap" id="neves-aviso" style="display:none;color:#996c14">⚠ Filial Neves fora dos totais — o custo dela já está nas notas fiscais da Raguife Matriz. Para ver só a Neves, selecione apenas ela.</div>
+          <div class="levels-cap" id="neves-aviso" style="display:none;color:#996c14">⚠ Filial Nova Assessoria fora dos totais — o custo dela já está nas notas fiscais da Raguife Matriz. Para ver só a Nova Assessoria, selecione apenas ela.</div>
           <div class="levels">
             <div class="level" id="lv-filial"></div>
             <div class="level" id="lv-area"></div>
@@ -1134,7 +1134,7 @@ async function apagarTudo(){
 /* ---- Neves: custo já está nas notas fiscais da Raguife Matriz ----
    Só entra quando a Neves é a ÚNICA filial selecionada; em "Todas" ou combinada com outras, fica de fora
    para não contar em dobro. Headcount do RH continua contando normalmente. */
-function isNeves(filial){ return normNome(filial).includes('NEVES'); }
+function isNeves(filial){ const n=normNome(filial); return n.includes('NOVA ASSESSORIA') || n.includes('NEVES'); }   // Nova Assessoria (antiga Neves)
 function soNevesSelecionada(){ return state.filterFiliais.size===1 && isNeves([...state.filterFiliais][0]); }
 function nevesForaDoFiltro(){ return !soNevesSelecionada() && state.custos.some(l=>isNeves(l.filial)); }
 function custosDash(){ return soNevesSelecionada() ? state.custos : state.custos.filter(l=>!isNeves(l.filial)); }
@@ -1254,7 +1254,7 @@ function renderDashboard(){
     hcA==null? 'Sem headcount do RH nesse período' : 'Efetivos, vindo do módulo de RH',
     (hcA!=null && hcP!=null)? cmpLine(hcA, hcP, true, fmtNum).replace('cmp-up','cmp-flat').replace('cmp-down','cmp-flat') : semAnterior));
   cards.push(kpiCard('Custo per capita (mensal)', pcA.valor==null? '—' : fmtMoeda(pcA.valor),
-    pcA.valor==null? 'Precisa do headcount do RH' : `Custo ÷ funcionários · cobre ${cobertura==null?'—':cobertura.toFixed(0)+'%'} do custo${cobertura!=null && cobertura<95? ' — veja Headcount' : ''}${pcA.hcNeves? ' · inclui funcionários da Neves (custo na NF da Matriz)' : ''}`,
+    pcA.valor==null? 'Precisa do headcount do RH' : `Custo ÷ funcionários · cobre ${cobertura==null?'—':cobertura.toFixed(0)+'%'} do custo${cobertura!=null && cobertura<95? ' — veja Headcount' : ''}${pcA.hcNeves? ' · inclui funcionários da Nova Assessoria (custo na NF da Matriz)' : ''}`,
     (pcA.valor!=null && pcP.valor!=null)? cmpLine(pcA.valor, pcP.valor, false, v=>fmtMoeda(v)) : semAnterior));
   const folhaA = atual.porCategoria.folha||0, folhaP = anterior.porCategoria.folha||0;
   const d13 = a=>({sal:a.porCategoria.decimoTerceiro||0, enc:(a.porCategoria.inss13||0)+(a.porCategoria.fgts13||0)});
@@ -1281,7 +1281,7 @@ function renderDashboard(){
   const avN = document.getElementById('neves-aviso'); if(avN) avN.style.display = nevesForaDoFiltro()? 'block' : 'none';
 
   relatorio = {
-    filtro:{periodo:`${fmtMesComp(de)} a ${fmtMesComp(ate)}`, filiais:descFiliais + (nevesForaDoFiltro()? ' (sem Neves — já inclusa na NF da Matriz)' : ''), areas:descAreas, deptos:descDeptos},
+    filtro:{periodo:`${fmtMesComp(de)} a ${fmtMesComp(ate)}`, filiais:descFiliais + (nevesForaDoFiltro()? ' (sem Nova Assessoria — já inclusa na NF da Matriz)' : ''), areas:descAreas, deptos:descDeptos},
     kpis:[
       ['Custo total do período', atual.total, 'moeda'],
       ['Custo médio mensal', atual.nMeses? atual.total/atual.nMeses : 0, 'moeda'],
@@ -1300,7 +1300,7 @@ function renderDashboard(){
     categorias: CUSTO_CATS.map(c=>[c.label, atual.porCategoria[c.key]||0, atual.total? (atual.porCategoria[c.key]||0)/atual.total : 0]).sort((a,b)=>b[1]-a[1]),
   };
   document.getElementById('print-sub').textContent =
-    `Período: ${relatorio.filtro.periodo} · Filiais: ${descFiliais}${nevesForaDoFiltro()? ' (sem Neves — já inclusa na NF da Matriz)' : ''} · Áreas: ${descAreas} · Departamentos: ${descDeptos} · gerado em ${new Date().toLocaleString('pt-BR')}`;
+    `Período: ${relatorio.filtro.periodo} · Filiais: ${descFiliais}${nevesForaDoFiltro()? ' (sem Nova Assessoria — já inclusa na NF da Matriz)' : ''} · Áreas: ${descAreas} · Departamentos: ${descDeptos} · gerado em ${new Date().toLocaleString('pt-BR')}`;
 
   renderGrupos(atual);
   renderHistorico(base);
@@ -1406,7 +1406,7 @@ function renderPorFilial(){
   const totFil = dados.filter(d=>!d.nv).reduce((s,d)=>s+d.t,0);
   document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'],
       dados.map(d=>[d.nv? `<span style="color:var(--amber)">${esc(d.label)}</span>` : esc(d.label), fmtMoeda(d.t)]))
-    + (dados.some(d=>d.nv) ? `<div class="note">Total sem a Neves: <strong>${fmtMoeda(totFil)}</strong>. O custo da Neves já está embutido nas notas fiscais da Raguife Matriz, por isso fica fora dos totais do painel. Selecione só a Neves para ver os indicadores dela.</div>` : '');
+    + (dados.some(d=>d.nv) ? `<div class="note">Total sem a Nova Assessoria: <strong>${fmtMoeda(totFil)}</strong>. O custo da Nova Assessoria já está embutido nas notas fiscais da Raguife Matriz, por isso fica fora dos totais do painel. Selecione só a Nova Assessoria para ver os indicadores dela.</div>` : '');
 }
 function renderPorArea(){
   const base = custosDash().filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
