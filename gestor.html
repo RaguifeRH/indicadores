@@ -185,11 +185,11 @@ const BLOCOS = [
     {k:'rh_base',      label:'Base detalhada filial × depto × mês (só no Excel)'},
   ]},
   {mod:'amb', label:'Ambulatório', cor:'#11808c', itens:[
-    {k:'amb_atestados',   label:'Dias perdidos e atestados'},
+    {k:'amb_abs',         label:'Absenteísmo médico (vem do RH)'},
     {k:'amb_exames',      label:'Exames no prazo'},
     {k:'amb_dsp',         label:'DSPs realizados'},
     {k:'amb_sat',         label:'Satisfação (consulta e ambulatório)'},
-    {k:'amb_tbl_setor',   label:'Tabela: absenteísmo por setor'},
+    {k:'amb_tbl_setor',   label:'Tabela: absenteísmo médico por departamento'},
     {k:'amb_tbl_dsp',     label:'Tabela: DSP por departamento'},
     {k:'amb_tbl_dsp_resp',label:'Tabela: DSP top responsáveis'},
   ]},
@@ -241,8 +241,24 @@ function authErrPT(e){
 }
 
 /* ====== CÁLCULOS (mesmas fórmulas dos módulos de origem) ====== */
-const SAT_DEF=[{k:'q1'},{k:'q2'},{k:'q3'},{k:'q4'},{k:'q5'}];
-function mediaSat(rows){ let s=0,n=0; rows.forEach(r=>SAT_DEF.forEach(q=>{ if(r[q.k]!=null){ s+=r[q.k]; n++; } })); return n? s/n : null; }
+// as perguntas são editáveis no Ambulatório (q1..qN): considera toda chave qN numérica
+function mediaSat(rows){ let s=0,n=0; rows.forEach(r=>Object.keys(r).forEach(k=>{ if(/^q\d+$/.test(k) && typeof r[k]==='number'){ s+=r[k]; n++; } })); return n? s/n : null; }
+// absenteísmo médico vem do RH: média ponderada pelos ativos (sem ativos, média simples) — mesma regra do ambulatorio.html
+function absMedico(rows){
+  const f=rows.filter(l=>l.absenteismoMedico!=null);
+  if(!f.length) return null;
+  const at=f.reduce((s,l)=>s+(l.ativos||0),0);
+  return at? f.reduce((s,l)=>s+(l.absenteismoMedico||0)*(l.ativos||0),0)/at : f.reduce((s,l)=>s+(l.absenteismoMedico||0),0)/f.length;
+}
+// exame no prazo: todas as categorias exigidas realizadas até a data prevista (registros antigos: campo realizada)
+function noPrazoExame(e){
+  const prev=String(e.prevista||''); if(!prev) return false;
+  const reqs=Object.values(e.cats||{}).filter(c=>c&&c.req);
+  let ult;
+  if(reqs.length){ if(!reqs.every(c=>c.realizada)) return false; ult=reqs.map(c=>c.realizada).sort().pop(); }
+  else { if(!e.realizada) return false; ult=e.realizada; }
+  return String(ult).slice(0,prev.length) <= prev;
+}
 const CUSTO_CATS = [
   {key:'folha',label:'Folha',grupo:'folha'},{key:'inss',label:'INSS',grupo:'encargos'},{key:'sesiSenai',label:'SESI/SENAI',grupo:'encargos'},
   {key:'fgts',label:'FGTS',grupo:'encargos'},{key:'alimentacao',label:'Alimentação',grupo:'beneficios'},{key:'notaFiscal',label:'Nota Fiscal',grupo:'folha'},
@@ -332,7 +348,8 @@ async function carregar(){
   try{
     CFG = await cfg('portal_gestores',{competencias:[], blocos:{}});
     LIB = new Set(CFG.competencias||[]);
-    BLK = CFG.blocos||{};
+    BLK = {...(CFG.blocos||{})};
+    if(BLK.amb_atestados && BLK.amb_abs===undefined) BLK.amb_abs = true; // nome antigo do bloco
     if(!LIB.size){
       document.getElementById('aviso-vazio').style.display='block';
       document.getElementById('filtros').style.display='none';
@@ -342,10 +359,11 @@ async function carregar(){
     }
     document.getElementById('aviso-vazio').style.display='none';
     const rhOn=modAtivo('rh'), ambOn=modAtivo('amb'), dpOn=modAtivo('dp');
+    const precisaRH = rhOn || BLK.amb_abs || BLK.amb_tbl_setor;
     const vazio=Promise.resolve([]);
-    const [rh,abs,ex,dsp,satM,satA,cus,fat,cRH,cAmb,cDP] = await Promise.all([
-      rhOn? ler('rh_lancamentos'):vazio,
-      ambOn? ler('amb_absenteismo'):vazio, ambOn? ler('amb_exames'):vazio, ambOn? ler('amb_dsp_eventos'):vazio,
+    const [rh,ex,dsp,satM,satA,cus,fat,cRH,cAmb,cDP] = await Promise.all([
+      precisaRH? ler('rh_lancamentos'):vazio,
+      ambOn? ler('amb_exames'):vazio, ambOn? ler('amb_dsp_eventos'):vazio,
       ambOn? ler('amb_sat_medico'):vazio, ambOn? ler('amb_sat_amb'):vazio,
       dpOn? ler('dp_custos'):vazio, dpOn? ler('dp_faturamento'):vazio,
       cfg('rh_metas',{metaTurnover:5,metaAbsenteismo:3}),
@@ -356,7 +374,7 @@ async function carregar(){
     const lib = m => LIB.has(String(m||'').slice(0,7));
     D = {
       rh: rh.filter(l=>lib(l.competencia)), custosDP: cus.filter(l=>lib(l.competencia)), fatDP: fat.filter(f=>lib(f.competencia)),
-      absAmb: abs.filter(a=>lib(a.inicio)), exAmb: ex.filter(e=>lib(e.prevista)), dspAmb: dsp.filter(x=>lib(x.data)),
+      exAmb: ex.filter(e=>lib(e.prevista)), dspAmb: dsp.filter(x=>lib(x.data)),
       satMed: satM.filter(s=>lib(s.data)), satAmb: satA.filter(s=>lib(s.data)),
       cfgRH:cRH, cfgAmb:cAmb, cfgDP:cDP,
     };
@@ -384,7 +402,7 @@ function montarFiltros(){
 function todasFiliais(){ return [...new Set([...D.rh,...D.custosDP].map(r=>r.filial).filter(Boolean))].sort(); }
 function todosDeptos(){
   const base=[...D.rh,...D.custosDP].filter(r=>!filtroFiliais.size||filtroFiliais.has(r.filial)).map(r=>r.depto);
-  return [...new Set([...base, ...D.absAmb.map(a=>a.setor), ...D.dspAmb.map(x=>(x.depto||'').trim())].filter(Boolean))].sort();
+  return [...new Set([...base, ...D.dspAmb.map(x=>(x.depto||'').trim())].filter(Boolean))].sort();
 }
 function renderFiliais(){
   document.getElementById('f-filial').innerHTML =
@@ -476,37 +494,36 @@ function construirModelo(){
   /* ---- Ambulatório ---- */
   if(modAtivo('amb')){
     const S={mod:'amb', titulo:'Ambulatório', cor:'#11808c', kpis:[], tabelas:[]};
-    const absF=D.absAmb.filter(a=>inMes(a.inicio,de,ate)&&fDepX(a.setor));
-    const absP=D.absAmb.filter(a=>inMes(a.inicio,pr.de,pr.ate)&&fDepX(a.setor));
+    const rhF=D.rh.filter(r=>fFil(r)&&fDep(r));
+    const rhIn=(a,b)=>rhF.filter(l=>l.competencia>=a&&l.competencia<=b);
     const dspSk=x=>x.data+'|'+(x.titulo||'')+'|'+(x.resp||'');
     const dspF=D.dspAmb.filter(x=>inMes(x.data,de,ate)&&fDepX(x.depto));
     const dspP=D.dspAmb.filter(x=>inMes(x.data,pr.de,pr.ate)&&fDepX(x.depto));
     const ant=v=> temAnt? v : null;
-    if(BLK.amb_atestados){
-      const dias=absF.reduce((s,a)=>s+(a.dias||0),0);
-      const ef=D.cfgAmb.efetivo||0;
-      const taxa= ef? dias/(ef*businessDays(de+'-01',fimDoMes(ate)))*100 : null;
-      S.kpis.push(K('Dias perdidos (atestado)', dias, F.int, 'dias', taxa!=null?'Taxa: '+F.pct2(taxa):'', ant(absP.reduce((s,a)=>s+(a.dias||0),0)), false));
-      S.kpis.push(K('Atestados', absF.length, F.int, 'atestados', '', ant(absP.length), false));
+    if(BLK.amb_abs){
+      S.kpis.push(K('Absenteísmo médico', absMedico(rhIn(de,ate)), F.pct2, '%', 'Meta: até '+D.cfgAmb.metaAbs+'% · fonte: RH', ant(absMedico(rhIn(pr.de,pr.ate))), false));
     }
     if(BLK.amb_exames){
-      const pct=rs=>{ if(!rs.length) return null; return rs.filter(e=>e.realizada&&e.realizada<=e.prevista).length/rs.length*100; };
+      const pct=rs=>{ if(!rs.length) return null; return rs.filter(noPrazoExame).length/rs.length*100; };
       const exF=D.exAmb.filter(e=>inMes(e.prevista,de,ate)), exP=D.exAmb.filter(e=>inMes(e.prevista,pr.de,pr.ate));
-      S.kpis.push(K('Exames no prazo', pct(exF), F.pct0, '%', 'Meta: ≥ '+D.cfgAmb.metaExames+'%', ant(pct(exP)), true));
+      S.kpis.push(K('Exames no prazo', pct(exF), F.pct0, '%',
+        'Meta: ≥ '+D.cfgAmb.metaExames+'% · '+(exF.length? exF.filter(noPrazoExame).length+'/'+exF.length+' no prazo' : 'nenhum exame previsto'), ant(pct(exP)), true));
     }
     if(BLK.amb_dsp){
       S.kpis.push(K('DSPs realizados', new Set(dspF.map(dspSk)).size, F.int, 'sessões', dspF.length+' participantes', ant(new Set(dspP.map(dspSk)).size), true));
     }
     if(BLK.amb_sat){
-      const sm=mediaSat(D.satMed.filter(s=>inMes(s.data,de,ate))), smp=mediaSat(D.satMed.filter(s=>inMes(s.data,pr.de,pr.ate)));
-      const sa=mediaSat(D.satAmb.filter(s=>inMes(s.data,de,ate))), sap=mediaSat(D.satAmb.filter(s=>inMes(s.data,pr.de,pr.ate)));
-      S.kpis.push(K('Satisfação — consulta', sm, F.nota, 'nota (1 a 5)', 'Meta: ≥ '+D.cfgAmb.metaSatMed, ant(smp), true));
-      S.kpis.push(K('Satisfação — ambulatório', sa, F.nota, 'nota (1 a 5)', 'Meta: ≥ '+D.cfgAmb.metaSatAmb, ant(sap), true));
+      const smR=D.satMed.filter(s=>inMes(s.data,de,ate)), saR=D.satAmb.filter(s=>inMes(s.data,de,ate));
+      const smp=mediaSat(D.satMed.filter(s=>inMes(s.data,pr.de,pr.ate))), sap=mediaSat(D.satAmb.filter(s=>inMes(s.data,pr.de,pr.ate)));
+      S.kpis.push(K('Satisfação — consulta', mediaSat(smR), F.nota, 'nota (1 a 5)', 'Meta: ≥ '+D.cfgAmb.metaSatMed+' · '+smR.length+' resposta(s)', ant(smp), true));
+      S.kpis.push(K('Satisfação — ambulatório', mediaSat(saR), F.nota, 'nota (1 a 5)', 'Meta: ≥ '+D.cfgAmb.metaSatAmb+' · '+saR.length+' resposta(s)', ant(sap), true));
     }
     if(BLK.amb_tbl_setor){
-      const set=[...new Set(absF.map(a=>a.setor).filter(Boolean))];
-      S.tabelas.push({titulo:'Absenteísmo por setor', cols:[['Setor',F.txt],['Dias perdidos',F.int],['Atestados',F.int]],
-        rows:set.map(s=>{ const r=absF.filter(a=>a.setor===s); return [s, r.reduce((x,a)=>x+(a.dias||0),0), r.length]; }).sort((a,b)=>b[1]-a[1])});
+      const linhas=rhIn(de,ate).filter(l=>l.absenteismoMedico!=null);
+      const chaves=[...new Set(linhas.map(l=>(l.filial||'')+'||'+(l.depto||'—')))];
+      S.tabelas.push({titulo:'Absenteísmo médico por departamento', cols:[['Filial',F.txt],['Departamento',F.txt],['Absent. médico (%)',F.pct2]],
+        rows:chaves.map(k=>{ const [fl,dp]=k.split('||'); return [fl||'—', dp, absMedico(linhas.filter(l=>(l.filial||'')===fl&&(l.depto||'—')===dp))]; })
+          .sort((a,b)=>(b[2]||0)-(a[2]||0))});
     }
     if(BLK.amb_tbl_dsp){
       const dps=[...new Set(dspF.map(x=>(x.depto||'').trim()).filter(Boolean))];
@@ -568,7 +585,7 @@ function renderTudo(){
   box.innerHTML = MODELO.secoes.map(S=>`
     <section class="mod" style="--c:${S.cor}">
       <h2>${esc(S.titulo)}</h2>
-      <div class="msub">${S.mod==='amb'?'Filial não se aplica — o filtro de departamento usa o setor.':'Respeita os filtros de filial e departamento.'}</div>
+      <div class="msub">${S.mod==='amb'?'Absenteísmo vem do RH e respeita filial e departamento; DSP respeita o departamento; exames e satisfação são da empresa toda.':'Respeita os filtros de filial e departamento.'}</div>
       ${S.kpis.length? '<div class="grid-kpi">'+S.kpis.map(k=>`<div class="kpi"><div class="t">${esc(k.titulo)}</div><div class="v">${k.fmt(k.valor)}</div><div class="m">${esc(k.meta)}</div>${cmpBadge(k.valor,k.ant,k.higher,k.fmt)}</div>`).join('')+'</div>' : ''}
       ${S.tabelas.map(t=>`<h3>${esc(t.titulo)}</h3><div class="tw">${t.rows.length?
         '<table><thead><tr>'+t.cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr></thead><tbody>'+

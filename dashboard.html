@@ -209,11 +209,11 @@ const BLOCOS = [
     {k:'rh_base',      label:'Base detalhada filial × depto × mês (só no Excel)'},
   ]},
   {mod:'amb', label:'Ambulatório', cor:'#11808c', itens:[
-    {k:'amb_atestados',   label:'Dias perdidos e atestados'},
+    {k:'amb_abs',         label:'Absenteísmo médico (vem do RH)'},
     {k:'amb_exames',      label:'Exames no prazo'},
     {k:'amb_dsp',         label:'DSPs realizados'},
     {k:'amb_sat',         label:'Satisfação (consulta e ambulatório)'},
-    {k:'amb_tbl_setor',   label:'Tabela: absenteísmo por setor'},
+    {k:'amb_tbl_setor',   label:'Tabela: absenteísmo médico por departamento'},
     {k:'amb_tbl_dsp',     label:'Tabela: DSP por departamento'},
     {k:'amb_tbl_dsp_resp',label:'Tabela: DSP top responsáveis'},
   ]},
@@ -289,6 +289,7 @@ async function carregarConfig(){
     const d=s.data();
     liberadas=new Set(d.competencias||[]);
     blocos={...(d.blocos||{})};
+    if(blocos.amb_atestados){ if(blocos.amb_abs===undefined) blocos.amb_abs=true; delete blocos.amb_atestados; } // nome antigo do bloco
   }else{
     // primeira vez: sugere tudo marcado (as competências começam bloqueadas)
     liberadas=new Set(); blocos={};
@@ -302,9 +303,9 @@ function ordenar(o){ const r={}; Object.keys(o).sort().forEach(k=>{ if(o[k]) r[k
 async function carregarMesesComDado(){
   const marca=(m,mod)=>{ if(!m) return; m=String(m).slice(0,7); if(!/^\d{4}-\d{2}$/.test(m)) return; (mesesComDado[m] ||= {})[mod]=true; };
   const ler=async n=>{ try{ return (await getDocs(collection(db,n))).docs.map(x=>x.data()); }catch(e){ console.error(n,e); return []; } };
-  const [rh,dp,abs,ex,dsp]=await Promise.all([ler('rh_lancamentos'),ler('dp_custos'),ler('amb_absenteismo'),ler('amb_exames'),ler('amb_dsp_eventos')]);
-  rh.forEach(l=>marca(l.competencia,'rh')); dp.forEach(l=>marca(l.competencia,'dp'));
-  abs.forEach(a=>marca(a.inicio,'amb')); ex.forEach(e=>marca(e.prevista,'amb')); dsp.forEach(x=>marca(x.data,'amb'));
+  const [rh,dp,ex,dsp,sm,sa]=await Promise.all([ler('rh_lancamentos'),ler('dp_custos'),ler('amb_exames'),ler('amb_dsp_eventos'),ler('amb_sat_medico'),ler('amb_sat_amb')]);
+  rh.forEach(l=>{ marca(l.competencia,'rh'); if(l.absenteismoMedico!=null) marca(l.competencia,'amb'); }); dp.forEach(l=>marca(l.competencia,'dp'));
+  ex.forEach(e=>marca(e.prevista,'amb')); dsp.forEach(x=>marca(x.data,'amb')); sm.forEach(x=>marca(x.data,'amb')); sa.forEach(x=>marca(x.data,'amb'));
   renderComp();
 }
 
