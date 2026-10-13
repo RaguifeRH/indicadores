@@ -311,6 +311,7 @@
         <div class="print-head"><div class="ph-t">raguife · Indicadores de Departamento Pessoal</div><div class="ph-s" id="print-sub"></div></div>
         <div class="filter-bar levels-bar">
           <div class="levels-cap">Cada seleção filtra a próxima — clique para abrir e marque quantos quiser.</div>
+          <div class="levels-cap" id="neves-aviso" style="display:none;color:#996c14">⚠ Filial Neves fora dos totais — o custo dela já está nas notas fiscais da Raguife Matriz. Para ver só a Neves, selecione apenas ela.</div>
           <div class="levels">
             <div class="level" id="lv-filial"></div>
             <div class="level" id="lv-area"></div>
@@ -739,11 +740,11 @@ let openMenu = null;      // id do nível aberto (só um por vez)
 const menuQuery = {};     // texto de busca por nível
 
 function areasDisponiveis(){
-  const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  const base = custosDash().filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
   return [...new Set(base.map(l=>l.area||''))].sort();
 }
 function listaDeptosDisponiveis(){
-  const base = state.custos.filter(l=>
+  const base = custosDash().filter(l=>
     (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
     (!state.filterAreas.size || state.filterAreas.has(l.area||'')));
   return [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
@@ -1130,6 +1131,14 @@ async function apagarTudo(){
 }
 
 /* ================= RENDER: DASHBOARD ================= */
+/* ---- Neves: custo já está nas notas fiscais da Raguife Matriz ----
+   Só entra quando a Neves é a ÚNICA filial selecionada; em "Todas" ou combinada com outras, fica de fora
+   para não contar em dobro. Headcount do RH continua contando normalmente. */
+function isNeves(filial){ return normNome(filial).includes('NEVES'); }
+function soNevesSelecionada(){ return state.filterFiliais.size===1 && isNeves([...state.filterFiliais][0]); }
+function nevesForaDoFiltro(){ return !soNevesSelecionada() && state.custos.some(l=>isNeves(l.filial)); }
+function custosDash(){ return soNevesSelecionada() ? state.custos : state.custos.filter(l=>!isNeves(l.filial)); }
+function custosEmpresa(){ return state.custos.filter(l=>!isNeves(l.filial)); }   // Folha ÷ Faturamento: sempre sem Neves
 function filtroBase(rows){
   return rows.filter(l =>
     (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
@@ -1163,6 +1172,21 @@ function perCapita(linhas, hcMap){
   linhas.forEach(l=>{ if(hcMap.has(l.k)){ custo+=l.total||0; if(!usadas.has(l.k)){ hc+=hcMap.get(l.k); usadas.add(l.k); } meses.add(l.competencia); } });
   return { custo, hc, nMeses:meses.size, hcMedio: meses.size? hc/meses.size : null, valor: hc? custo/hc : null };
 }
+// Neves fora do custo → o custo dela está na NF da Matriz; então os funcionários da Neves somam no per capita
+// (só quando a Matriz está no filtro e não há filtro de área/departamento, pois a NF não tem como ser rateada por setor)
+function juntarHcNeves(){
+  if(!nevesForaDoFiltro() || state.filterAreas.size || state.filterDeptos.size) return false;
+  return !state.filterFiliais.size || [...state.filterFiliais].some(f=>normNome(f).includes('MATRIZ'));
+}
+function perCapitaComNeves(linhas, hcMap){
+  const pc = perCapita(linhas, hcMap);
+  if(!juntarHcNeves()) return pc;
+  const meses = new Set(linhas.filter(l=>hcMap.has(l.k)).map(l=>l.competencia));
+  const extra = state.headcount.filter(h=>isNeves(h.filial) && meses.has(h.competencia)).reduce((s,h)=>s+h.funcionarios,0);
+  if(!extra) return pc;
+  const hc = pc.hc + extra;
+  return {...pc, hc, hcNeves:extra, hcMedio: pc.nMeses? hc/pc.nMeses : null, valor: hc? pc.custo/hc : null};
+}
 // funcionários do RH no período, respeitando os filtros (área vem da linha de custo de mesma chave)
 // área de um setor do RH: a da planilha de custos (mesma filial+depto); se não houver, a cadastrada no RH
 function areaDoSetorRH(h){
@@ -1190,15 +1214,15 @@ function razaoPct(num, den){ return den ? num/den*100 : null; }
 function fmtPct(v){ return v==null? '—' : v.toFixed(1)+'%'; }
 let relatorio = {};   // última versão do dashboard calculada — usada na exportação
 function renderDashboard(){
-  const base = filtroBase(state.custos);
+  const base = filtroBase(custosDash());
   const de = state.filterDe, ate = state.filterAte;
   const pr = prevRangeMes(de, ate);
   const semAnterior = '<div class="cmp cmp-flat">— sem período anterior</div>';
   const atual = agregarPeriodo(base, de, ate);
   const anterior = agregarPeriodo(base, pr.de, pr.ate);
   // folha ÷ faturamento é sempre da empresa toda — não respeita filtro de filial/depto
-  const custoEmpresaAtual = agregarPeriodo(state.custos, de, ate).total;
-  const custoEmpresaAnterior = agregarPeriodo(state.custos, pr.de, pr.ate).total;
+  const custoEmpresaAtual = agregarPeriodo(custosEmpresa(), de, ate).total;
+  const custoEmpresaAnterior = agregarPeriodo(custosEmpresa(), pr.de, pr.ate).total;
   const fatAtual = somaFaturamento(de, ate);
   const fatAnterior = somaFaturamento(pr.de, pr.ate);
   const razaoAtual = fatAtual ? (custoEmpresaAtual/fatAtual*100) : null;
@@ -1221,7 +1245,7 @@ function renderDashboard(){
     (razaoAtual!=null && razaoAnterior!=null)? cmpLine(razaoAtual, razaoAnterior, false, v=>v.toFixed(1)+'%') : semAnterior,
     razaoAtual==null? undefined : razaoAtual<=state.cfg.metaFolhaFaturamento));
   const hcMap = hcIndex();
-  const pcA = perCapita(atual.linhas, hcMap), pcP = perCapita(anterior.linhas, hcMap);
+  const pcA = perCapitaComNeves(atual.linhas, hcMap), pcP = perCapitaComNeves(anterior.linhas, hcMap);
   const fmtNum = v=>Math.round(v).toLocaleString('pt-BR');
   const hcA = hcFiltrado(de, ate), hcP = hcFiltrado(pr.de, pr.ate);
   const custoMesesHC = atual.linhas.filter(l=>state.headcount.some(h=>h.competencia===l.competencia)).reduce((s,l)=>s+(l.total||0),0);
@@ -1230,7 +1254,7 @@ function renderDashboard(){
     hcA==null? 'Sem headcount do RH nesse período' : 'Efetivos, vindo do módulo de RH',
     (hcA!=null && hcP!=null)? cmpLine(hcA, hcP, true, fmtNum).replace('cmp-up','cmp-flat').replace('cmp-down','cmp-flat') : semAnterior));
   cards.push(kpiCard('Custo per capita (mensal)', pcA.valor==null? '—' : fmtMoeda(pcA.valor),
-    pcA.valor==null? 'Precisa do headcount do RH' : `Custo ÷ funcionários · cobre ${cobertura==null?'—':cobertura.toFixed(0)+'%'} do custo${cobertura!=null && cobertura<95? ' — veja Headcount' : ''}`,
+    pcA.valor==null? 'Precisa do headcount do RH' : `Custo ÷ funcionários · cobre ${cobertura==null?'—':cobertura.toFixed(0)+'%'} do custo${cobertura!=null && cobertura<95? ' — veja Headcount' : ''}${pcA.hcNeves? ' · inclui funcionários da Neves (custo na NF da Matriz)' : ''}`,
     (pcA.valor!=null && pcP.valor!=null)? cmpLine(pcA.valor, pcP.valor, false, v=>fmtMoeda(v)) : semAnterior));
   const folhaA = atual.porCategoria.folha||0, folhaP = anterior.porCategoria.folha||0;
   const d13 = a=>({sal:a.porCategoria.decimoTerceiro||0, enc:(a.porCategoria.inss13||0)+(a.porCategoria.fgts13||0)});
@@ -1254,9 +1278,10 @@ function renderDashboard(){
     `Filtro: ${descFiliais} / ${descAreas} / ${descDeptos}`,
     anterior.nMeses? cmpLine(atual.extras.ocorrenciasPonto||0, anterior.extras.ocorrenciasPonto||0, false, v=>Math.round(v)+'') : semAnterior));
   document.getElementById('kpi-grid').innerHTML = cards.join('');
+  const avN = document.getElementById('neves-aviso'); if(avN) avN.style.display = nevesForaDoFiltro()? 'block' : 'none';
 
   relatorio = {
-    filtro:{periodo:`${fmtMesComp(de)} a ${fmtMesComp(ate)}`, filiais:descFiliais, areas:descAreas, deptos:descDeptos},
+    filtro:{periodo:`${fmtMesComp(de)} a ${fmtMesComp(ate)}`, filiais:descFiliais + (nevesForaDoFiltro()? ' (sem Neves — já inclusa na NF da Matriz)' : ''), areas:descAreas, deptos:descDeptos},
     kpis:[
       ['Custo total do período', atual.total, 'moeda'],
       ['Custo médio mensal', atual.nMeses? atual.total/atual.nMeses : 0, 'moeda'],
@@ -1275,7 +1300,7 @@ function renderDashboard(){
     categorias: CUSTO_CATS.map(c=>[c.label, atual.porCategoria[c.key]||0, atual.total? (atual.porCategoria[c.key]||0)/atual.total : 0]).sort((a,b)=>b[1]-a[1]),
   };
   document.getElementById('print-sub').textContent =
-    `Período: ${relatorio.filtro.periodo} · Filiais: ${descFiliais} · Áreas: ${descAreas} · Departamentos: ${descDeptos} · gerado em ${new Date().toLocaleString('pt-BR')}`;
+    `Período: ${relatorio.filtro.periodo} · Filiais: ${descFiliais}${nevesForaDoFiltro()? ' (sem Neves — já inclusa na NF da Matriz)' : ''} · Áreas: ${descAreas} · Departamentos: ${descDeptos} · gerado em ${new Date().toLocaleString('pt-BR')}`;
 
   renderGrupos(atual);
   renderHistorico(base);
@@ -1332,10 +1357,10 @@ function renderHistorico(base){
   const dados = meses.map(m=>{
     const ag = agregarPeriodo(base, m, m);
     const custo = ag.total;
-    const custoEmpresa = agregarPeriodo(state.custos, m, m).total;
+    const custoEmpresa = agregarPeriodo(custosEmpresa(), m, m).total;
     const fat = somaFaturamento(m, m);
     const razao = fat? +(custoEmpresa/fat*100).toFixed(1) : null;
-    const pc = perCapita(ag.linhas, hcMap);
+    const pc = perCapitaComNeves(ag.linhas, hcMap);
     return {m, custo, razao, hc: pc.hc||null, perCap: pc.valor};
   });
   relatorio.historico = [...dados].reverse();
@@ -1370,14 +1395,21 @@ function renderPorFilial(){
     (!state.filterAreas.size || state.filterAreas.has(l.area||'')) &&
     (!state.filterDeptos.size || state.filterDeptos.has(l.depto)));
   const filiais = [...new Set(base.map(l=>l.filial).filter(Boolean))].sort();
-  const dados = filiais.map(f=>({label:f, t:agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte).total}))
-    .sort((a,b)=>b.t-a.t);
+  const fora = !soNevesSelecionada();
+  const dados = filiais.map(f=>{
+    const nv = fora && isNeves(f);
+    return {label: nv? f+' (já na NF da Matriz)' : f, nv, cor: nv? '#d99a2b' : null,
+      t:agregarPeriodo(base.filter(l=>l.filial===f), state.filterDe, state.filterAte).total};
+  }).sort((a,b)=>b.t-a.t);
   relatorio.filiais = dados.map(d=>[d.label, d.t]);
   mountChart('chart-filial', barConfigH(dados));
-  document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'], dados.map(d=>[esc(d.label), fmtMoeda(d.t)]));
+  const totFil = dados.filter(d=>!d.nv).reduce((s,d)=>s+d.t,0);
+  document.getElementById('tbl-filial').innerHTML = tableHTML(['Filial','Custo no período'],
+      dados.map(d=>[d.nv? `<span style="color:var(--amber)">${esc(d.label)}</span>` : esc(d.label), fmtMoeda(d.t)]))
+    + (dados.some(d=>d.nv) ? `<div class="note">Total sem a Neves: <strong>${fmtMoeda(totFil)}</strong>. O custo da Neves já está embutido nas notas fiscais da Raguife Matriz, por isso fica fora dos totais do painel. Selecione só a Neves para ver os indicadores dela.</div>` : '');
 }
 function renderPorArea(){
-  const base = state.custos.filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
+  const base = custosDash().filter(l=>!state.filterFiliais.size || state.filterFiliais.has(l.filial));
   const areas = [...new Set(base.map(l=>l.area||''))];
   const dados = areas.map(a=>({label:a||'(Sem área)', t:agregarPeriodo(base.filter(l=>(l.area||'')===a), state.filterDe, state.filterAte).total}))
     .sort((a,b)=>b.t-a.t);
@@ -1390,7 +1422,7 @@ function barConfigH(dados){
   return {
     type:'bar',
     data:{ labels:dados.map(d=>d.label),
-      datasets:[{ label:'Custo no período', data:dados.map(d=>d.t), backgroundColor:'#739630', borderRadius:4 }] },
+      datasets:[{ label:'Custo no período', data:dados.map(d=>d.t), backgroundColor:dados.map(d=>d.cor||'#739630'), borderRadius:4 }] },
     options:{ ...BASE_OPTS, indexAxis:'y',
       plugins:{ legend:{display:false},
         tooltip:{callbacks:{label:ctx=>fmtMoeda(ctx.parsed.x)}} },
@@ -1398,7 +1430,7 @@ function barConfigH(dados){
   };
 }
 function renderPorDepto(){
-  const base = state.custos.filter(l=>
+  const base = custosDash().filter(l=>
     (!state.filterFiliais.size || state.filterFiliais.has(l.filial)) &&
     (!state.filterAreas.size || state.filterAreas.has(l.area||'')));
   const deptos = [...new Set(base.map(l=>l.depto).filter(Boolean))].sort();
