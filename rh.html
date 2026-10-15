@@ -501,7 +501,7 @@
       <!-- PESQUISA DO PERÍODO DE EXPERIÊNCIA — LINK -->
       <div class="page" id="page-rodadas">
         <div class="page-head"><div class="eyebrow-mod">Recursos Humanos</div><h1 class="page-title">Link da Pesquisa</h1></div>
-        <div class="page-desc">Um link fixo, sempre aberto. Envie ao colaborador aos 45 e aos 90 dias: ele marca o momento, escolhe o departamento e responde. O link não identifica quem respondeu.</div>
+        <div class="page-desc">Um link fixo, sempre aberto, só para os setores da Raguife Matriz e da filial de Neves. Envie ao colaborador aos 45 e aos 90 dias: ele marca o momento, escolhe o departamento e responde. O link não identifica quem respondeu.</div>
         <div id="rd-conteudo"></div>
       </div>
 
@@ -1727,12 +1727,20 @@ function psChaveSetor(s){ return s.filial+'||'+s.depto; }
 function psOrdSetor(a,b){ return (a.filial+a.depto).localeCompare(b.filial+b.depto); }
 function psAreaDe(depto){ return areaDe(depto) || '(Sem área)'; }
 
-/* ---------- setores do cadastro (último mês importado com ativos) ---------- */
+/* ---------- filiais que participam da pesquisa ----------
+   Só a Raguife Matriz e a filial de Neves. A comparação ignora acento e maiúsculas;
+   cada item é a lista de palavras que o nome da filial precisa conter. */
+const EXP_FILIAIS = [['RAGUIFE','MATRIZ'], ['NEVES']];
+function expFilialParticipa(filial){
+  const n = stripAcc(filial).toUpperCase();
+  return EXP_FILIAIS.some(palavras=>palavras.every(p=>n.includes(p)));
+}
+/* ---------- setores do cadastro (último mês importado com ativos), só das filiais participantes ---------- */
 function psSetoresCadastro(){
   const meses = [...new Set(state.lanc.filter(l=>(l.ativos||0)>0).map(l=>l.competencia).filter(Boolean))].sort();
   const comp = meses[meses.length-1];
   if(!comp) return {comp:null, setores:[]};
-  const setores = state.lanc.filter(l=>l.competencia===comp && (l.ativos||0)>0)
+  const setores = state.lanc.filter(l=>l.competencia===comp && (l.ativos||0)>0 && expFilialParticipa(l.filial))
     .map(l=>({filial:l.filial, depto:l.depto}))
     .sort(psOrdSetor);
   return {comp, setores};
@@ -1755,7 +1763,7 @@ function renderRodadas(){
   if(!L){
     host.innerHTML = `<div class="panel"><h2>Gerar o link</h2>
       <div class="desc">A lista de departamentos do formulário sai da última Relação de Funcionários importada. Depois dá para atualizar a lista sem trocar o link.</div>
-      <div class="note">${comp ? `Serão <strong>${setores.length} departamentos</strong> (Relação de Funcionários de <strong>${fmtMesComp(comp)}</strong>).` : 'Importe a Relação de Funcionários primeiro (aba Importar).'}</div>
+      <div class="note">${comp ? `Serão <strong>${setores.length} departamentos</strong> (Relação de Funcionários de <strong>${fmtMesComp(comp)}</strong>), das filiais: <strong>${esc([...new Set(setores.map(x=>x.filial))].join(', ')||'nenhuma encontrada')}</strong>.` : 'Importe a Relação de Funcionários primeiro (aba Importar).'}</div>
       <div class="btn-row"><button class="btn btn-primary" data-acao="gerar" ${comp?'':'disabled'}>Gerar link da pesquisa</button></div></div>`;
     host.onclick = expAcao;
     return;
@@ -1766,8 +1774,7 @@ function renderRodadas(){
   const nMes = resp.filter(r=>r.mes===mesAtual).length;
   const porSetor = {};
   resp.forEach(r=>{ const k=psChaveSetor(r); porSetor[k] = porSetor[k] || {'45':0,'90':0}; if(r.momento==='45'||r.momento==='90') porSetor[k][r.momento]++; });
-  const tem = new Set((L.setores||[]).map(psChaveSetor));
-  const novos = setores.filter(s=>!tem.has(psChaveSetor(s))).length;
+  const mudancas = expListaAtualizada(L).mudancas;
   const linhas = [...(L.setores||[])].sort(psOrdSetor).map(s=>{
     const c = porSetor[psChaveSetor(s)] || {'45':0,'90':0};
     return `<tr><td>${esc(s.filial)}</td><td>${esc(s.depto)}</td><td>${esc(areaDe(s.depto)||'—')}</td><td class="num">${c['45']}</td><td class="num">${c['90']}</td></tr>`;
@@ -1784,16 +1791,26 @@ function renderRodadas(){
       </div>
       <div class="btn-row" style="margin-top:0">
         <button class="btn ${L.ativo?'btn-ghost':'btn-primary'} btn-mini" data-acao="status">${L.ativo?'Pausar link':'Reabrir link'}</button>
-        <button class="btn btn-ghost btn-mini" data-acao="deptos">Incluir deptos novos na lista${novos?` (${novos})`:''}</button>
+        <button class="btn btn-ghost btn-mini" data-acao="deptos">Atualizar lista de departamentos${mudancas?` (${mudancas})`:''}</button>
         <button class="btn btn-danger btn-mini" data-acao="novo">Gerar link novo</button>
       </div>
       <div class="note">Gerado em ${esc(String(L.criadoEm||'').slice(0,10).split('-').reverse().join('/')||'—')}. "Gerar link novo" desativa o link atual (use se ele vazou para fora da empresa) — as respostas já recebidas continuam no painel.</div>
     </div>
     <div class="panel"><h2>Departamentos no formulário</h2>
-      <div class="desc">${(L.setores||[]).length} departamentos · respostas recebidas desde o início</div>
+      <div class="desc">${(L.setores||[]).length} departamentos · só filiais ${esc([...new Set((L.setores||[]).map(x=>x.filial))].join(', ')||'—')} · respostas recebidas desde o início</div>
       <div class="table-wrap">${linhas ? `<table><thead><tr><th>Filial</th><th>Departamento</th><th>Área</th><th>45 dias</th><th>90 dias</th></tr></thead><tbody>${linhas}</tbody></table>` : '<div class="empty">Sem departamentos</div>'}</div>
     </div>`;
   host.onclick = expAcao;
+}
+// lista do link: mantém os departamentos que já estavam (das filiais participantes), inclui os novos do cadastro
+// e tira os de outras filiais
+function expListaAtualizada(L){
+  const atuais = L.setores||[];
+  const mantidos = atuais.filter(s=>expFilialParticipa(s.filial));
+  const tem = new Set(mantidos.map(psChaveSetor));
+  const novos = psSetoresCadastro().setores.filter(s=>!tem.has(psChaveSetor(s)));
+  const removidos = atuais.length - mantidos.length;
+  return {todos:[...mantidos, ...novos].sort(psOrdSetor), incluidos:novos.length, removidos, mudancas:novos.length+removidos};
 }
 async function expAcao(e){
   const b = e.target.closest('[data-acao]'); if(!b) return;
@@ -1815,21 +1832,18 @@ async function expAcao(e){
     return;
   }
   if(acao==='deptos'){
-    const tem = new Set((L.setores||[]).map(psChaveSetor));
-    const novos = psSetoresCadastro().setores.filter(s=>!tem.has(psChaveSetor(s)));
-    if(!novos.length){ toast('Todos os departamentos do cadastro já estão na lista.'); return; }
-    const todos = [...(L.setores||[]), ...novos].sort(psOrdSetor);
+    const {todos, incluidos, removidos} = expListaAtualizada(L);
+    if(!incluidos && !removidos){ toast('A lista já está atualizada.'); return; }
     try{
       await setDoc(doc(db,'rh_exp_links', L.id), {setores:todos.map(s=>({filial:s.filial, depto:s.depto})), chavesSetor:todos.map(psChaveSetor)}, {merge:true});
-      toast(`${novos.length} departamento(s) incluído(s) ✓`);
+      toast(`Lista atualizada ✓ — ${incluidos} incluído(s), ${removidos} removido(s) de outras filiais`);
     }catch(err){ console.error(err); toast('Falha ao atualizar a lista.', true); }
     return;
   }
   if(acao==='novo'){
     confirmModal('Gerar um link novo? O link atual <strong>para de funcionar</strong> e quem tiver o endereço antigo não consegue mais responder. As respostas já recebidas continuam no painel.', async ()=>{
       try{
-        const tem = new Set((L.setores||[]).map(psChaveSetor));
-        const setores = [...(L.setores||[]), ...psSetoresCadastro().setores.filter(s=>!tem.has(psChaveSetor(s)))];
+        const setores = expListaAtualizada(L).todos;
         const batch = writeBatch(db);
         batch.set(doc(db,'rh_exp_links', psToken()), expDocLink(setores));
         state.expLinks.filter(x=>x.ativo).forEach(x=> batch.set(doc(db,'rh_exp_links', x.id), {ativo:false}, {merge:true}));
