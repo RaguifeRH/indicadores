@@ -1735,15 +1735,29 @@ function expFilialParticipa(filial){
   const n = stripAcc(filial).toUpperCase();
   return EXP_FILIAIS.some(palavras=>palavras.every(p=>n.includes(p)));
 }
-/* ---------- setores do cadastro (último mês importado com ativos), só das filiais participantes ---------- */
+/* ---------- setores do cadastro, só das filiais participantes ----------
+   Entra o departamento que tem ativos no último mês importado OU teve admissão nos
+   últimos 3 meses (quem está em experiência). */
 function psSetoresCadastro(){
-  const meses = [...new Set(state.lanc.filter(l=>(l.ativos||0)>0).map(l=>l.competencia).filter(Boolean))].sort();
+  const meses = [...new Set(state.lanc.filter(l=>(l.ativos||0)>0 || (l.admitidos||0)>0).map(l=>l.competencia).filter(Boolean))].sort();
   const comp = meses[meses.length-1];
   if(!comp) return {comp:null, setores:[]};
-  const setores = state.lanc.filter(l=>l.competencia===comp && (l.ativos||0)>0 && expFilialParticipa(l.filial))
-    .map(l=>({filial:l.filial, depto:l.depto}))
-    .sort(psOrdSetor);
-  return {comp, setores};
+  const ini = addMonths(comp, -2);
+  const m = new Map();
+  state.lanc.forEach(l=>{
+    if(!expFilialParticipa(l.filial) || !l.competencia) return;
+    const ok = (l.competencia===comp && (l.ativos||0)>0) || (l.competencia>=ini && l.competencia<=comp && (l.admitidos||0)>0);
+    if(ok) m.set(psChaveSetor(l), {filial:l.filial, depto:l.depto});
+  });
+  return {comp, setores:[...m.values()].sort(psOrdSetor)};
+}
+// todas as filiais do cadastro (para conferir se o nome da filial foi reconhecido)
+function expFiliaisCadastro(){
+  return [...new Set(state.lanc.map(l=>l.filial).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+}
+// departamentos que já apareceram no cadastro, por filial (para incluir à mão)
+function expDeptosDaFilial(filial){
+  return [...new Set(state.lanc.filter(l=>l.filial===filial).map(l=>l.depto).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
 }
 
 /* ---------- LINK (admin) ---------- */
@@ -1763,7 +1777,7 @@ function renderRodadas(){
   if(!L){
     host.innerHTML = `<div class="panel"><h2>Gerar o link</h2>
       <div class="desc">A lista de departamentos do formulário sai da última Relação de Funcionários importada. Depois dá para atualizar a lista sem trocar o link.</div>
-      <div class="note">${comp ? `Serão <strong>${setores.length} departamentos</strong> (Relação de Funcionários de <strong>${fmtMesComp(comp)}</strong>), das filiais: <strong>${esc([...new Set(setores.map(x=>x.filial))].join(', ')||'nenhuma encontrada')}</strong>.` : 'Importe a Relação de Funcionários primeiro (aba Importar).'}</div>
+      <div class="note">${comp ? `Serão <strong>${setores.length} departamentos</strong> (com ativos na Relação de Funcionários de <strong>${fmtMesComp(comp)}</strong> ou admissões nos 3 meses até ela), das filiais: <strong>${esc([...new Set(setores.map(x=>x.filial))].join(', ')||'nenhuma encontrada')}</strong>.` : 'Importe a Relação de Funcionários primeiro (aba Importar).'}</div>
       <div class="btn-row"><button class="btn btn-primary" data-acao="gerar" ${comp?'':'disabled'}>Gerar link da pesquisa</button></div></div>`;
     host.onclick = expAcao;
     return;
@@ -1775,9 +1789,13 @@ function renderRodadas(){
   const porSetor = {};
   resp.forEach(r=>{ const k=psChaveSetor(r); porSetor[k] = porSetor[k] || {'45':0,'90':0}; if(r.momento==='45'||r.momento==='90') porSetor[k][r.momento]++; });
   const mudancas = expListaAtualizada(L).mudancas;
+  const todasFiliais = expFiliaisCadastro();
+  const filiaisPart = [...new Set([...todasFiliais.filter(expFilialParticipa), ...(L.setores||[]).map(x=>x.filial)])].sort((a,b)=>a.localeCompare(b));
+  const filiaisOpc = filiaisPart.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
   const linhas = [...(L.setores||[])].sort(psOrdSetor).map(s=>{
     const c = porSetor[psChaveSetor(s)] || {'45':0,'90':0};
-    return `<tr><td>${esc(s.filial)}</td><td>${esc(s.depto)}</td><td>${esc(areaDe(s.depto)||'—')}</td><td class="num">${c['45']}</td><td class="num">${c['90']}</td></tr>`;
+    return `<tr><td>${esc(s.filial)}</td><td>${esc(s.depto)}</td><td>${esc(areaDe(s.depto)||'—')}</td><td class="num">${c['45']}</td><td class="num">${c['90']}</td>`
+      + `<td><button class="btn btn-ghost btn-mini" data-acao="remover" data-k="${esc(psChaveSetor(s))}">Remover</button></td></tr>`;
   }).join('');
   host.innerHTML = `<div class="grid-kpi">
       <div class="kpi"><div class="eyebrow">Respostas no total</div><div class="val">${resp.length}</div><div class="meta">${n45} aos 45 dias · ${n90} aos 90 dias</div></div>
@@ -1798,9 +1816,22 @@ function renderRodadas(){
     </div>
     <div class="panel"><h2>Departamentos no formulário</h2>
       <div class="desc">${(L.setores||[]).length} departamentos · só filiais ${esc([...new Set((L.setores||[]).map(x=>x.filial))].join(', ')||'—')} · respostas recebidas desde o início</div>
-      <div class="table-wrap">${linhas ? `<table><thead><tr><th>Filial</th><th>Departamento</th><th>Área</th><th>45 dias</th><th>90 dias</th></tr></thead><tbody>${linhas}</tbody></table>` : '<div class="empty">Sem departamentos</div>'}</div>
+      <div class="table-wrap">${linhas ? `<table><thead><tr><th>Filial</th><th>Departamento</th><th>Área</th><th>45 dias</th><th>90 dias</th><th></th></tr></thead><tbody>${linhas}</tbody></table>` : '<div class="empty">Sem departamentos</div>'}</div>
+    </div>
+    <div class="panel"><h2>Incluir departamento à mão</h2>
+      <div class="desc">Para um departamento que não entrou pela Relação de Funcionários (ex.: admissão mais nova que a última importação).</div>
+      <div class="form-grid">
+        <div><label>Filial</label><select id="exp-add-filial">${filiaisOpc}</select></div>
+        <div><label>Departamento</label><input id="exp-add-depto" list="exp-add-lista" placeholder="Escolha ou digite"><datalist id="exp-add-lista"></datalist></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary btn-mini" data-acao="incluir">Incluir no formulário</button></div>
+      <div class="note">Filiais no cadastro: ${todasFiliais.map(f=>expFilialParticipa(f)?`<strong>${esc(f)} ✓</strong>`:esc(f)).join(' · ')||'—'}<br>
+        ✓ = participa da pesquisa. Se a filial de Neves não estiver marcada, o nome dela na planilha não contém "NEVES" — me avise para ajustar.</div>
     </div>`;
   host.onclick = expAcao;
+  const selF = document.getElementById('exp-add-filial');
+  const encherDeptos = ()=>{ document.getElementById('exp-add-lista').innerHTML = expDeptosDaFilial(selF.value).map(d=>`<option value="${esc(d)}">`).join(''); };
+  selF.onchange = encherDeptos; encherDeptos();
 }
 // lista do link: mantém os departamentos que já estavam (das filiais participantes), inclui os novos do cadastro
 // e tira os de outras filiais
@@ -1838,6 +1869,32 @@ async function expAcao(e){
       await setDoc(doc(db,'rh_exp_links', L.id), {setores:todos.map(s=>({filial:s.filial, depto:s.depto})), chavesSetor:todos.map(psChaveSetor)}, {merge:true});
       toast(`Lista atualizada ✓ — ${incluidos} incluído(s), ${removidos} removido(s) de outras filiais`);
     }catch(err){ console.error(err); toast('Falha ao atualizar a lista.', true); }
+    return;
+  }
+  if(acao==='incluir'){
+    const filial = document.getElementById('exp-add-filial').value;
+    const depto = document.getElementById('exp-add-depto').value.trim().replace(/\s+/g,' ');
+    if(!filial || !depto){ toast('Escolha a filial e o departamento.', true); return; }
+    // usa a grafia do cadastro quando o nome bate (ignorando maiúsculas/acentos), para casar com os indicadores
+    const igual = expDeptosDaFilial(filial).find(d=>normNome(d)===normNome(depto)) || depto.toUpperCase();
+    const k = filial+'||'+igual;
+    if((L.chavesSetor||[]).includes(k)){ toast('Esse departamento já está no formulário.'); return; }
+    const todos = [...(L.setores||[]), {filial, depto:igual}].sort(psOrdSetor);
+    try{
+      await setDoc(doc(db,'rh_exp_links', L.id), {setores:todos.map(s=>({filial:s.filial, depto:s.depto})), chavesSetor:todos.map(psChaveSetor)}, {merge:true});
+      toast(`${igual} incluído ✓`);
+    }catch(err){ console.error(err); toast('Falha ao incluir.', true); }
+    return;
+  }
+  if(acao==='remover'){
+    const k = b.dataset.k;
+    const todos = (L.setores||[]).filter(s=>psChaveSetor(s)!==k);
+    confirmModal(`Tirar <strong>${esc(k.split('||')[1])}</strong> (${esc(k.split('||')[0])}) do formulário? As respostas já recebidas continuam no painel.`, async ()=>{
+      try{
+        await setDoc(doc(db,'rh_exp_links', L.id), {setores:todos.map(s=>({filial:s.filial, depto:s.depto})), chavesSetor:todos.map(psChaveSetor)}, {merge:true});
+        toast('Departamento removido ✓');
+      }catch(err){ console.error(err); toast('Falha ao remover.', true); }
+    });
     return;
   }
   if(acao==='novo'){
