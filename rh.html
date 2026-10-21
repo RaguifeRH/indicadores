@@ -501,7 +501,7 @@
       <!-- PESQUISA DO PERÍODO DE EXPERIÊNCIA — LINK -->
       <div class="page" id="page-rodadas">
         <div class="page-head"><div class="eyebrow-mod">Recursos Humanos</div><h1 class="page-title">Link da Pesquisa</h1></div>
-        <div class="page-desc">Um link fixo, sempre aberto, só para os setores da Raguife Matriz e da filial de Neves. Envie ao colaborador aos 45 e aos 90 dias: ele marca o momento, escolhe o departamento e responde. O link não identifica quem respondeu.</div>
+        <div class="page-desc">Um link fixo, sempre aberto, só para os setores da Raguife Matriz e da Nova Assessoria (Neves). Envie ao colaborador aos 45 e aos 90 dias: ele marca o momento, escolhe o departamento e responde. O link não identifica quem respondeu.</div>
         <div id="rd-conteudo"></div>
       </div>
 
@@ -1728,9 +1728,9 @@ function psOrdSetor(a,b){ return (a.filial+a.depto).localeCompare(b.filial+b.dep
 function psAreaDe(depto){ return areaDe(depto) || '(Sem área)'; }
 
 /* ---------- filiais que participam da pesquisa ----------
-   Só a Raguife Matriz e a filial de Neves. A comparação ignora acento e maiúsculas;
+   Só a Raguife Matriz e a Nova Assessoria (unidade de Neves). A comparação ignora acento e maiúsculas;
    cada item é a lista de palavras que o nome da filial precisa conter. */
-const EXP_FILIAIS = [['RAGUIFE','MATRIZ'], ['NEVES']];
+const EXP_FILIAIS = [['RAGUIFE','MATRIZ'], ['NOVA','ASSESSORIA']];
 function expFilialParticipa(filial){
   const n = stripAcc(filial).toUpperCase();
   return EXP_FILIAIS.some(palavras=>palavras.every(p=>n.includes(p)));
@@ -1826,7 +1826,7 @@ function renderRodadas(){
       </div>
       <div class="btn-row"><button class="btn btn-primary btn-mini" data-acao="incluir">Incluir no formulário</button></div>
       <div class="note">Filiais no cadastro: ${todasFiliais.map(f=>expFilialParticipa(f)?`<strong>${esc(f)} ✓</strong>`:esc(f)).join(' · ')||'—'}<br>
-        ✓ = participa da pesquisa. Se a filial de Neves não estiver marcada, o nome dela na planilha não contém "NEVES" — me avise para ajustar.</div>
+        ✓ = participa da pesquisa. Participam a Raguife Matriz e a Nova Assessoria (Neves).</div>
     </div>`;
   host.onclick = expAcao;
   const selF = document.getElementById('exp-add-filial');
